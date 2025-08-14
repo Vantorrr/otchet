@@ -1,0 +1,97 @@
+from __future__ import annotations
+
+from aiogram import Router, types, F
+from aiogram.filters import Command
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.fsm.context import FSMContext
+from aiogram.enums import ChatType
+
+from bot.services.di import Container
+from bot.services.sheets import MorningData
+from bot.utils.time_utils import date_str_for_today
+from bot.keyboards.main import get_main_menu_keyboard
+
+
+class MorningStates(StatesGroup):
+    waiting_calls_planned = State()
+    waiting_leads_units_planned = State()
+    waiting_leads_volume_planned = State()
+    waiting_new_calls_planned = State()
+
+
+morning_router = Router()
+
+
+@morning_router.message(Command("morning"), F.chat.type == ChatType.SUPERGROUP)
+async def cmd_morning(message: types.Message, state: FSMContext) -> None:
+    if not message.message_thread_id:
+        await message.reply("Эта команда должна выполняться в теме менеджера.")
+        return
+    container = Container.get()
+    manager = container.sheets.get_manager_by_topic(message.message_thread_id)
+    if not manager:
+        await message.reply("Тема не привязана к менеджеру. Используйте /bind_manager <ФИО>.")
+        return
+    await state.update_data(manager=manager)
+    await state.set_state(MorningStates.waiting_calls_planned)
+    await message.reply("Утренний отчет. Введите количество перезвонов (план на сегодня):")
+
+
+@morning_router.message(MorningStates.waiting_calls_planned, F.text.regexp(r"^\d+$"))
+async def morning_calls_planned(message: types.Message, state: FSMContext) -> None:
+    await state.update_data(calls_planned=int(message.text))
+    await state.set_state(MorningStates.waiting_leads_units_planned)
+    await message.reply("Сколько должны прислать заявок, штуки (план):")
+
+
+@morning_router.message(MorningStates.waiting_leads_units_planned, F.text.regexp(r"^\d+$"))
+async def morning_leads_units(message: types.Message, state: FSMContext) -> None:
+    await state.update_data(leads_units_planned=int(message.text))
+    await state.set_state(MorningStates.waiting_leads_volume_planned)
+    await message.reply("Сколько должны прислать заявок, объем (план):")
+
+
+@morning_router.message(MorningStates.waiting_leads_volume_planned, F.text.regexp(r"^\d+$"))
+async def morning_leads_volume(message: types.Message, state: FSMContext) -> None:
+    data = await state.get_data()
+    calls_planned = int(data["calls_planned"])  # type: ignore[index]
+    leads_units = int(data["leads_units_planned"])  # type: ignore[index]
+    leads_volume = int(message.text)
+
+    await state.update_data(leads_volume_planned=leads_volume)
+    await state.set_state(MorningStates.waiting_new_calls_planned)
+    await message.reply("Количество новых звонков (план):")
+
+@morning_router.message(MorningStates.waiting_new_calls_planned, F.text.regexp(r"^\d+$"))
+async def morning_new_calls_planned(message: types.Message, state: FSMContext) -> None:
+    data = await state.get_data()
+    calls_planned = int(data["calls_planned"])  # type: ignore[index]
+    leads_units = int(data["leads_units_planned"])  # type: ignore[index]
+    leads_volume = int(data["leads_volume_planned"])  # type: ignore[index]
+    new_calls_planned = int(message.text)
+
+    container = Container.get()
+    manager = data["manager"]  # type: ignore[index]
+    date_str = date_str_for_today(container.settings)
+
+    container.sheets.upsert_report(
+        date_str,
+        manager,
+        morning=MorningData(
+            calls_planned=calls_planned,
+            leads_units_planned=leads_units,
+            leads_volume_planned=leads_volume,
+            new_calls_planned=new_calls_planned,
+        ),
+    )
+
+    await state.clear()
+    await message.reply("Утренний отчет сохранен. Спасибо!", reply_markup=get_main_menu_keyboard())
+
+
+@morning_router.message(MorningStates.waiting_calls_planned)
+@morning_router.message(MorningStates.waiting_leads_units_planned)
+@morning_router.message(MorningStates.waiting_leads_volume_planned)
+@morning_router.message(MorningStates.waiting_new_calls_planned)
+async def morning_invalid(message: types.Message) -> None:
+    await message.reply("Введите число.")

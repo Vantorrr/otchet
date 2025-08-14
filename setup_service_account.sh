@@ -1,0 +1,15 @@
+#!/bin/bash
+
+echo "🔧 Настройка Service Account ключа..."
+echo ""
+echo "1. Скачай JSON ключ из Google Cloud Console"
+echo "2. Переименуй его в 'service_account.json'"
+echo "3. Перемести в папку проекта:"
+echo ""
+echo "   mv ~/Downloads/your-downloaded-key.json $(pwd)/service_account.json"
+echo ""
+echo "4. Или просто перетащи файл в эту папку и переименуй"
+echo ""
+echo "Текущая папка проекта: $(pwd)"
+echo ""
+echo "После этого запусти: python -m bot.main"
