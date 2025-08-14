@@ -45,3 +45,10 @@
    - `/summary` - сводка
 
 ## 🔥 ВСЕ ГОТОВО! ТЕСТИРУЙ!
+
+---
+
+### Credits
+Разработано командой N0FACE — Digital Legends | [noface.digital](https://noface.digital)
+
+Контакт: Telegram `@pavel_xdev`

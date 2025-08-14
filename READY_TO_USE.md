@@ -66,3 +66,10 @@ TGbot/
 ```
 
 **Все готово! Только замени service_account.json и запускай!** 🎯
+
+---
+
+### Credits
+Разработано командой N0FACE — Digital Legends | [noface.digital](https://noface.digital)
+
+Контакт: Telegram `@pavel_xdev`

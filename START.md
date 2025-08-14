@@ -86,3 +86,10 @@ python -m bot.main
 - `bot/services/` - Сервисы (Google Sheets, DI)
 - `.env` - Переменные окружения
 - `service_account.json` - Ключ Google Service Account
+
+---
+
+### Credits
+Разработано командой N0FACE — Digital Legends | [noface.digital](https://noface.digital)
+
+Контакт: Telegram `@pavel_xdev`

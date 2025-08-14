@@ -62,3 +62,10 @@
 
 ## ✅ Готово!
 Бот будет собирать отчеты и публиковать сводку в теме "Сводка".
+
+---
+
+### Credits
+Разработано командой N0FACE — Digital Legends | [noface.digital](https://noface.digital)
+
+Контакт: Telegram `@pavel_xdev`

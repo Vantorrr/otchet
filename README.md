@@ -38,3 +38,10 @@ python -m bot.main
 ### Notes
 - Default timezone: `Europe/Moscow` (configurable via env)
 - Initial managers: Бариев, Туробов, Романченко, Шевченко, Чертыковцев
+
+---
+
+### Credits
+Разработано командой N0FACE — Digital Legends | [noface.digital](https://noface.digital)
+
+Контакт: Telegram `@pavel_xdev`
