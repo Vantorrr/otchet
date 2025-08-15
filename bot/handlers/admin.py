@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from aiogram import Router, types, F
 from aiogram.filters import Command
+from aiogram.filters.command import CommandObject
 from aiogram.enums import ChatType
 
 from bot.config import Settings
@@ -82,12 +83,30 @@ async def cmd_menu(message: types.Message) -> None:
 
 
 @admin_router.message(Command("purge_manager"))
-async def cmd_purge_manager(message: types.Message) -> None:
-    args = message.text.split(maxsplit=1)
-    if len(args) < 2:
+async def cmd_purge_manager(message: types.Message, command: CommandObject) -> None:
+    # Prefer parsing via CommandObject to be robust with mentions: /purge_manager@bot args
+    argline = (command.args or "").strip()
+    if not argline:
         await message.reply("Укажите ФИО менеджера: /purge_manager <ФИО> [YYYY-MM-DD]")
         return
-    tail = args[1].split()
+    tail = argline.split()
+    manager = tail[0]
+    date = tail[1] if len(tail) > 1 else None
+    container = Container.get()
+    deleted_reports = container.sheets.delete_reports_by_manager(manager, date)
+    deleted_bindings = container.sheets.delete_bindings_by_manager(manager)
+    await message.reply(
+        f"Удалено записей: Reports={deleted_reports}, Bindings={deleted_bindings} для менеджера {manager}"
+    )
+
+# Fallback in case Command filter misses due to client quirks (e.g. slash with extra spaces)
+@admin_router.message(F.text.regexp(r"^/purge_manager(?:@\w+)?(\s+.*)?$"))
+async def cmd_purge_manager_fallback(message: types.Message) -> None:
+    parts = message.text.split(maxsplit=1) if message.text else []
+    if len(parts) < 2:
+        await message.reply("Укажите ФИО менеджера: /purge_manager <ФИО> [YYYY-MM-DD]")
+        return
+    tail = parts[1].split()
     manager = tail[0]
     date = tail[1] if len(tail) > 1 else None
     container = Container.get()
