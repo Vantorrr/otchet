@@ -165,3 +165,27 @@ class SheetsClient:
     def get_reports_by_date(self, date_str: str) -> List[Dict[str, Any]]:
         records = self._reports.get_all_records()
         return [r for r in records if str(r.get("date")) == date_str]
+
+    # Maintenance
+    def delete_reports_by_manager(self, manager: str, date: Optional[str] = None) -> int:
+        """Delete rows from Reports by manager (optionally limited by date). Returns number of deleted rows."""
+        records = self._reports.get_all_records()
+        rows_to_delete: List[int] = []
+        for idx, row in enumerate(records, start=2):
+            if str(row.get("manager")) == manager and (date is None or str(row.get("date")) == date):
+                rows_to_delete.append(idx)
+        # Delete from bottom to top to keep indices valid
+        for row_idx in reversed(rows_to_delete):
+            self._reports.delete_rows(row_idx)
+        return len(rows_to_delete)
+
+    def delete_bindings_by_manager(self, manager: str) -> int:
+        """Delete binding rows that reference the given manager. Returns number of deleted rows."""
+        records = self._bindings.get_all_records()
+        rows_to_delete: List[int] = []
+        for idx, row in enumerate(records, start=2):
+            if str(row.get("manager")) == manager:
+                rows_to_delete.append(idx)
+        for row_idx in reversed(rows_to_delete):
+            self._bindings.delete_rows(row_idx)
+        return len(rows_to_delete)

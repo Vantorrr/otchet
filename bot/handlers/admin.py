@@ -79,3 +79,20 @@ async def cmd_menu(message: types.Message) -> None:
             "• /bind_manager ФИО - для привязки к менеджеру\n"
             "• /set_summary_topic - для темы сводки"
         )
+
+
+@admin_router.message(Command("purge_manager"))
+async def cmd_purge_manager(message: types.Message) -> None:
+    args = message.text.split(maxsplit=1)
+    if len(args) < 2:
+        await message.reply("Укажите ФИО менеджера: /purge_manager <ФИО> [YYYY-MM-DD]")
+        return
+    tail = args[1].split()
+    manager = tail[0]
+    date = tail[1] if len(tail) > 1 else None
+    container = Container.get()
+    deleted_reports = container.sheets.delete_reports_by_manager(manager, date)
+    deleted_bindings = container.sheets.delete_bindings_by_manager(manager)
+    await message.reply(
+        f"Удалено записей: Reports={deleted_reports}, Bindings={deleted_bindings} для менеджера {manager}"
+    )
