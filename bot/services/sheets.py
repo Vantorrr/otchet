@@ -129,19 +129,31 @@ class SheetsClient:
 
     # Reports
     def upsert_report(self, date_str: str, manager: str, morning: MorningData | None = None, evening: EveningData | None = None) -> None:
+        # Determine current header order from sheet
+        current_headers = self._reports.row_values(1)
+        # Ensure all required headers exist; if not, append to end
+        missing_headers = [h for h in REPORT_HEADERS if h not in current_headers]
+        if missing_headers:
+            new_headers = current_headers + missing_headers
+            self._reports.update("1:1", [new_headers])
+            current_headers = new_headers
+
         records = self._reports.get_all_records()
         row_index: Optional[int] = None
         for idx, row in enumerate(records, start=2):
             if str(row.get("date")) == date_str and str(row.get("manager")) == manager:
                 row_index = idx
                 break
-        # Prepare existing values if any
-        existing: Dict[str, Any] = {h: "" for h in REPORT_HEADERS}
+
+        # Prepare existing values by current header order
+        existing: Dict[str, Any] = {h: "" for h in current_headers}
         if row_index is not None:
             row_vals = self._reports.row_values(row_index)
-            for i, h in enumerate(REPORT_HEADERS):
+            for i, h in enumerate(current_headers):
                 if i < len(row_vals):
                     existing[h] = row_vals[i]
+
+        # Assign new values by header keys
         existing["date"] = date_str
         existing["manager"] = manager
         if morning:
@@ -154,12 +166,22 @@ class SheetsClient:
             existing["evening_leads_units"] = str(evening.leads_units)
             existing["evening_leads_volume"] = str(evening.leads_volume)
             existing["evening_new_calls"] = str(evening.new_calls)
-        row_values = [existing.get(h, "") for h in REPORT_HEADERS]
+
+        row_values = [existing.get(h, "") for h in current_headers]
         if row_index is None:
             self._reports.append_row(row_values)
         else:
-            # Update range to include potentially extra headers
-            end_col = chr(ord('A') + max(len(REPORT_HEADERS), len(row_values)) - 1)
+            end_col_index = len(current_headers)
+            # Convert to column letter(s)
+            def idx_to_col(n: int) -> str:
+                # 1-based to letters
+                result = ""
+                while n:
+                    n, r = divmod(n - 1, 26)
+                    result = chr(65 + r) + result
+                return result
+
+            end_col = idx_to_col(end_col_index)
             self._reports.update(f"A{row_index}:{end_col}{row_index}", [row_values])
 
     def get_reports_by_date(self, date_str: str) -> List[Dict[str, Any]]:
