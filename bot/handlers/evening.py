@@ -50,7 +50,7 @@ async def evening_calls_success(message: types.Message, state: FSMContext) -> No
 async def evening_leads_units(message: types.Message, state: FSMContext) -> None:
     await state.update_data(leads_units=int(message.text))
     await state.set_state(EveningStates.waiting_leads_volume)
-    await message.reply("Завел заявок за сегодня, объем:")
+    await message.reply("Завел заявок за сегодня, объем (млн):")
 
 
 @evening_router.message(EveningStates.waiting_leads_volume, F.text.regexp(r"^\d+$"))
