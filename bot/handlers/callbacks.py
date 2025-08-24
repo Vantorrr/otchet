@@ -16,6 +16,43 @@ from bot.utils.time_utils import (
 )
 from bot.services.summary_builder import build_summary_text
 
+
+def split_long_message(text: str, max_length: int = 4000) -> list[str]:
+    """Разбивает длинное сообщение на части, не превышающие max_length символов"""
+    if len(text) <= max_length:
+        return [text]
+    
+    parts = []
+    current_part = ""
+    
+    lines = text.split('\n')
+    for line in lines:
+        # Если даже одна строка слишком длинная, принудительно обрезаем
+        if len(line) > max_length:
+            if current_part:
+                parts.append(current_part.strip())
+                current_part = ""
+            # Разбиваем длинную строку на части
+            while len(line) > max_length:
+                parts.append(line[:max_length])
+                line = line[max_length:]
+            if line:
+                current_part = line + '\n'
+        # Проверяем поместится ли строка в текущую часть
+        elif len(current_part) + len(line) + 1 <= max_length:
+            current_part += line + '\n'
+        else:
+            # Строка не помещается, начинаем новую часть
+            if current_part:
+                parts.append(current_part.strip())
+            current_part = line + '\n'
+    
+    # Добавляем последнюю часть
+    if current_part:
+        parts.append(current_part.strip())
+    
+    return parts
+
 callbacks_router = Router()
 
 
@@ -90,11 +127,17 @@ async def callback_summary_week(callback: types.CallbackQuery) -> None:
         container = Container.get()
         start, end = start_end_of_week_today(container.settings)
         
-        # Отладочное сообщение
-        await callback.message.answer(f"🔍 Генерирую сводку за неделю: {start} — {end}")
-        
         text = build_summary_text(container.settings, container.sheets, day=start, start=start, end=end)
-        await callback.message.answer(text)
+        
+        # Разбиваем длинное сообщение на части
+        parts = split_long_message(text)
+        
+        for i, part in enumerate(parts):
+            if i == 0:
+                await callback.message.answer(part)
+            else:
+                await callback.message.answer(f"📄 Часть {i + 1}:\n\n{part}")
+        
         await callback.answer("Готово!")
     except Exception as e:
         await callback.message.answer(f"❌ Ошибка при генерации недельной сводки: {str(e)}")
@@ -107,11 +150,24 @@ async def callback_summary_month(callback: types.CallbackQuery) -> None:
         await callback.answer("Ошибка")
         return
     
-    container = Container.get()
-    start, end = start_end_of_month_today(container.settings)
-    text = build_summary_text(container.settings, container.sheets, day=start, start=start, end=end)
-    await callback.message.answer(text)
-    await callback.answer()
+    try:
+        container = Container.get()
+        start, end = start_end_of_month_today(container.settings)
+        text = build_summary_text(container.settings, container.sheets, day=start, start=start, end=end)
+        
+        # Разбиваем длинное сообщение на части
+        parts = split_long_message(text)
+        
+        for i, part in enumerate(parts):
+            if i == 0:
+                await callback.message.answer(part)
+            else:
+                await callback.message.answer(f"📄 Часть {i + 1}:\n\n{part}")
+        
+        await callback.answer("Готово!")
+    except Exception as e:
+        await callback.message.answer(f"❌ Ошибка при генерации месячной сводки: {str(e)}")
+        await callback.answer("Ошибка!")
 
 
 @callbacks_router.callback_query(F.data == "summary_quarter")
@@ -120,11 +176,24 @@ async def callback_summary_quarter(callback: types.CallbackQuery) -> None:
         await callback.answer("Ошибка")
         return
     
-    container = Container.get()
-    start, end = start_end_of_quarter_today(container.settings)
-    text = build_summary_text(container.settings, container.sheets, day=start, start=start, end=end)
-    await callback.message.answer(text)
-    await callback.answer()
+    try:
+        container = Container.get()
+        start, end = start_end_of_quarter_today(container.settings)
+        text = build_summary_text(container.settings, container.sheets, day=start, start=start, end=end)
+        
+        # Разбиваем длинное сообщение на части
+        parts = split_long_message(text)
+        
+        for i, part in enumerate(parts):
+            if i == 0:
+                await callback.message.answer(part)
+            else:
+                await callback.message.answer(f"📄 Часть {i + 1}:\n\n{part}")
+        
+        await callback.answer("Готово!")
+    except Exception as e:
+        await callback.message.answer(f"❌ Ошибка при генерации квартальной сводки: {str(e)}")
+        await callback.answer("Ошибка!")
 
 
 @callbacks_router.callback_query(F.data == "summary_date")
