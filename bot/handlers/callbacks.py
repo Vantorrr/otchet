@@ -86,11 +86,19 @@ async def callback_summary_week(callback: types.CallbackQuery) -> None:
         await callback.answer("Ошибка")
         return
     
-    container = Container.get()
-    start, end = start_end_of_week_today(container.settings)
-    text = build_summary_text(container.settings, container.sheets, day=start, start=start, end=end)
-    await callback.message.answer(text)
-    await callback.answer()
+    try:
+        container = Container.get()
+        start, end = start_end_of_week_today(container.settings)
+        
+        # Отладочное сообщение
+        await callback.message.answer(f"🔍 Генерирую сводку за неделю: {start} — {end}")
+        
+        text = build_summary_text(container.settings, container.sheets, day=start, start=start, end=end)
+        await callback.message.answer(text)
+        await callback.answer("Готово!")
+    except Exception as e:
+        await callback.message.answer(f"❌ Ошибка при генерации недельной сводки: {str(e)}")
+        await callback.answer("Ошибка!")
 
 
 @callbacks_router.callback_query(F.data == "summary_month")
