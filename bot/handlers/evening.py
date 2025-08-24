@@ -16,6 +16,8 @@ class EveningStates(StatesGroup):
     waiting_calls_success = State()
     waiting_leads_units = State()
     waiting_leads_volume = State()
+    waiting_approved_volume = State()
+    waiting_issued_volume = State()
     waiting_new_calls = State()
 
 
@@ -54,6 +56,20 @@ async def evening_leads_units(message: types.Message, state: FSMContext) -> None
 @evening_router.message(EveningStates.waiting_leads_volume, F.text.regexp(r"^\d+$"))
 async def evening_leads_volume(message: types.Message, state: FSMContext) -> None:
     await state.update_data(leads_volume=int(message.text))
+    await state.set_state(EveningStates.waiting_approved_volume)
+    await message.reply("Одобрено за сегодня, объем (млн):")
+
+
+@evening_router.message(EveningStates.waiting_approved_volume, F.text.regexp(r"^\d+$"))
+async def evening_approved(message: types.Message, state: FSMContext) -> None:
+    await state.update_data(approved_volume=int(message.text))
+    await state.set_state(EveningStates.waiting_issued_volume)
+    await message.reply("Выдано за сегодня, объем (млн):")
+
+
+@evening_router.message(EveningStates.waiting_issued_volume, F.text.regexp(r"^\d+$"))
+async def evening_issued(message: types.Message, state: FSMContext) -> None:
+    await state.update_data(issued_volume=int(message.text))
     await state.set_state(EveningStates.waiting_new_calls)
     await message.reply("Количество новых дозвонов:")
 
@@ -64,6 +80,8 @@ async def evening_new_calls(message: types.Message, state: FSMContext) -> None:
     calls_success = int(data["calls_success"])  # type: ignore[index]
     leads_units = int(data["leads_units"])  # type: ignore[index]
     leads_volume = int(data["leads_volume"])  # type: ignore[index]
+    approved_volume = int(data.get("approved_volume", 0))  # type: ignore[index]
+    issued_volume = int(data.get("issued_volume", 0))  # type: ignore[index]
     new_calls = int(message.text)
 
     container = Container.get()
@@ -77,6 +95,8 @@ async def evening_new_calls(message: types.Message, state: FSMContext) -> None:
             calls_success=calls_success,
             leads_units=leads_units,
             leads_volume=leads_volume,
+            approved_volume=approved_volume,
+            issued_volume=issued_volume,
             new_calls=new_calls,
         ),
     )
@@ -98,6 +118,8 @@ async def evening_new_calls(message: types.Message, state: FSMContext) -> None:
 @evening_router.message(EveningStates.waiting_calls_success)
 @evening_router.message(EveningStates.waiting_leads_units)
 @evening_router.message(EveningStates.waiting_leads_volume)
+@evening_router.message(EveningStates.waiting_approved_volume)
+@evening_router.message(EveningStates.waiting_issued_volume)
 @evening_router.message(EveningStates.waiting_new_calls)
 async def evening_invalid(message: types.Message) -> None:
     await message.reply("Введите число.")

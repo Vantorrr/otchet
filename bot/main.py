@@ -94,8 +94,7 @@ async def main() -> None:
     scheduler.add_job(send_morning_reminders, "cron", hour=hh, minute=mm)
     hh, mm = map(int, settings.evening_reminder.split(":"))
     scheduler.add_job(send_evening_reminders, "cron", hour=hh, minute=mm)
-    hh, mm = map(int, settings.daily_summary_time.split(":"))
-    scheduler.add_job(post_daily_summary, "cron", hour=hh, minute=mm)
+    # Автосводку отключаем по требованию клиента
     scheduler.start()
 
     logging.getLogger(__name__).info("Bot is starting polling...")

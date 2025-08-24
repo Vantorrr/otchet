@@ -21,6 +21,8 @@ REPORT_HEADERS = [
     "evening_calls_success",
     "evening_leads_units",
     "evening_leads_volume",
+    "evening_approved_volume",
+    "evening_issued_volume",
     "evening_new_calls",
 ]
 
@@ -41,6 +43,8 @@ class EveningData:
     calls_success: int
     leads_units: int
     leads_volume: int
+    approved_volume: int
+    issued_volume: int
     new_calls: int
 
 

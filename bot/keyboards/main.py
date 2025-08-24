@@ -6,7 +6,6 @@ def get_main_menu_keyboard() -> InlineKeyboardMarkup:
     keyboard = [
         [InlineKeyboardButton(text="🌅 Утренний отчет", callback_data="morning_report")],
         [InlineKeyboardButton(text="🌆 Вечерний отчет", callback_data="evening_report")],
-        [InlineKeyboardButton(text="📊 Сводка за сегодня", callback_data="summary_today")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 

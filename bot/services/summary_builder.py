@@ -47,6 +47,8 @@ def build_summary_text(settings: Settings, sheets: SheetsClient, day: str, *, st
         calls_success = _int_or_zero(r.get("evening_calls_success", 0))
         leads_units = _int_or_zero(r.get("evening_leads_units", 0))
         leads_volume = _int_or_zero(r.get("evening_leads_volume", 0))
+        approved_volume = _int_or_zero(r.get("evening_approved_volume", 0))
+        issued_volume = _int_or_zero(r.get("evening_issued_volume", 0))
         new_calls = _int_or_zero(r.get("evening_new_calls", 0))
 
         # Прогнозность: перезвоны и заявки (объём)
@@ -68,12 +70,14 @@ def build_summary_text(settings: Settings, sheets: SheetsClient, day: str, *, st
                     "<b>План</b>",
                     f"• 📞 Перезвоны: <b>{calls_planned}</b>",
                     f"• 🧾 Заявки (шт): <b>{leads_planned_units}</b>",
-                    f"• 📦 Заявки (объём): <b>{leads_planned_volume}</b>",
+                    f"• 📦 Заявки (объём, млн): <b>{leads_planned_volume}</b>",
                     f"• 🆕 Новые звонки (план): <b>{new_calls_planned}</b>",
                     "<b>Факт</b>",
                     f"• ✅ Перезвоны: <b>{calls_success}</b> из <b>{calls_planned}</b>",
                     f"• 📨 Заявки (шт): <b>{leads_units}</b>",
-                    f"• 📦 Заявки (объём): <b>{leads_volume}</b>",
+                    f"• 📦 Заявки (объём, млн): <b>{leads_volume}</b>",
+                    f"• ✅ Одобрено (млн): <b>{approved_volume}</b>",
+                    f"• ✅ Выдано (млн): <b>{issued_volume}</b>",
                     f"• 🆕 Новые звонки: <b>{new_calls}</b>",
                     "<b>Прогнозность</b>",
                     f"• 🔮 Перезвоны (факт/план): <b>{calls_forecast_pair}</b>",

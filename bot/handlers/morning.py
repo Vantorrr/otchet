@@ -48,7 +48,7 @@ async def morning_calls_planned(message: types.Message, state: FSMContext) -> No
 async def morning_leads_units(message: types.Message, state: FSMContext) -> None:
     await state.update_data(leads_units_planned=int(message.text))
     await state.set_state(MorningStates.waiting_leads_volume_planned)
-    await message.reply("Сколько должны прислать заявок, объем (план):")
+    await message.reply("Сколько должны прислать заявок, объем (план, млн):")
 
 
 @morning_router.message(MorningStates.waiting_leads_volume_planned, F.text.regexp(r"^\d+$"))
