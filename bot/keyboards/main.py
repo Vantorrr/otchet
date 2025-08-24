@@ -17,6 +17,7 @@ def get_admin_menu_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="📆 Сводка: неделя", callback_data="summary_week")],
         [InlineKeyboardButton(text="🗓️ Сводка: месяц", callback_data="summary_month")],
         [InlineKeyboardButton(text="📣 Сводка: квартал", callback_data="summary_quarter")],
+        [InlineKeyboardButton(text="📅 Сводка: период", callback_data="summary_period")],
         [InlineKeyboardButton(text="📋 Сводка за дату", callback_data="summary_date")],
         [InlineKeyboardButton(text="⚙️ Настроить тему", callback_data="setup_topic")],
     ]

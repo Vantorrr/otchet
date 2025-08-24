@@ -127,3 +127,13 @@ async def callback_setup_topic(callback: types.CallbackQuery) -> None:
         "<code>/set_summary_topic</code>"
     )
     await callback.answer()
+
+
+@callbacks_router.callback_query(F.data == "summary_period")
+async def callback_summary_period(callback: types.CallbackQuery) -> None:
+    await callback.message.answer(
+        "Сводка за произвольный период:\n"
+        "<code>/summary_range YYYY-MM-DD YYYY-MM-DD</code>\n\n"
+        "Например: <code>/summary_range 2025-08-01 2025-08-14</code>"
+    )
+    await callback.answer()
