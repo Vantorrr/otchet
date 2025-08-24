@@ -101,6 +101,7 @@ def build_summary_text(settings: Settings, sheets: SheetsClient, day: str, *, st
                     f"   ☎️ Новые звонки: <b>{new_calls_planned}</b>",
                     f"• 📝 Заявки, шт: <b>{leads_planned_units}</b>",
                     f"• 💰 Заявки, млн: <b>{leads_planned_volume}</b>",
+                    "",
                     "<b>Факт</b>",
                     f"• 📲 Перезвоны: <b>{calls_success}</b> из <b>{calls_planned}</b>",
                     f"•  ☎️ Новые звонки: <b>{new_calls}</b>",
@@ -111,7 +112,6 @@ def build_summary_text(settings: Settings, sheets: SheetsClient, day: str, *, st
                     "<b>Прогнозность</b>",
                     f"• 🔮 Перезвоны (факт/план): <b>{calls_forecast_pair}</b>",
                     f"• 🔮 Заявки (объём) факт/план: <b>{vol_forecast_pair}</b>",
-                    "—" * 10,
                 ]
             )
         )

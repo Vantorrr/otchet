@@ -82,6 +82,10 @@ async def callback_summary_today(callback: types.CallbackQuery) -> None:
 
 @callbacks_router.callback_query(F.data == "summary_week")
 async def callback_summary_week(callback: types.CallbackQuery) -> None:
+    if not callback.message:
+        await callback.answer("Ошибка")
+        return
+    
     container = Container.get()
     start, end = start_end_of_week_today(container.settings)
     text = build_summary_text(container.settings, container.sheets, day=start, start=start, end=end)
@@ -91,6 +95,10 @@ async def callback_summary_week(callback: types.CallbackQuery) -> None:
 
 @callbacks_router.callback_query(F.data == "summary_month")
 async def callback_summary_month(callback: types.CallbackQuery) -> None:
+    if not callback.message:
+        await callback.answer("Ошибка")
+        return
+    
     container = Container.get()
     start, end = start_end_of_month_today(container.settings)
     text = build_summary_text(container.settings, container.sheets, day=start, start=start, end=end)
@@ -100,6 +108,10 @@ async def callback_summary_month(callback: types.CallbackQuery) -> None:
 
 @callbacks_router.callback_query(F.data == "summary_quarter")
 async def callback_summary_quarter(callback: types.CallbackQuery) -> None:
+    if not callback.message:
+        await callback.answer("Ошибка")
+        return
+    
     container = Container.get()
     start, end = start_end_of_quarter_today(container.settings)
     text = build_summary_text(container.settings, container.sheets, day=start, start=start, end=end)
@@ -109,6 +121,10 @@ async def callback_summary_quarter(callback: types.CallbackQuery) -> None:
 
 @callbacks_router.callback_query(F.data == "summary_date")
 async def callback_summary_date(callback: types.CallbackQuery) -> None:
+    if not callback.message:
+        await callback.answer("Ошибка")
+        return
+    
     await callback.message.answer(
         "Для сводки за конкретную дату используйте команду:\n"
         "<code>/summary YYYY-MM-DD</code>\n\n"
@@ -119,6 +135,10 @@ async def callback_summary_date(callback: types.CallbackQuery) -> None:
 
 @callbacks_router.callback_query(F.data == "setup_topic")
 async def callback_setup_topic(callback: types.CallbackQuery) -> None:
+    if not callback.message:
+        await callback.answer("Ошибка")
+        return
+    
     await callback.message.answer(
         "Настройка тем:\n\n"
         "<b>Для привязки темы к менеджеру:</b>\n"
@@ -131,6 +151,10 @@ async def callback_setup_topic(callback: types.CallbackQuery) -> None:
 
 @callbacks_router.callback_query(F.data == "summary_period")
 async def callback_summary_period(callback: types.CallbackQuery) -> None:
+    if not callback.message:
+        await callback.answer("Ошибка")
+        return
+    
     await callback.message.answer(
         "Сводка за произвольный период:\n"
         "<code>/summary_range YYYY-MM-DD YYYY-MM-DD</code>\n\n"
