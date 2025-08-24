@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import List, Dict, Any, Optional
+from datetime import datetime, timedelta
 
 from bot.config import Settings
 from bot.services.sheets import SheetsClient
@@ -13,12 +14,40 @@ def _int_or_zero(value: object) -> int:
         return 0
 
 
-def _within(date_str: str, start: Optional[str], end: Optional[str]) -> bool:
-    if not start and not end:
-        return True
-    if start and date_str < start:
+def _normalize_date(value: Any) -> Optional[str]:
+    """Return YYYY-MM-DD or None if cannot parse."""
+    if value is None:
+        return None
+    # Google Sheets may return strings, or numbers (serial), rarely datetime
+    if isinstance(value, str):
+        s = value.strip()
+        for fmt in ("%Y-%m-%d", "%d.%m.%Y", "%d/%m/%Y", "%m/%d/%Y", "%Y/%m/%d"):
+            try:
+                dt = datetime.strptime(s, fmt)
+                return dt.strftime("%Y-%m-%d")
+            except Exception:
+                pass
+        return None
+    if isinstance(value, (int, float)):
+        # Google Sheets serial date (epoch 1899-12-30)
+        try:
+            base = datetime(1899, 12, 30)
+            dt = base + timedelta(days=float(value))
+            return dt.strftime("%Y-%m-%d")
+        except Exception:
+            return None
+    if isinstance(value, datetime):
+        return value.strftime("%Y-%m-%d")
+    return None
+
+
+def _within(value: Any, start: Optional[str], end: Optional[str]) -> bool:
+    ds = _normalize_date(value)
+    if ds is None:
         return False
-    if end and date_str > end:
+    if start and ds < start:
+        return False
+    if end and ds > end:
         return False
     return True
 
@@ -26,7 +55,7 @@ def _within(date_str: str, start: Optional[str], end: Optional[str]) -> bool:
 def build_summary_text(settings: Settings, sheets: SheetsClient, day: str, *, start: str | None = None, end: str | None = None) -> str:
     if start or end:
         all_records = sheets._reports.get_all_records()
-        reports: List[Dict[str, Any]] = [r for r in all_records if _within(str(r.get("date")), start, end)]
+        reports: List[Dict[str, Any]] = [r for r in all_records if _within(r.get("date"), start, end)]
         title = f"📊 <b>Сводка за период {start} — {end}</b>"
     else:
         reports = sheets.get_reports_by_date(day)
@@ -68,17 +97,17 @@ def build_summary_text(settings: Settings, sheets: SheetsClient, day: str, *, st
                 [
                     f"\n<b>👤 {manager}</b>",
                     "<b>План</b>",
-                    f"• 📞 Перезвоны: <b>{calls_planned}</b>",
-                    f"• 🧾 Заявки (шт): <b>{leads_planned_units}</b>",
-                    f"• 📦 Заявки (объём, млн): <b>{leads_planned_volume}</b>",
-                    f"• 🆕 Новые звонки (план): <b>{new_calls_planned}</b>",
+                    f"• 📲 Перезвоны: <b>{calls_planned}</b>",
+                    f"   ☎️ Новые звонки: <b>{new_calls_planned}</b>",
+                    f"• 📝 Заявки, шт: <b>{leads_planned_units}</b>",
+                    f"• 💰 Заявки, млн: <b>{leads_planned_volume}</b>",
                     "<b>Факт</b>",
-                    f"• ✅ Перезвоны: <b>{calls_success}</b> из <b>{calls_planned}</b>",
-                    f"• 📨 Заявки (шт): <b>{leads_units}</b>",
-                    f"• 📦 Заявки (объём, млн): <b>{leads_volume}</b>",
-                    f"• ✅ Одобрено (млн): <b>{approved_volume}</b>",
-                    f"• ✅ Выдано (млн): <b>{issued_volume}</b>",
-                    f"• 🆕 Новые звонки: <b>{new_calls}</b>",
+                    f"• 📲 Перезвоны: <b>{calls_success}</b> из <b>{calls_planned}</b>",
+                    f"•  ☎️ Новые звонки: <b>{new_calls}</b>",
+                    f"• 📝Заявки, шт: <b>{leads_units}</b>",
+                    f"• 💰 Заявки, млн: <b>{leads_volume}</b>",
+                    f"• ✅ Одобрено, млн: <b>{approved_volume}</b>",
+                    f"• ✅ Выдано, млн: <b>{issued_volume}</b>",
                     "<b>Прогнозность</b>",
                     f"• 🔮 Перезвоны (факт/план): <b>{calls_forecast_pair}</b>",
                     f"• 🔮 Заявки (объём) факт/план: <b>{vol_forecast_pair}</b>",

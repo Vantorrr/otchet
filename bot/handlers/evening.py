@@ -103,16 +103,6 @@ async def evening_new_calls(message: types.Message, state: FSMContext) -> None:
 
     await state.clear()
     await message.reply("Вечерний отчет сохранен. Спасибо!", reply_markup=get_main_menu_keyboard())
-    # Auto-post summary into summary topic if configured
-    summary_topic_id = container.sheets.get_summary_topic_id()
-    if summary_topic_id and message.chat:
-        from bot.services.summary_builder import build_summary_text
-        text = build_summary_text(container.settings, container.sheets, date_str_for_today(container.settings))
-        await message.bot.send_message(
-            chat_id=message.chat.id,
-            text=text,
-            message_thread_id=summary_topic_id,
-        )
 
 
 @evening_router.message(EveningStates.waiting_calls_success)
