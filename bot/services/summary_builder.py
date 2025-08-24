@@ -63,22 +63,51 @@ def build_summary_text(settings: Settings, sheets: SheetsClient, day: str, *, st
 
     lines: List[str] = [title]
 
-    total_calls_planned = 0
-    total_calls_success = 0
-
+    # Группируем данные по менеджерам и суммируем
+    managers_data: Dict[str, Dict[str, int]] = {}
+    
     for r in reports:
         manager = r.get("manager", "?")
-        calls_planned = _int_or_zero(r.get("morning_calls_planned", 0))
-        leads_planned_units = _int_or_zero(r.get("morning_leads_planned_units", 0))
-        leads_planned_volume = _int_or_zero(r.get("morning_leads_planned_volume", 0))
-        new_calls_planned = _int_or_zero(r.get("morning_new_calls_planned", 0))
+        if manager not in managers_data:
+            managers_data[manager] = {
+                "calls_planned": 0,
+                "leads_planned_units": 0,
+                "leads_planned_volume": 0,
+                "new_calls_planned": 0,
+                "calls_success": 0,
+                "leads_units": 0,
+                "leads_volume": 0,
+                "approved_volume": 0,
+                "issued_volume": 0,
+                "new_calls": 0,
+            }
+        
+        # Суммируем данные
+        managers_data[manager]["calls_planned"] += _int_or_zero(r.get("morning_calls_planned", 0))
+        managers_data[manager]["leads_planned_units"] += _int_or_zero(r.get("morning_leads_planned_units", 0))
+        managers_data[manager]["leads_planned_volume"] += _int_or_zero(r.get("morning_leads_planned_volume", 0))
+        managers_data[manager]["new_calls_planned"] += _int_or_zero(r.get("morning_new_calls_planned", 0))
+        
+        managers_data[manager]["calls_success"] += _int_or_zero(r.get("evening_calls_success", 0))
+        managers_data[manager]["leads_units"] += _int_or_zero(r.get("evening_leads_units", 0))
+        managers_data[manager]["leads_volume"] += _int_or_zero(r.get("evening_leads_volume", 0))
+        managers_data[manager]["approved_volume"] += _int_or_zero(r.get("evening_approved_volume", 0))
+        managers_data[manager]["issued_volume"] += _int_or_zero(r.get("evening_issued_volume", 0))
+        managers_data[manager]["new_calls"] += _int_or_zero(r.get("evening_new_calls", 0))
 
-        calls_success = _int_or_zero(r.get("evening_calls_success", 0))
-        leads_units = _int_or_zero(r.get("evening_leads_units", 0))
-        leads_volume = _int_or_zero(r.get("evening_leads_volume", 0))
-        approved_volume = _int_or_zero(r.get("evening_approved_volume", 0))
-        issued_volume = _int_or_zero(r.get("evening_issued_volume", 0))
-        new_calls = _int_or_zero(r.get("evening_new_calls", 0))
+    # Выводим данные по каждому менеджеру
+    for manager, data in managers_data.items():
+        calls_planned = data["calls_planned"]
+        leads_planned_units = data["leads_planned_units"]
+        leads_planned_volume = data["leads_planned_volume"]
+        new_calls_planned = data["new_calls_planned"]
+        
+        calls_success = data["calls_success"]
+        leads_units = data["leads_units"]
+        leads_volume = data["leads_volume"]
+        approved_volume = data["approved_volume"]
+        issued_volume = data["issued_volume"]
+        new_calls = data["new_calls"]
 
         # Прогнозность: перезвоны и заявки (объём)
         if calls_planned > 0:
@@ -115,11 +144,9 @@ def build_summary_text(settings: Settings, sheets: SheetsClient, day: str, *, st
                 ]
             )
         )
-        total_calls_planned += calls_planned
-        total_calls_success += calls_success
 
-    if not reports:
-        lines.append("Нет данных на этот день.")
+    if not managers_data:
+        lines.append("Нет данных за этот период.")
 
     return "\n".join(lines)
 
