@@ -56,15 +56,16 @@ def _int_or_zero(value: object) -> int:
         return 0
 
 
-@summary_router.message(Command("summary"), F.chat.type == ChatType.SUPERGROUP)
-async def cmd_summary_supergroup(message: types.Message) -> None:
+@summary_router.message(Command("summary"))
+async def cmd_summary(message: types.Message, command: CommandObject) -> None:
+    """Универсальный обработчик /summary для всех типов чатов"""
     container = Container.get()
-    cmd = CommandObject(message=message)
-    day = parse_date_or_today((cmd.args or None), container.settings)
+    day = parse_date_or_today(command.args, container.settings)
 
     summary_text = build_summary_text(container.settings, container.sheets, day)
     parts = split_long_message(summary_text)
 
+    # Если супергруппа и есть тема для сводок - публикуем туда
     summary_topic_id = container.sheets.get_summary_topic_id()
     if summary_topic_id and message.chat.type == ChatType.SUPERGROUP:
         for i, part in enumerate(parts):
@@ -83,28 +84,12 @@ async def cmd_summary_supergroup(message: types.Message) -> None:
         if message.message_thread_id != summary_topic_id:
             await message.reply("Сводка опубликована в теме сводок.")
     else:
+        # Для всех остальных чатов - отвечаем в том же чате
         for i, part in enumerate(parts):
             if i == 0:
                 await message.reply(part)
             else:
                 await message.answer(f"📄 Часть {i + 1}:\n\n{part}")
-
-
-@summary_router.message(Command("summary"))
-async def cmd_summary_all_chats(message: types.Message) -> None:
-    """Обработчик /summary для всех типов чатов кроме супергрупп"""
-    container = Container.get()
-    cmd = CommandObject(message=message)
-    day = parse_date_or_today((cmd.args or None), container.settings)
-
-    summary_text = build_summary_text(container.settings, container.sheets, day)
-    parts = split_long_message(summary_text)
-
-    for i, part in enumerate(parts):
-        if i == 0:
-            await message.reply(part)
-        else:
-            await message.answer(f"📄 Часть {i + 1}:\n\n{part}")
 
 
 @summary_router.message(Command("summary_range"))
