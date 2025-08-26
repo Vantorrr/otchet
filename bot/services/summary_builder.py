@@ -153,7 +153,10 @@ def build_summary_text(settings: Settings, sheets: SheetsClient, day: str, *, st
         )
 
     if not managers_data:
-        lines.append("Нет данных за этот период.")
+        if start or end:
+            lines.append("Нет данных за этот период.")
+        else:
+            lines.append(f"Нет данных за {day}.")
 
     return "\n".join(lines)
 
