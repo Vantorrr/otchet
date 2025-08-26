@@ -14,13 +14,35 @@ def date_str_for_today(settings: Settings) -> str:
 
 
 def parse_date_or_today(arg: str | None, settings: Settings) -> str:
+    """Parse user-provided date into YYYY-MM-DD.
+
+    Accepts common formats and normalizes unicode dashes. Falls back to today on failure.
+    Supported examples:
+    - 2025-08-22
+    - 22.08.2025
+    - 2025/08/22
+    - 22/08/2025
+    - 2025–08–22 (en/em/figure dash)
+    """
     if not arg:
         return date_str_for_today(settings)
-    try:
-        datetime.strptime(arg, "%Y-%m-%d")
-        return arg
-    except ValueError:
-        return date_str_for_today(settings)
+
+    s = str(arg).strip()
+    # Replace various unicode dashes with ASCII hyphen
+    for dash in ("–", "—", "−", "‒", "―"):
+        s = s.replace(dash, "-")
+    # Only first token if extra text provided
+    s = s.split()[0]
+
+    # Try multiple formats; return normalized
+    for fmt in ("%Y-%m-%d", "%d.%m.%Y", "%Y/%m/%d", "%d/%m/%Y"):
+        try:
+            dt = datetime.strptime(s, fmt)
+            return dt.strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+
+    return date_str_for_today(settings)
 
 
 def start_end_of_week_today(settings: Settings) -> tuple[str, str]:
