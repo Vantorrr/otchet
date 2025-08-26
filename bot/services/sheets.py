@@ -169,6 +169,8 @@ class SheetsClient:
             existing["evening_calls_success"] = str(evening.calls_success)
             existing["evening_leads_units"] = str(evening.leads_units)
             existing["evening_leads_volume"] = str(evening.leads_volume)
+            existing["evening_approved_volume"] = str(evening.approved_volume)
+            existing["evening_issued_volume"] = str(evening.issued_volume)
             existing["evening_new_calls"] = str(evening.new_calls)
 
         row_values = [existing.get(h, "") for h in current_headers]
