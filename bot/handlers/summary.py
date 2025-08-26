@@ -57,7 +57,7 @@ def _int_or_zero(value: object) -> int:
 
 
 @summary_router.message(Command("summary"), F.chat.type == ChatType.SUPERGROUP)
-async def cmd_summary(message: types.Message) -> None:
+async def cmd_summary_supergroup(message: types.Message) -> None:
     container = Container.get()
     cmd = CommandObject(message=message)
     day = parse_date_or_today((cmd.args or None), container.settings)
@@ -88,6 +88,23 @@ async def cmd_summary(message: types.Message) -> None:
                 await message.reply(part)
             else:
                 await message.answer(f"📄 Часть {i + 1}:\n\n{part}")
+
+
+@summary_router.message(Command("summary"))
+async def cmd_summary_all_chats(message: types.Message) -> None:
+    """Обработчик /summary для всех типов чатов кроме супергрупп"""
+    container = Container.get()
+    cmd = CommandObject(message=message)
+    day = parse_date_or_today((cmd.args or None), container.settings)
+
+    summary_text = build_summary_text(container.settings, container.sheets, day)
+    parts = split_long_message(summary_text)
+
+    for i, part in enumerate(parts):
+        if i == 0:
+            await message.reply(part)
+        else:
+            await message.answer(f"📄 Часть {i + 1}:\n\n{part}")
 
 
 @summary_router.message(Command("summary_range"))
