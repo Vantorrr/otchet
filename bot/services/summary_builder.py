@@ -113,13 +113,18 @@ def build_summary_text(settings: Settings, sheets: SheetsClient, day: str, *, st
         if calls_planned > 0:
             calls_forecast_pct = f"{(calls_success / calls_planned * 100):.1f}%"
             calls_forecast_pair = f"{calls_success}/{calls_planned} ({calls_forecast_pct})"
+        elif calls_success > 0:
+            calls_forecast_pair = f"{calls_success}/{calls_planned} (план был 0)"
         else:
-            calls_forecast_pair = "—"
+            calls_forecast_pair = f"{calls_success}/{calls_planned}"
+            
         if leads_planned_volume > 0:
             vol_forecast_pct = f"{(leads_volume / leads_planned_volume * 100):.1f}%"
             vol_forecast_pair = f"{leads_volume}/{leads_planned_volume} ({vol_forecast_pct})"
+        elif leads_volume > 0:
+            vol_forecast_pair = f"{leads_volume}/{leads_planned_volume} (план был 0)"
         else:
-            vol_forecast_pair = "—"
+            vol_forecast_pair = f"{leads_volume}/{leads_planned_volume}"
 
         lines.append(
             "\n".join(
