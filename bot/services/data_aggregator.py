@@ -78,6 +78,8 @@ class DataAggregatorService:
             # Process each record
             for record in all_records:
                 try:
+                    # Normalize keys to lowercase to be robust to header casing
+                    record = {str(k).lower(): v for k, v in record.items()}
                     # Parse and validate date
                     date_str = str(record.get('date', '')).strip()
                     if not date_str:

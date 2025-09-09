@@ -278,6 +278,7 @@ class TempoAnalyticsService:
             
             for record in all_records:
                 try:
+                    record = {str(k).lower(): v for k, v in record.items()}
                     # Parse date
                     date_str = str(record.get('date', '')).strip()
                     if not date_str:
