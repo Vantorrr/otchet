@@ -19,6 +19,11 @@ from bot.utils.time_utils import (
     start_end_of_quarter_today,
 )
 from bot.services.summary_builder import build_summary_text
+from bot.keyboards.main import (
+    get_admin_menu_keyboard,
+    get_admin_summaries_keyboard,
+    get_admin_ai_keyboard,
+)
 
 
 def split_long_message(text: str, max_length: int = 4000) -> list[str]:
@@ -229,6 +234,32 @@ async def callback_setup_topic(callback: types.CallbackQuery) -> None:
     )
     await callback.answer()
 
+
+@callbacks_router.callback_query(F.data == "admin_section_summaries")
+async def callback_admin_section_summaries(callback: types.CallbackQuery) -> None:
+    if not callback.message:
+        await callback.answer("Ошибка")
+        return
+    await callback.message.edit_text("Меню администратора → Сводки:", reply_markup=get_admin_summaries_keyboard())
+    await callback.answer()
+
+
+@callbacks_router.callback_query(F.data == "admin_section_ai")
+async def callback_admin_section_ai(callback: types.CallbackQuery) -> None:
+    if not callback.message:
+        await callback.answer("Ошибка")
+        return
+    await callback.message.edit_text("Меню администратора → AI:", reply_markup=get_admin_ai_keyboard())
+    await callback.answer()
+
+
+@callbacks_router.callback_query(F.data == "admin_back")
+async def callback_admin_back(callback: types.CallbackQuery) -> None:
+    if not callback.message:
+        await callback.answer("Ошибка")
+        return
+    await callback.message.edit_text("Меню администратора:", reply_markup=get_admin_menu_keyboard())
+    await callback.answer()
 
 @callbacks_router.callback_query(F.data == "summary_period")
 async def callback_summary_period(callback: types.CallbackQuery) -> None:

@@ -58,8 +58,9 @@ class DataAggregatorService:
         from datetime import datetime as _dt
         start_date = _dt.strptime(start_date_str, "%Y-%m-%d").date()
         end_date = _dt.strptime(end_date_str, "%Y-%m-%d").date()
-        quarter_num = (target_date.month - 1) // 3 + 1
-        period_name = f"{quarter_num} квартал {target_date.year}"
+        # Derive quarter by start_date to avoid None target_date
+        quarter_num = (start_date.month - 1) // 3 + 1
+        period_name = f"{quarter_num} квартал {start_date.year}"
         
         data = await self._aggregate_data_for_period(start_date, end_date)
         return data, period_name, start_date, end_date
