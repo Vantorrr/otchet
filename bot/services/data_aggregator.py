@@ -79,7 +79,7 @@ class DataAggregatorService:
             for record in all_records:
                 try:
                     # Parse and validate date
-                    date_str = record.get('Date', '').strip()
+                    date_str = str(record.get('date', '')).strip()
                     if not date_str:
                         continue
                     
@@ -88,7 +88,7 @@ class DataAggregatorService:
                         continue
                     
                     # Get manager name
-                    manager_name = record.get('Manager', '').strip()
+                    manager_name = str(record.get('manager', '')).strip()
                     if not manager_name:
                         continue
                     
@@ -145,20 +145,20 @@ class DataAggregatorService:
     def _add_morning_data(self, manager_data: ManagerData, record: Dict):
         """Add morning report data to manager data."""
         try:
-            manager_data.calls_plan += int(record.get('Morning_Calls_Planned', 0) or 0)
-            manager_data.leads_units_plan += int(record.get('Morning_Leads_Units', 0) or 0)
-            manager_data.leads_volume_plan += float(record.get('Morning_Leads_Volume', 0) or 0)
-            manager_data.new_calls += int(record.get('Morning_New_Calls_Planned', 0) or 0)
+            manager_data.calls_plan += int(record.get('morning_calls_planned', 0) or 0)
+            manager_data.leads_units_plan += int(record.get('morning_leads_planned_units', 0) or 0)
+            manager_data.leads_volume_plan += float(record.get('morning_leads_planned_volume', 0) or 0)
+            manager_data.new_calls += int(record.get('morning_new_calls_planned', 0) or 0)
         except (ValueError, TypeError):
             pass  # Skip invalid data
     
     def _add_evening_data(self, manager_data: ManagerData, record: Dict):
         """Add evening report data to manager data."""
         try:
-            manager_data.calls_fact += int(record.get('Evening_Calls_Successful', 0) or 0)
-            manager_data.leads_units_fact += int(record.get('Evening_Leads_Units', 0) or 0)
-            manager_data.leads_volume_fact += float(record.get('Evening_Leads_Volume', 0) or 0)
-            manager_data.approved_volume += float(record.get('Evening_Approved_Volume', 0) or 0)
-            manager_data.issued_volume += float(record.get('Evening_Issued_Volume', 0) or 0)
+            manager_data.calls_fact += int(record.get('evening_calls_success', 0) or 0)
+            manager_data.leads_units_fact += int(record.get('evening_leads_units', 0) or 0)
+            manager_data.leads_volume_fact += float(record.get('evening_leads_volume', 0) or 0)
+            manager_data.approved_volume += float(record.get('evening_approved_volume', 0) or 0)
+            manager_data.issued_volume += float(record.get('evening_issued_volume', 0) or 0)
         except (ValueError, TypeError):
             pass  # Skip invalid data

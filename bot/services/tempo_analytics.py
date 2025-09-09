@@ -279,7 +279,7 @@ class TempoAnalyticsService:
             for record in all_records:
                 try:
                     # Parse date
-                    date_str = record.get('Date', '').strip()
+                    date_str = str(record.get('date', '')).strip()
                     if not date_str:
                         continue
                     
@@ -295,7 +295,7 @@ class TempoAnalyticsService:
                     if record_date is None or record_date < start_date or record_date > end_date:
                         continue
                     
-                    manager_name = record.get('Manager', '').strip()
+                    manager_name = str(record.get('manager', '')).strip()
                     if not manager_name:
                         continue
                     
@@ -306,8 +306,8 @@ class TempoAnalyticsService:
                         }
                     
                     # Aggregate data
-                    manager_totals[manager_name]['calls_fact'] += int(record.get('Evening_Calls_Successful', 0) or 0)
-                    manager_totals[manager_name]['leads_volume_fact'] += float(record.get('Evening_Leads_Volume', 0) or 0)
+                    manager_totals[manager_name]['calls_fact'] += int(record.get('evening_calls_success', 0) or 0)
+                    manager_totals[manager_name]['leads_volume_fact'] += float(record.get('evening_leads_volume', 0) or 0)
                 
                 except (ValueError, TypeError):
                     continue  # Skip invalid records
