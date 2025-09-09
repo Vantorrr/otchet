@@ -3,23 +3,29 @@ from datetime import date, timedelta
 from typing import Dict, List, Optional, Tuple
 from collections import defaultdict
 
-from bot.services.sheets import SheetsService
+from bot.services.sheets import SheetsClient
 from bot.services.presentation import ManagerData
-from bot.utils.time_utils import parse_date_or_today, get_week_range, get_month_range, get_quarter_range
+from bot.services.di import Container
+from bot.utils.time_utils import (
+    start_end_of_week_today,
+    start_end_of_month_today,
+    start_end_of_quarter_today,
+)
 
 
 class DataAggregatorService:
     """Service for aggregating data from Google Sheets for presentations."""
     
-    def __init__(self, sheets_service: SheetsService):
+    def __init__(self, sheets_service: SheetsClient):
         self.sheets_service = sheets_service
     
     async def aggregate_weekly_data(self, target_date: Optional[date] = None) -> Tuple[Dict[str, ManagerData], str, date, date]:
         """Aggregate data for a week."""
-        if target_date is None:
-            target_date = parse_date_or_today()
-        
-        start_date, end_date = get_week_range(target_date)
+        # Use configured timezone-based helpers for current period
+        start_date_str, end_date_str = start_end_of_week_today(Container.get().settings)
+        from datetime import datetime as _dt
+        start_date = _dt.strptime(start_date_str, "%Y-%m-%d").date()
+        end_date = _dt.strptime(end_date_str, "%Y-%m-%d").date()
         period_name = f"Неделя {start_date.strftime('%d.%m')}—{end_date.strftime('%d.%m.%Y')}"
         
         data = await self._aggregate_data_for_period(start_date, end_date)
@@ -27,10 +33,10 @@ class DataAggregatorService:
     
     async def aggregate_monthly_data(self, target_date: Optional[date] = None) -> Tuple[Dict[str, ManagerData], str, date, date]:
         """Aggregate data for a month."""
-        if target_date is None:
-            target_date = parse_date_or_today()
-        
-        start_date, end_date = get_month_range(target_date)
+        start_date_str, end_date_str = start_end_of_month_today(Container.get().settings)
+        from datetime import datetime as _dt
+        start_date = _dt.strptime(start_date_str, "%Y-%m-%d").date()
+        end_date = _dt.strptime(end_date_str, "%Y-%m-%d").date()
         period_name = f"Месяц {start_date.strftime('%B %Y')}"
         
         # Translate month names to Russian
@@ -48,10 +54,10 @@ class DataAggregatorService:
     
     async def aggregate_quarterly_data(self, target_date: Optional[date] = None) -> Tuple[Dict[str, ManagerData], str, date, date]:
         """Aggregate data for a quarter."""
-        if target_date is None:
-            target_date = parse_date_or_today()
-        
-        start_date, end_date = get_quarter_range(target_date)
+        start_date_str, end_date_str = start_end_of_quarter_today(Container.get().settings)
+        from datetime import datetime as _dt
+        start_date = _dt.strptime(start_date_str, "%Y-%m-%d").date()
+        end_date = _dt.strptime(end_date_str, "%Y-%m-%d").date()
         quarter_num = (target_date.month - 1) // 3 + 1
         period_name = f"{quarter_num} квартал {target_date.year}"
         

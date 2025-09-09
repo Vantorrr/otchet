@@ -5,7 +5,7 @@ from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
 from zoneinfo import ZoneInfo
 
-from bot.services.sheets import SheetsService
+from bot.services.sheets import SheetsClient
 from bot.utils.time_utils import get_moscow_now
 
 
@@ -27,7 +27,7 @@ class TempoAnalyticsService:
     WARNING_THRESHOLD = -20.0  # -20%
     CRITICAL_THRESHOLD = -40.0  # -40%
     
-    def __init__(self, sheets_service: SheetsService):
+    def __init__(self, sheets_service: SheetsClient):
         self.sheets_service = sheets_service
     
     async def analyze_monthly_tempo(
