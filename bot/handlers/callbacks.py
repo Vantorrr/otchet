@@ -107,7 +107,14 @@ async def handle_ai_question(message: types.Message, state: FSMContext) -> None:
     answer = await svc.generate_answer(message.text or "")
     for part in split_long_message(answer):
         await message.answer(part)
+    # Не выходим из состояния, чтобы можно было продолжать диалог.
+    # Выйти можно командой /cancel.
+
+
+@callbacks_router.message(F.text == "/cancel")
+async def handle_ai_cancel(message: types.Message, state: FSMContext) -> None:
     await state.clear()
+    await message.answer("Диалог с ИИ завершён. Чтобы начать снова — нажмите ‘Спроси у ИИ’.")
 
 @callbacks_router.callback_query(F.data == "evening_report")
 async def callback_evening_report(callback: types.CallbackQuery, state: FSMContext) -> None:
