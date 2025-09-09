@@ -20,6 +20,8 @@ class Settings:
     morning_reminder: str
     evening_reminder: str
     daily_summary_time: str
+    yandex_api_key: str
+    yandex_folder_id: str
 
     @staticmethod
     def load() -> "Settings":
@@ -32,6 +34,8 @@ class Settings:
         morning_reminder = get_env("MORNING_REMINDER", "09:00")
         evening_reminder = get_env("EVENING_REMINDER", "18:00")
         daily_summary_time = get_env("DAILY_SUMMARY_TIME", "20:30")
+        yandex_api_key = get_env("YANDEX_API_KEY", "")
+        yandex_folder_id = get_env("YANDEX_FOLDER_ID", "")
         return Settings(
             bot_token=bot_token,
             spreadsheet_name=spreadsheet_name,
@@ -41,4 +45,6 @@ class Settings:
             morning_reminder=morning_reminder,
             evening_reminder=evening_reminder,
             daily_summary_time=daily_summary_time,
+            yandex_api_key=yandex_api_key,
+            yandex_folder_id=yandex_folder_id,
         )

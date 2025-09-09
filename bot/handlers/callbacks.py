@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 from aiogram import Router, types, F
 from aiogram.enums import ChatType
 from aiogram.fsm.context import FSMContext
@@ -7,6 +8,9 @@ from aiogram.fsm.context import FSMContext
 from bot.services.di import Container
 from bot.handlers.morning import MorningStates
 from bot.handlers.evening import EveningStates
+from bot.services.data_aggregator import DataAggregatorService
+from bot.services.presentation import PresentationService
+from bot.services.tempo_analytics import TempoAnalyticsService
 from bot.utils.time_utils import (
     date_str_for_today,
     parse_date_or_today,
@@ -237,4 +241,189 @@ async def callback_summary_period(callback: types.CallbackQuery) -> None:
         "<code>/summary_range YYYY-MM-DD YYYY-MM-DD</code>\n\n"
         "Например: <code>/summary_range 2025-08-01 2025-08-14</code>"
     )
+    await callback.answer()
+
+
+@callbacks_router.callback_query(F.data == "presentation_week")
+async def callback_presentation_week(callback: types.CallbackQuery) -> None:
+    """Generate weekly AI presentation."""
+    if not callback.message:
+        await callback.answer("Ошибка")
+        return
+    
+    await callback.message.answer("🔄 Генерирую недельную AI-презентацию...")
+    
+    try:
+        container = Container.get()
+        
+        # Initialize services
+        aggregator = DataAggregatorService(container.sheets)
+        presentation_service = PresentationService(container.settings)
+        
+        # Get weekly data
+        period_data, period_name, start_date, end_date = await aggregator.aggregate_weekly_data()
+        
+        if not period_data:
+            await callback.message.answer("❌ Нет данных за эту неделю.")
+            await callback.answer()
+            return
+        
+        # Generate presentation
+        pptx_bytes = await presentation_service.generate_presentation(
+            period_data, period_name, start_date, end_date
+        )
+        
+        # Send as document
+        document = types.BufferedInputFile(
+            pptx_bytes,
+            filename=f"AI_Отчет_{period_name.replace(' ', '_')}.pptx"
+        )
+        
+        await callback.message.answer_document(
+            document,
+            caption=f"📊 {period_name}\n🤖 AI-презентация готова!"
+        )
+        
+    except Exception as e:
+        await callback.message.answer(f"❌ Ошибка при генерации презентации: {str(e)}")
+    
+    await callback.answer()
+
+
+@callbacks_router.callback_query(F.data == "presentation_month")
+async def callback_presentation_month(callback: types.CallbackQuery) -> None:
+    """Generate monthly AI presentation."""
+    if not callback.message:
+        await callback.answer("Ошибка")
+        return
+    
+    await callback.message.answer("🔄 Генерирую месячную AI-презентацию...")
+    
+    try:
+        container = Container.get()
+        
+        # Initialize services
+        aggregator = DataAggregatorService(container.sheets)
+        presentation_service = PresentationService(container.settings)
+        
+        # Get monthly data
+        period_data, period_name, start_date, end_date = await aggregator.aggregate_monthly_data()
+        
+        if not period_data:
+            await callback.message.answer("❌ Нет данных за этот месяц.")
+            await callback.answer()
+            return
+        
+        # Generate presentation
+        pptx_bytes = await presentation_service.generate_presentation(
+            period_data, period_name, start_date, end_date
+        )
+        
+        # Send as document
+        document = types.BufferedInputFile(
+            pptx_bytes,
+            filename=f"AI_Отчет_{period_name.replace(' ', '_')}.pptx"
+        )
+        
+        await callback.message.answer_document(
+            document,
+            caption=f"📊 {period_name}\n🤖 AI-презентация готова!"
+        )
+        
+    except Exception as e:
+        await callback.message.answer(f"❌ Ошибка при генерации презентации: {str(e)}")
+    
+    await callback.answer()
+
+
+@callbacks_router.callback_query(F.data == "presentation_quarter")
+async def callback_presentation_quarter(callback: types.CallbackQuery) -> None:
+    """Generate quarterly AI presentation."""
+    if not callback.message:
+        await callback.answer("Ошибка")
+        return
+    
+    await callback.message.answer("🔄 Генерирую квартальную AI-презентацию...")
+    
+    try:
+        container = Container.get()
+        
+        # Initialize services
+        aggregator = DataAggregatorService(container.sheets)
+        presentation_service = PresentationService(container.settings)
+        
+        # Get quarterly data
+        period_data, period_name, start_date, end_date = await aggregator.aggregate_quarterly_data()
+        
+        if not period_data:
+            await callback.message.answer("❌ Нет данных за этот квартал.")
+            await callback.answer()
+            return
+        
+        # Generate presentation
+        pptx_bytes = await presentation_service.generate_presentation(
+            period_data, period_name, start_date, end_date
+        )
+        
+        # Send as document
+        document = types.BufferedInputFile(
+            pptx_bytes,
+            filename=f"AI_Отчет_{period_name.replace(' ', '_')}.pptx"
+        )
+        
+        await callback.message.answer_document(
+            document,
+            caption=f"📊 {period_name}\n🤖 AI-презентация готова!"
+        )
+        
+    except Exception as e:
+        await callback.message.answer(f"❌ Ошибка при генерации презентации: {str(e)}")
+    
+    await callback.answer()
+
+
+@callbacks_router.callback_query(F.data == "tempo_check")
+async def callback_tempo_check(callback: types.CallbackQuery) -> None:
+    """Check managers falling behind tempo."""
+    if not callback.message:
+        await callback.answer("Ошибка")
+        return
+    
+    await callback.message.answer("🔍 Анализирую темп выполнения планов...")
+    
+    try:
+        container = Container.get()
+        
+        # Initialize tempo analytics
+        tempo_service = TempoAnalyticsService(container.sheets)
+        
+        # Get tempo alerts
+        alerts = await tempo_service.analyze_monthly_tempo()
+        
+        if not alerts:
+            await callback.message.answer("✅ Все менеджеры работают в рамках плана!")
+            await callback.answer()
+            return
+        
+        # Format alerts
+        response = "⚠️ Менеджеры, отстающие от плана:\n\n"
+        
+        critical_alerts = [a for a in alerts if a.alert_level == "critical"]
+        warning_alerts = [a for a in alerts if a.alert_level == "warning"]
+        
+        if critical_alerts:
+            response += "🔴 КРИТИЧНО:\n"
+            for alert in critical_alerts:
+                response += f"{alert.message}\n\n"
+        
+        if warning_alerts:
+            response += "🟡 ПРЕДУПРЕЖДЕНИЕ:\n"
+            for alert in warning_alerts:
+                response += f"{alert.message}\n\n"
+        
+        await callback.message.answer(response)
+        
+    except Exception as e:
+        await callback.message.answer(f"❌ Ошибка при анализе темпа: {str(e)}")
+    
     await callback.answer()

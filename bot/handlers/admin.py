@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.filters.command import CommandObject
@@ -7,6 +8,9 @@ from aiogram.enums import ChatType
 
 from bot.config import Settings
 from bot.services.di import Container
+from bot.services.data_aggregator import DataAggregatorService
+from bot.services.presentation import PresentationService
+from bot.services.tempo_analytics import TempoAnalyticsService
 from bot.keyboards.main import get_main_menu_keyboard, get_admin_menu_keyboard
 
 admin_router = Router()
@@ -115,3 +119,160 @@ async def cmd_purge_manager_fallback(message: types.Message) -> None:
     await message.reply(
         f"Удалено записей: Reports={deleted_reports}, Bindings={deleted_bindings} для менеджера {manager}"
     )
+
+
+@admin_router.message(Command("generate_weekly_presentation"))
+async def cmd_generate_weekly_presentation(message: types.Message) -> None:
+    """Generate weekly presentation with AI analysis."""
+    await message.reply("🔄 Генерирую недельную презентацию...")
+    
+    try:
+        container = Container.get()
+        
+        # Initialize services
+        aggregator = DataAggregatorService(container.sheets)
+        presentation_service = PresentationService(container.settings)
+        
+        # Get weekly data
+        period_data, period_name, start_date, end_date = await aggregator.aggregate_weekly_data()
+        
+        if not period_data:
+            await message.reply("❌ Нет данных за эту неделю.")
+            return
+        
+        # Generate presentation
+        pptx_bytes = await presentation_service.generate_presentation(
+            period_data, period_name, start_date, end_date
+        )
+        
+        # Send as document
+        document = types.BufferedInputFile(
+            pptx_bytes,
+            filename=f"Отчет_{period_name.replace(' ', '_')}.pptx"
+        )
+        
+        await message.reply_document(
+            document,
+            caption=f"📊 {period_name}\n🤖 Презентация с AI-анализом готова!"
+        )
+        
+    except Exception as e:
+        await message.reply(f"❌ Ошибка при генерации презентации: {str(e)}")
+
+
+@admin_router.message(Command("generate_monthly_presentation"))
+async def cmd_generate_monthly_presentation(message: types.Message) -> None:
+    """Generate monthly presentation with AI analysis."""
+    await message.reply("🔄 Генерирую месячную презентацию...")
+    
+    try:
+        container = Container.get()
+        
+        # Initialize services
+        aggregator = DataAggregatorService(container.sheets)
+        presentation_service = PresentationService(container.settings)
+        
+        # Get monthly data
+        period_data, period_name, start_date, end_date = await aggregator.aggregate_monthly_data()
+        
+        if not period_data:
+            await message.reply("❌ Нет данных за этот месяц.")
+            return
+        
+        # Generate presentation
+        pptx_bytes = await presentation_service.generate_presentation(
+            period_data, period_name, start_date, end_date
+        )
+        
+        # Send as document
+        document = types.BufferedInputFile(
+            pptx_bytes,
+            filename=f"Отчет_{period_name.replace(' ', '_')}.pptx"
+        )
+        
+        await message.reply_document(
+            document,
+            caption=f"📊 {period_name}\n🤖 Презентация с AI-анализом готова!"
+        )
+        
+    except Exception as e:
+        await message.reply(f"❌ Ошибка при генерации презентации: {str(e)}")
+
+
+@admin_router.message(Command("generate_quarterly_presentation"))
+async def cmd_generate_quarterly_presentation(message: types.Message) -> None:
+    """Generate quarterly presentation with AI analysis."""
+    await message.reply("🔄 Генерирую квартальную презентацию...")
+    
+    try:
+        container = Container.get()
+        
+        # Initialize services
+        aggregator = DataAggregatorService(container.sheets)
+        presentation_service = PresentationService(container.settings)
+        
+        # Get quarterly data
+        period_data, period_name, start_date, end_date = await aggregator.aggregate_quarterly_data()
+        
+        if not period_data:
+            await message.reply("❌ Нет данных за этот квартал.")
+            return
+        
+        # Generate presentation
+        pptx_bytes = await presentation_service.generate_presentation(
+            period_data, period_name, start_date, end_date
+        )
+        
+        # Send as document
+        document = types.BufferedInputFile(
+            pptx_bytes,
+            filename=f"Отчет_{period_name.replace(' ', '_')}.pptx"
+        )
+        
+        await message.reply_document(
+            document,
+            caption=f"📊 {period_name}\n🤖 Презентация с AI-анализом готова!"
+        )
+        
+    except Exception as e:
+        await message.reply(f"❌ Ошибка при генерации презентации: {str(e)}")
+
+
+@admin_router.message(Command("tempo_check"))
+async def cmd_tempo_check(message: types.Message) -> None:
+    """Check managers falling behind tempo."""
+    await message.reply("🔍 Анализирую темп выполнения планов...")
+    
+    try:
+        container = Container.get()
+        
+        # Initialize tempo analytics
+        tempo_service = TempoAnalyticsService(container.sheets)
+        
+        # Get tempo alerts
+        alerts = await tempo_service.analyze_monthly_tempo()
+        
+        if not alerts:
+            await message.reply("✅ Все менеджеры работают в рамках плана!")
+            return
+        
+        # Format alerts
+        response = "⚠️ Менеджеры, отстающие от плана:\n\n"
+        
+        critical_alerts = [a for a in alerts if a.alert_level == "critical"]
+        warning_alerts = [a for a in alerts if a.alert_level == "warning"]
+        
+        if critical_alerts:
+            response += "🔴 КРИТИЧНО:\n"
+            for alert in critical_alerts:
+                response += f"{alert.message}\n\n"
+        
+        if warning_alerts:
+            response += "🟡 ПРЕДУПРЕЖДЕНИЕ:\n"
+            for alert in warning_alerts:
+                response += f"{alert.message}\n\n"
+        
+        await message.reply(response)
+        
+    except Exception as e:
+        await message.reply(f"❌ Ошибка при анализе темпа: {str(e)}")
