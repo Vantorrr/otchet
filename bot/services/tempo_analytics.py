@@ -278,7 +278,7 @@ class TempoAnalyticsService:
             
             for record in all_records:
                 try:
-                    record = {str(k).lower(): v for k, v in record.items()}
+                    record = {str(k).strip().lower(): v for k, v in record.items()}
                     # Parse date
                     date_str = str(record.get('date', '')).strip()
                     if not date_str:
@@ -286,7 +286,7 @@ class TempoAnalyticsService:
                     
                     # Try different date formats
                     record_date = None
-                    for fmt in ['%Y-%m-%d', '%d.%m.%Y', '%Y/%m/%d', '%d/%m/%Y', '%m/%d/%Y', '%Y-%m-%d %H:%M:%S', '%d.%m.%Y %H:%M:%S']:
+                    for fmt in ['%Y-%m-%d', '%d.%m.%Y', '%Y/%m/%d', '%d/%m/%Y', '%m/%d/%Y', '%Y-%m-%d %H:%M:%S', '%d.%m.%Y %H:%M:%S', '%d.%m.%y', '%d.%m.%y %H:%M:%S', '%d-%m-%Y', '%Y.%m.%d']:
                         try:
                             record_date = datetime.strptime(date_str, fmt).date()
                             break

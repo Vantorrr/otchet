@@ -79,7 +79,7 @@ class DataAggregatorService:
             for record in all_records:
                 try:
                     # Normalize keys to lowercase to be robust to header casing
-                    record = {str(k).lower(): v for k, v in record.items()}
+                    record = {str(k).strip().lower(): v for k, v in record.items()}
                     # Parse and validate date
                     date_str = str(record.get('date', '')).strip()
                     if not date_str:
@@ -137,7 +137,8 @@ class DataAggregatorService:
         # Try common date formats
         formats = [
             '%Y-%m-%d', '%d.%m.%Y', '%Y/%m/%d', '%d/%m/%Y', '%m/%d/%Y',
-            '%Y-%m-%d %H:%M:%S', '%d.%m.%Y %H:%M:%S'
+            '%Y-%m-%d %H:%M:%S', '%d.%m.%Y %H:%M:%S',
+            '%d.%m.%y', '%d.%m.%y %H:%M:%S', '%d-%m-%Y', '%Y.%m.%d'
         ]
         for fmt in formats:
             try:
