@@ -69,7 +69,7 @@ class DataAggregatorService:
         """Aggregate data for a specific period."""
         try:
             # Get all records from sheets
-            worksheet = self.sheets_service.get_or_create_worksheet("Reports")
+            worksheet = self.sheets_service._reports
             all_records = worksheet.get_all_records()
             
             # Initialize manager data
