@@ -135,7 +135,10 @@ class DataAggregatorService:
             pass
         
         # Try common date formats
-        formats = ['%Y-%m-%d', '%d.%m.%Y', '%Y/%m/%d', '%d/%m/%Y', '%m/%d/%Y']
+        formats = [
+            '%Y-%m-%d', '%d.%m.%Y', '%Y/%m/%d', '%d/%m/%Y', '%m/%d/%Y',
+            '%Y-%m-%d %H:%M:%S', '%d.%m.%Y %H:%M:%S'
+        ]
         for fmt in formats:
             try:
                 return datetime.strptime(date_str, fmt).date()

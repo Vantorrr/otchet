@@ -286,7 +286,7 @@ class TempoAnalyticsService:
                     
                     # Try different date formats
                     record_date = None
-                    for fmt in ['%Y-%m-%d', '%d.%m.%Y', '%Y/%m/%d', '%d/%m/%Y', '%m/%d/%Y']:
+                    for fmt in ['%Y-%m-%d', '%d.%m.%Y', '%Y/%m/%d', '%d/%m/%Y', '%m/%d/%Y', '%Y-%m-%d %H:%M:%S', '%d.%m.%Y %H:%M:%S']:
                         try:
                             record_date = datetime.strptime(date_str, fmt).date()
                             break
