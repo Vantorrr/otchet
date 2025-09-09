@@ -157,6 +157,62 @@ def build_summary_text(settings: Settings, sheets: SheetsClient, day: str, *, st
             lines.append("Нет данных за этот период.")
         else:
             lines.append(f"Нет данных за {day}.")
+    else:
+        # Добавляем суммарный итог по всем менеджерам
+        total_calls_planned = sum(data["calls_planned"] for data in managers_data.values())
+        total_leads_planned_units = sum(data["leads_planned_units"] for data in managers_data.values())
+        total_leads_planned_volume = sum(data["leads_planned_volume"] for data in managers_data.values())
+        total_new_calls_planned = sum(data["new_calls_planned"] for data in managers_data.values())
+        
+        total_calls_success = sum(data["calls_success"] for data in managers_data.values())
+        total_leads_units = sum(data["leads_units"] for data in managers_data.values())
+        total_leads_volume = sum(data["leads_volume"] for data in managers_data.values())
+        total_approved_volume = sum(data["approved_volume"] for data in managers_data.values())
+        total_issued_volume = sum(data["issued_volume"] for data in managers_data.values())
+        total_new_calls = sum(data["new_calls"] for data in managers_data.values())
+
+        # Прогнозность итоговая
+        if total_calls_planned > 0:
+            total_calls_forecast_pct = f"{(total_calls_success / total_calls_planned * 100):.1f}%"
+            total_calls_forecast_pair = f"{total_calls_success}/{total_calls_planned} ({total_calls_forecast_pct})"
+        elif total_calls_success > 0:
+            total_calls_forecast_pair = f"{total_calls_success}/{total_calls_planned} (план был 0)"
+        else:
+            total_calls_forecast_pair = f"{total_calls_success}/{total_calls_planned}"
+            
+        if total_leads_planned_volume > 0:
+            total_vol_forecast_pct = f"{(total_leads_volume / total_leads_planned_volume * 100):.1f}%"
+            total_vol_forecast_pair = f"{total_leads_volume}/{total_leads_planned_volume} ({total_vol_forecast_pct})"
+        elif total_leads_volume > 0:
+            total_vol_forecast_pair = f"{total_leads_volume}/{total_leads_planned_volume} (план был 0)"
+        else:
+            total_vol_forecast_pair = f"{total_leads_volume}/{total_leads_planned_volume}"
+
+        lines.append(
+            "\n".join(
+                [
+                    "\n" + "="*40,
+                    f"<b>📊 ИТОГО ПО КОМАНДЕ</b>",
+                    "<b>План</b>",
+                    f"• 📲 Перезвоны: <b>{total_calls_planned}</b>",
+                    f"   ☎️ Новые звонки: <b>{total_new_calls_planned}</b>",
+                    f"• 📝 Заявки, шт: <b>{total_leads_planned_units}</b>",
+                    f"• 💰 Заявки, млн: <b>{total_leads_planned_volume}</b>",
+                    "",
+                    "<b>Факт</b>",
+                    f"• 📲 Перезвоны: <b>{total_calls_success}</b> из <b>{total_calls_planned}</b>",
+                    f"•  ☎️ Новые звонки: <b>{total_new_calls}</b>",
+                    f"• 📝Заявки, шт: <b>{total_leads_units}</b>",
+                    f"• 💰 Заявки, млн: <b>{total_leads_volume}</b>",
+                    f"• ✅ Одобрено, млн: <b>{total_approved_volume}</b>",
+                    f"• ✅ Выдано, млн: <b>{total_issued_volume}</b>",
+                    "<b>Прогнозность</b>",
+                    f"• 🔮 Перезвоны (факт/план): <b>{total_calls_forecast_pair}</b>",
+                    f"• 🔮 Заявки (объём) факт/план: <b>{total_vol_forecast_pair}</b>",
+                    "="*40,
+                ]
+            )
+        )
 
     return "\n".join(lines)
 

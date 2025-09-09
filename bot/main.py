@@ -52,12 +52,18 @@ async def main() -> None:
             chat_id = container.sheets.get_group_chat_id()
             if not chat_id:
                 return
-            # Send menu prompt into each manager topic
+            # Send menu to each manager topic
+            from bot.keyboards.main import get_main_menu_keyboard
             for binding in container.sheets._bindings.get_all_records():
                 topic_id = int(binding.get("topic_id"))
                 manager = binding.get("manager")
                 if topic_id and manager:
-                    await bot.send_message(chat_id, f"🌅 Утреннее напоминание для <b>{manager}</b>. Нажмите кнопку или введите /morning", message_thread_id=topic_id)
+                    await bot.send_message(
+                        chat_id, 
+                        f"🌅 Утреннее напоминание для <b>{manager}</b>\nВремя заполнить утренний отчет!", 
+                        message_thread_id=topic_id,
+                        reply_markup=get_main_menu_keyboard()
+                    )
         except Exception as e:
             logging.getLogger(__name__).warning(f"Morning reminder error: {e}")
 
@@ -67,11 +73,18 @@ async def main() -> None:
             chat_id = container.sheets.get_group_chat_id()
             if not chat_id:
                 return
+            # Send menu to each manager topic
+            from bot.keyboards.main import get_main_menu_keyboard
             for binding in container.sheets._bindings.get_all_records():
                 topic_id = int(binding.get("topic_id"))
                 manager = binding.get("manager")
                 if topic_id and manager:
-                    await bot.send_message(chat_id, f"🌆 Вечернее напоминание для <b>{manager}</b>. Нажмите кнопку или введите /evening", message_thread_id=topic_id)
+                    await bot.send_message(
+                        chat_id, 
+                        f"🌆 Вечернее напоминание для <b>{manager}</b>\nВремя заполнить вечерний отчет!", 
+                        message_thread_id=topic_id,
+                        reply_markup=get_main_menu_keyboard()
+                    )
         except Exception as e:
             logging.getLogger(__name__).warning(f"Evening reminder error: {e}")
 
