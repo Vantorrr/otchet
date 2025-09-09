@@ -6,7 +6,8 @@ from dataclasses import dataclass
 from zoneinfo import ZoneInfo
 
 from bot.services.sheets import SheetsClient
-from bot.utils.time_utils import get_moscow_now
+from bot.services.di import Container
+from bot.utils.time_utils import now_in_tz
 
 
 @dataclass
@@ -44,7 +45,7 @@ class TempoAnalyticsService:
             List of tempo alerts for managers falling behind
         """
         if target_date is None:
-            target_date = get_moscow_now().date()
+            target_date = now_in_tz(Container.get().settings).date()
         
         # Get monthly plans (hardcoded for MVP)
         monthly_plans = self._get_monthly_plans(target_date)
