@@ -33,6 +33,21 @@ class YandexGPTService:
             return response
         except Exception as e:
             return f"❌ Ошибка при генерации анализа: {str(e)}"
+
+    async def generate_answer(self, question: str) -> str:
+        """Generic Q&A generation for free-form questions."""
+        if not self.api_key or not self.folder_id:
+            return "❌ YandexGPT не настроен. Добавьте YANDEX_API_KEY и YANDEX_FOLDER_ID в .env"
+
+        prompt = (
+            "Ты опытный бизнес-аналитик. Отвечай кратко и по делу, на русском.\n"
+            "Если спрашивают про наши отчёты/планы/сводки — учитывай, что данные приходят из Google Sheets, а цифры без ПДн.\n\n"
+            f"Вопрос: {question}"
+        )
+        try:
+            return await self._make_request(prompt)
+        except Exception as e:
+            return f"❌ Ошибка YandexGPT: {str(e)}"
     
     def _build_analysis_prompt(self, data: Dict[str, Any]) -> str:
         """Build prompt for AI analysis."""

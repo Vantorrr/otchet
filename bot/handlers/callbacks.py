@@ -24,6 +24,7 @@ from bot.keyboards.main import (
     get_admin_summaries_keyboard,
     get_admin_ai_keyboard,
 )
+from aiogram.fsm.state import StatesGroup, State
 
 
 def split_long_message(text: str, max_length: int = 4000) -> list[str]:
@@ -65,6 +66,10 @@ def split_long_message(text: str, max_length: int = 4000) -> list[str]:
 callbacks_router = Router()
 
 
+class AskAIStates(StatesGroup):
+    waiting_question = State()
+
+
 @callbacks_router.callback_query(F.data == "morning_report")
 async def callback_morning_report(callback: types.CallbackQuery, state: FSMContext) -> None:
     if not callback.message or not callback.message.message_thread_id:
@@ -82,6 +87,27 @@ async def callback_morning_report(callback: types.CallbackQuery, state: FSMConte
     await callback.message.answer("Утренний отчет. Введите количество перезвонов (план на сегодня):")
     await callback.answer()
 
+
+@callbacks_router.callback_query(F.data == "ask_ai")
+async def callback_ask_ai(callback: types.CallbackQuery, state: FSMContext) -> None:
+    if not callback.message:
+        await callback.answer("Ошибка")
+        return
+    await state.set_state(AskAIStates.waiting_question)
+    await callback.message.answer("Напишите вопрос для ИИ одним сообщением. Чтобы отменить — отправьте /cancel.")
+    await callback.answer()
+
+
+@callbacks_router.message(AskAIStates.waiting_question)
+async def handle_ai_question(message: types.Message, state: FSMContext) -> None:
+    container = Container.get()
+    from bot.services.yandex_gpt import YandexGPTService
+    svc = YandexGPTService(container.settings)
+    await message.answer("🤖 Думаю...")
+    answer = await svc.generate_answer(message.text or "")
+    for part in split_long_message(answer):
+        await message.answer(part)
+    await state.clear()
 
 @callbacks_router.callback_query(F.data == "evening_report")
 async def callback_evening_report(callback: types.CallbackQuery, state: FSMContext) -> None:
