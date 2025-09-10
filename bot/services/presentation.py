@@ -57,6 +57,37 @@ class PresentationService:
         self.settings = settings
         self.gpt_service = YandexGPTService(settings)
     
+    # Helpers: branding and colors
+    def _rgb_from_hex(self, hex_color: str) -> RGBColor:
+        try:
+            r = int(hex_color[1:3], 16)
+            g = int(hex_color[3:5], 16)
+            b = int(hex_color[5:7], 16)
+            return RGBColor(r, g, b)
+        except Exception:
+            return RGBColor(204, 0, 0)
+    
+    def _apply_brand(self, slide) -> None:
+        try:
+            pres = slide.part.presentation
+            width = pres.slide_width
+            # Top band background
+            band = slide.shapes.add_shape(
+                1,  # MSO_AUTO_SHAPE_TYPE = Rectangle
+                0, 0, width, Inches(0.6)
+            )
+            band.fill.solid()
+            band.fill.fore_color.rgb = self._rgb_from_hex(getattr(self.settings, 'pptx_secondary_color', '#F3F4F6'))
+            band.line.fill.background()
+            # Logo (optional)
+            if getattr(self.settings, 'pptx_logo_path', '') and os.path.exists(self.settings.pptx_logo_path):
+                slide.shapes.add_picture(
+                    self.settings.pptx_logo_path,
+                    width - Inches(1.8), Inches(0.1), height=Inches(0.4)
+                )
+        except Exception:
+            pass
+    
     async def generate_presentation(
         self,
         period_data: Dict[str, ManagerData],
@@ -149,6 +180,7 @@ class PresentationService:
         """Add title slide."""
         slide_layout = prs.slide_layouts[0]  # Title slide layout
         slide = prs.slides.add_slide(slide_layout)
+        self._apply_brand(slide)
         
         # Title
         title = slide.shapes.title
@@ -185,6 +217,7 @@ class PresentationService:
         """Add summary slide with team totals."""
         slide_layout = prs.slide_layouts[1]  # Title and content layout
         slide = prs.slides.add_slide(slide_layout)
+        self._apply_brand(slide)
         
         # Title
         title = slide.shapes.title
@@ -226,6 +259,7 @@ class PresentationService:
         """Add individual manager slide."""
         slide_layout = prs.slide_layouts[1]
         slide = prs.slides.add_slide(slide_layout)
+        self._apply_brand(slide)
         
         # Title
         title = slide.shapes.title
@@ -280,6 +314,7 @@ class PresentationService:
     ) -> None:
         """Add per-manager comparison slide with two tables + totals + AI comment on one slide."""
         slide = prs.slides.add_slide(prs.slide_layouts[5])  # Title Only
+        self._apply_brand(slide)
         title = slide.shapes.title
         title.text = f"Динамика — {cur.name}"
         title.text_frame.paragraphs[0].font.size = Pt(28)
@@ -434,6 +469,7 @@ class PresentationService:
     async def _add_manager_ai_comment_slide(self, prs: Presentation, prev: ManagerData, cur: ManagerData, period_name: str) -> None:
         """Legacy method: add a standalone AI comment slide for a manager (kept for compatibility)."""
         slide = prs.slides.add_slide(prs.slide_layouts[5])  # Title Only
+        self._apply_brand(slide)
         title = slide.shapes.title
         title.text = f"Комментарий ИИ — {cur.name}"
         title.text_frame.paragraphs[0].font.size = Pt(28)
@@ -588,6 +624,12 @@ class PresentationService:
                 p = cell.text_frame.paragraphs[0]
                 p.font.size = Pt(12)
                 p.font.name = self.settings.pptx_font_family
+                try:
+                    cell.fill.solid()
+                    cell.fill.fore_color.rgb = self._rgb_from_hex(self.settings.pptx_primary_color)
+                    p.font.color.rgb = RGBColor(255, 255, 255)
+                except Exception:
+                    pass
 
         metrics = [
             ("📲 Перезвоны", 'calls_plan', 'calls_fact'),
