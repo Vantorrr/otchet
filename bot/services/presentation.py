@@ -92,9 +92,11 @@ class PresentationService:
         if previous_data is not None:
             await self._add_comparison_slide(prs, previous_data, period_data)
         
-        # Manager slides
+        # Manager slides + per-manager comparison (if previous provided)
         for manager_name, manager_data in period_data.items():
             await self._add_manager_slide(prs, manager_data)
+            if previous_data is not None and manager_name in previous_data:
+                await self._add_manager_comparison_slide(prs, previous_data[manager_name], manager_data)
         
         # AI Analysis slide
         await self._add_ai_analysis_slide(prs, period_data, period_name)
@@ -209,6 +211,95 @@ class PresentationService:
             paragraph.font.size = Pt(16)
             paragraph.font.name = self.settings.pptx_font_family
             paragraph.space_after = Pt(8)
+
+    async def _add_manager_comparison_slide(self, prs: Presentation, prev: ManagerData, cur: ManagerData) -> None:
+        """Add per-manager comparison slide with two tables and totals below, like the team dynamic slide."""
+        slide = prs.slides.add_slide(prs.slide_layouts[5])  # Title Only
+        title = slide.shapes.title
+        title.text = f"Динамика — {cur.name}"
+        title.text_frame.paragraphs[0].font.size = Pt(28)
+        title.text_frame.paragraphs[0].font.name = self.settings.pptx_font_family
+        title.text_frame.paragraphs[0].font.color.rgb = RGBColor(204, 0, 0)
+
+        def t(m: ManagerData) -> dict[str, float]:
+            return {
+                'calls_plan': m.calls_plan,
+                'calls_fact': m.calls_fact,
+                'leads_units_plan': m.leads_units_plan,
+                'leads_units_fact': m.leads_units_fact,
+                'leads_volume_plan': m.leads_volume_plan,
+                'leads_volume_fact': m.leads_volume_fact,
+                'approved_volume': m.approved_volume,
+                'issued_volume': m.issued_volume,
+                'new_calls': m.new_calls,
+            }
+
+        prev_d = t(prev)
+        cur_d = t(cur)
+
+        rows = 5
+        cols = 4
+        left_prev = Inches(0.5)
+        top_prev = Inches(1.8)
+        width = Inches(6.0)
+        height = Inches(2.5)
+        table_prev = slide.shapes.add_table(rows, cols, left_prev, top_prev, width, height).table
+        table_cur = slide.shapes.add_table(rows, cols, left_prev + Inches(6.3), top_prev, width, height).table
+
+        headers = ["Показатель", "План", "Факт", "Конв (%)"]
+        for i, h in enumerate(headers):
+            for tbl in (table_prev, table_cur):
+                cell = tbl.cell(0, i)
+                cell.text = h
+                p = cell.text_frame.paragraphs[0]
+                p.font.size = Pt(12)
+                p.font.name = self.settings.pptx_font_family
+
+        metrics = [
+            ("Перезвоны", 'calls_plan', 'calls_fact'),
+            ("Новые звонки", 'new_calls', 'new_calls'),
+            ("Заявки, шт", 'leads_units_plan', 'leads_units_fact'),
+            ("Заявки, млн", 'leads_volume_plan', 'leads_volume_fact'),
+        ]
+
+        def fill_row(tbl, row_idx, name, plan_val, fact_val):
+            tbl.cell(row_idx, 0).text = name
+            tbl.cell(row_idx, 1).text = f"{plan_val:,.1f}" if isinstance(plan_val, float) else f"{plan_val:,}"
+            tbl.cell(row_idx, 2).text = f"{fact_val:,.1f}" if isinstance(fact_val, float) else f"{fact_val:,}"
+            conv = (fact_val / plan_val * 100) if (isinstance(plan_val, (int, float)) and plan_val) else 0
+            tbl.cell(row_idx, 3).text = f"{conv:.1f}%"
+            for c in range(4):
+                p = tbl.cell(row_idx, c).text_frame.paragraphs[0]
+                p.font.size = Pt(11)
+                p.font.name = self.settings.pptx_font_family
+
+        for idx, (name, plan_key, fact_key) in enumerate(metrics, start=1):
+            fill_row(table_prev, idx, name, prev_d.get(plan_key, 0), prev_d.get(fact_key, 0))
+            fill_row(table_cur, idx, name, cur_d.get(plan_key, 0), cur_d.get(fact_key, 0))
+
+        textbox_prev = slide.shapes.add_textbox(left_prev, top_prev + Inches(2.7), width, Inches(1.2))
+        tfp = textbox_prev.text_frame
+        tfp.text = (
+            f"План {prev_d['leads_volume_plan']:.1f} млн\n"
+            f"Одобрено {prev_d['approved_volume']:.1f} млн\n"
+            f"Выдано {prev_d['issued_volume']:.1f} млн\n"
+            f"Осталось выдать {max(prev_d['leads_volume_plan'] - prev_d['issued_volume'], 0):.1f} млн"
+        )
+        for p in tfp.paragraphs:
+            p.font.size = Pt(12)
+            p.font.name = self.settings.pptx_font_family
+
+        textbox_cur = slide.shapes.add_textbox(left_prev + Inches(6.3), top_prev + Inches(2.7), width, Inches(1.2))
+        tfc = textbox_cur.text_frame
+        tfc.text = (
+            f"План {cur_d['leads_volume_plan']:.1f} млн\n"
+            f"Одобрено {cur_d['approved_volume']:.1f} млн\n"
+            f"Выдано {cur_d['issued_volume']:.1f} млн\n"
+            f"Осталось выдать {max(cur_d['leads_volume_plan'] - cur_d['issued_volume'], 0):.1f} млн"
+        )
+        for p in tfc.paragraphs:
+            p.font.size = Pt(12)
+            p.font.name = self.settings.pptx_font_family
     
     async def _add_ai_analysis_slide(
         self,
