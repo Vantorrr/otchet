@@ -276,3 +276,49 @@ async def cmd_tempo_check(message: types.Message) -> None:
         
     except Exception as e:
         await message.reply(f"❌ Ошибка при анализе темпа: {str(e)}")
+
+
+@admin_router.message(Command("remind_now"), F.chat.type == ChatType.SUPERGROUP)
+async def cmd_remind_now(message: types.Message) -> None:
+    """Manually trigger morning/evening reminders now (for testing). Usage: /remind_now morning|evening"""
+    args = (message.text or "").split()
+    mode = args[1].lower() if len(args) > 1 else "morning"
+    if mode not in {"morning", "evening"}:
+        await message.reply("Использование: /remind_now morning|evening")
+        return
+
+    container = Container.get()
+    chat_id = container.sheets.get_group_chat_id()
+    if not chat_id:
+        await message.reply("❌ Не задан group_chat_id. Отправьте /start в группе, чтобы сохранить его.")
+        return
+
+    from bot.keyboards.main import get_main_menu_keyboard
+
+    sent = 0
+    for binding in container.sheets._bindings.get_all_records():
+        topic_id_raw = str(binding.get("topic_id", "")).strip()
+        if not topic_id_raw.isdigit():
+            continue
+        topic_id = int(topic_id_raw)
+        manager = binding.get("manager")
+        if not (topic_id and manager):
+            continue
+        text = (
+            f"🌅 Утреннее напоминание для <b>{manager}</b>\nВремя заполнить утренний отчет!"
+            if mode == "morning"
+            else f"🌆 Вечернее напоминание для <b>{manager}</b>\nВремя заполнить вечерний отчет!"
+        )
+        try:
+            await message.bot.send_message(
+                chat_id,
+                text,
+                message_thread_id=topic_id,
+                reply_markup=get_main_menu_keyboard(),
+            )
+            sent += 1
+        except Exception as e:
+            # Continue sending to others even if one fails
+            continue
+
+    await message.reply(f"✅ Отправлено напоминаний: {sent} ({mode}).")

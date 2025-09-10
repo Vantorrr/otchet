@@ -55,7 +55,10 @@ async def main() -> None:
             # Send menu to each manager topic
             from bot.keyboards.main import get_main_menu_keyboard
             for binding in container.sheets._bindings.get_all_records():
-                topic_id = int(binding.get("topic_id"))
+                topic_id_raw = str(binding.get("topic_id", "")).strip()
+                if not topic_id_raw.isdigit():
+                    continue
+                topic_id = int(topic_id_raw)
                 manager = binding.get("manager")
                 if topic_id and manager:
                     await bot.send_message(
@@ -76,7 +79,10 @@ async def main() -> None:
             # Send menu to each manager topic
             from bot.keyboards.main import get_main_menu_keyboard
             for binding in container.sheets._bindings.get_all_records():
-                topic_id = int(binding.get("topic_id"))
+                topic_id_raw = str(binding.get("topic_id", "")).strip()
+                if not topic_id_raw.isdigit():
+                    continue
+                topic_id = int(topic_id_raw)
                 manager = binding.get("manager")
                 if topic_id and manager:
                     await bot.send_message(
