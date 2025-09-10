@@ -146,9 +146,8 @@ class PresentationService:
                 previous_end_date,
             )
         
-        # Manager slides + per-manager comparison (if previous provided)
+        # Per‑manager: only comparison slide (tables + AI‑комментарий), без отдельной страницы с показателями
         for manager_name, manager_data in period_data.items():
-            await self._add_manager_slide(prs, manager_data)
             if previous_data is not None and manager_name in previous_data:
                 await self._add_manager_comparison_slide(
                     prs,
