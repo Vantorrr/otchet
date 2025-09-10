@@ -455,6 +455,8 @@ class PresentationService:
                     p.font.name = self.settings.pptx_font_family
                 except Exception:
                     pass
+                # Center Plan/Fact/Conv headers
+                p.alignment = PP_ALIGN.CENTER if i > 0 else PP_ALIGN.LEFT
                 # Header background tint
                 try:
                     r = int(self.settings.pptx_primary_color[1:3], 16)
@@ -483,6 +485,8 @@ class PresentationService:
                 p = tbl.cell(row_idx, c).text_frame.paragraphs[0]
                 p.font.size = Pt(11)
                 p.font.name = self.settings.pptx_font_family
+                # Center Plan/Fact/Conv data
+                p.alignment = PP_ALIGN.CENTER if c > 0 else PP_ALIGN.LEFT
 
         for idx, (name, plan_key, fact_key) in enumerate(metrics, start=1):
             fill_row(table_prev, idx, name, prev_d.get(plan_key, 0), prev_d.get(fact_key, 0))
@@ -715,6 +719,8 @@ class PresentationService:
                 p = cell.text_frame.paragraphs[0]
                 p.font.size = Pt(12)
                 p.font.name = self.settings.pptx_font_family
+                # Center Plan/Fact/Conv headers
+                p.alignment = PP_ALIGN.CENTER if i > 0 else PP_ALIGN.LEFT
                 try:
                     cell.fill.solid()
                     cell.fill.fore_color.rgb = self._rgb_from_hex(self.settings.pptx_primary_color)
@@ -723,7 +729,7 @@ class PresentationService:
                     pass
 
         metrics = [
-            ("📲 Перезвоны", 'calls_plan', 'calls_fact'),
+            ("📲 Повторные звонки", 'calls_plan', 'calls_fact'),
             ("☎️ Новые звонки", 'new_calls', 'new_calls'),
             ("📝 Заявки, шт", 'leads_units_plan', 'leads_units_fact'),
             ("💰 Заявки, млн", 'leads_volume_plan', 'leads_volume_fact'),
@@ -739,6 +745,8 @@ class PresentationService:
                 p = tbl.cell(row_idx, c).text_frame.paragraphs[0]
                 p.font.size = Pt(11)
                 p.font.name = self.settings.pptx_font_family
+                # Center Plan/Fact/Conv data
+                p.alignment = PP_ALIGN.CENTER if c > 0 else PP_ALIGN.LEFT
 
         for idx, (name, plan_key, fact_key) in enumerate(metrics, start=1):
             fill_row(table_prev, idx, name, prev.get(plan_key, 0), prev.get(fact_key, 0))
