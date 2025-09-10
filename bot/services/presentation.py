@@ -92,7 +92,15 @@ class PresentationService:
 
         # Comparison slide (previous vs current)
         if previous_data is not None:
-            await self._add_comparison_slide(prs, previous_data, period_data)
+            await self._add_comparison_slide(
+                prs,
+                previous_data,
+                period_data,
+                start_date,
+                end_date,
+                previous_start_date,
+                previous_end_date,
+            )
         
         # Manager slides + per-manager comparison (if previous provided)
         for manager_name, manager_data in period_data.items():
@@ -447,14 +455,19 @@ class PresentationService:
         prs: Presentation,
         previous_data: Dict[str, ManagerData],
         current_data: Dict[str, ManagerData],
+        current_start: date,
+        current_end: date,
+        previous_start: Optional[date],
+        previous_end: Optional[date],
     ) -> None:
-        """Add slide with two tables: previous period vs current period with dynamics."""
+        """Add team comparison slide with centered header and period captions over tables."""
         slide = prs.slides.add_slide(prs.slide_layouts[5])  # Title Only
         title = slide.shapes.title
         title.text = "Динамика: предыдущий период vs текущий"
         title.text_frame.paragraphs[0].font.size = Pt(28)
         title.text_frame.paragraphs[0].font.name = self.settings.pptx_font_family
         title.text_frame.paragraphs[0].font.color.rgb = RGBColor(204, 0, 0)
+        title.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
 
         def totals(data: Dict[str, ManagerData]) -> Dict[str, float]:
             t = {
@@ -488,6 +501,19 @@ class PresentationService:
         height = Inches(2.5)
         table_prev = slide.shapes.add_table(rows, cols, left_prev, top_prev, width, height).table
         table_cur = slide.shapes.add_table(rows, cols, left_prev + Inches(6.3), top_prev, width, height).table
+
+        # Period captions above tables
+        if previous_start and previous_end:
+            cap_prev = slide.shapes.add_textbox(left_prev, top_prev - Inches(0.35), width, Inches(0.3))
+            cp = cap_prev.text_frame
+            cp.text = f"Предыдущий период: {previous_start.strftime('%d.%m.%Y')} — {previous_end.strftime('%d.%m.%Y')}"
+            cp.paragraphs[0].font.size = Pt(12)
+            cp.paragraphs[0].font.name = self.settings.pptx_font_family
+        cap_cur = slide.shapes.add_textbox(left_prev + Inches(6.3), top_prev - Inches(0.35), width, Inches(0.3))
+        cc = cap_cur.text_frame
+        cc.text = f"Текущий период: {current_start.strftime('%d.%m.%Y')} — {current_end.strftime('%d.%m.%Y')}"
+        cc.paragraphs[0].font.size = Pt(12)
+        cc.paragraphs[0].font.name = self.settings.pptx_font_family
 
         headers = ["Показатель", "План", "Факт", "Конв (%)"]
         for i, h in enumerate(headers):
