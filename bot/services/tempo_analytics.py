@@ -14,7 +14,7 @@ from bot.utils.time_utils import now_in_tz
 class TempoAlert:
     """Alert for manager falling behind tempo."""
     manager_name: str
-    metric: str  # 'calls', 'leads_volume'
+    metric: str  # 'calls', 'issued_volume'
     current_value: float
     expected_value: float
     deviation_percent: float
@@ -83,12 +83,12 @@ class TempoAnalyticsService:
             if calls_alert:
                 alerts.append(calls_alert)
             
-            # Analyze leads volume tempo
+            # Analyze issued volume tempo (факт выдано)
             volume_alert = self._analyze_metric_tempo(
                 manager_name=manager_name,
-                metric="leads_volume",
-                plan_total=plans.get('leads_volume_plan', 0.0),
-                actual_total=manager_actuals.get('leads_volume_fact', 0.0),
+                metric="issued_volume",
+                plan_total=plans.get('issued_volume_plan', plans.get('leads_volume_plan', 0.0)),
+                actual_total=manager_actuals.get('issued_volume_fact', 0.0),
                 working_days_total=working_days_total,
                 working_days_passed=working_days_passed
             )
@@ -131,16 +131,16 @@ class TempoAnalyticsService:
         # Format metric name
         metric_names = {
             'calls': 'Перезвоны',
-            'leads_volume': 'Заявки (млн)'
+            'issued_volume': 'Выдано (млн)'
         }
         metric_display = metric_names.get(metric, metric)
         
         # Create alert message
-        if metric == 'leads_volume':
+        if metric == 'issued_volume':
             message = (
                 f"{emoji} {manager_name}: {metric_display}\n"
-                f"Факт: {actual_total:.1f} млн\n"
-                f"Ожидалось: {expected_value:.1f} млн\n"
+                f"Факт (выдано): {actual_total:.1f} млн\n"
+                f"Ожидалось к дате: {expected_value:.1f} млн\n"
                 f"Отклонение: {deviation:+.1f} млн ({deviation_percent:+.1f}%)"
             )
         else:
@@ -303,12 +303,12 @@ class TempoAnalyticsService:
                     if manager_name not in manager_totals:
                         manager_totals[manager_name] = {
                             'calls_fact': 0,
-                            'leads_volume_fact': 0.0
+                            'issued_volume_fact': 0.0
                         }
                     
                     # Aggregate data
                     manager_totals[manager_name]['calls_fact'] += int(record.get('evening_calls_success', 0) or 0)
-                    manager_totals[manager_name]['leads_volume_fact'] += float(record.get('evening_leads_volume', 0) or 0)
+                    manager_totals[manager_name]['issued_volume_fact'] += float(record.get('evening_issued_volume', 0) or 0)
                 
                 except (ValueError, TypeError):
                     continue  # Skip invalid records
