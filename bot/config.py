@@ -31,8 +31,8 @@ class Settings:
         default_timezone = get_env("DEFAULT_TIMEZONE", "Europe/Moscow")
         managers_raw = get_env("MANAGERS", "Бариев,Туробов,Романченко,Шевченко,Чертыковцев")
         managers = [m.strip() for m in managers_raw.split(",") if m.strip()]
-        morning_reminder = get_env("MORNING_REMINDER", "09:00")
-        evening_reminder = get_env("EVENING_REMINDER", "18:00")
+        morning_reminder = get_env("MORNING_REMINDER", "09:30")
+        evening_reminder = get_env("EVENING_REMINDER", "17:30")
         daily_summary_time = get_env("DAILY_SUMMARY_TIME", "20:30")
         yandex_api_key = get_env("YANDEX_API_KEY", "")
         yandex_folder_id = get_env("YANDEX_FOLDER_ID", "")
