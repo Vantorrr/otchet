@@ -15,6 +15,8 @@ def get_admin_menu_keyboard() -> InlineKeyboardMarkup:
     keyboard = [
         [InlineKeyboardButton(text="📊 Сводки", callback_data="admin_section_summaries")],
         [InlineKeyboardButton(text="🤖 AI-Презентации", callback_data="admin_section_ai")],
+        [InlineKeyboardButton(text="🌅 Утреннее напоминание", callback_data="admin_remind_morning")],
+        [InlineKeyboardButton(text="🌆 Вечернее напоминание", callback_data="admin_remind_evening")],
         [InlineKeyboardButton(text="⚙️ Настроить тему", callback_data="setup_topic")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
@@ -43,7 +45,5 @@ def get_admin_ai_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="🤖 AI-Презентация: квартал", callback_data="presentation_quarter")],
         [InlineKeyboardButton(text="💬 Спроси у ИИ", callback_data="ask_ai")],
         [InlineKeyboardButton(text="⚠️ Проверка темпа", callback_data="tempo_check")],
-        [InlineKeyboardButton(text="🌅 Утреннее напоминание", callback_data="admin_remind_morning")],
-        [InlineKeyboardButton(text="🌆 Вечернее напоминание", callback_data="admin_remind_evening")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
