@@ -773,7 +773,7 @@ class PresentationService:
         def totals_dict(data: Dict[str, float]) -> Dict[str, float]:
             return data
 
-        comment_top = top_prev + Inches(4.1)
+        comment_top = top_prev + Inches(3.9)
         comment_box = slide.shapes.add_textbox(Inches(0.5), comment_top, Inches(12.3), Inches(3.0))
         t = comment_box.text_frame
         t.text = "Комментарий ИИ — Динамика"
