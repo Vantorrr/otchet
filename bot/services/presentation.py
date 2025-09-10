@@ -143,6 +143,7 @@ class PresentationService:
         title.text_frame.paragraphs[0].font.size = Pt(44)
         title.text_frame.paragraphs[0].font.name = self.settings.pptx_font_family
         title.text_frame.paragraphs[0].font.color.rgb = RGBColor(204, 0, 0)  # Red
+        title.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
         
         # Subtitle
         subtitle = slide.placeholders[1]
@@ -152,6 +153,8 @@ class PresentationService:
         subtitle.text_frame.paragraphs[1].font.size = Pt(20)
         subtitle.text_frame.paragraphs[1].font.name = self.settings.pptx_font_family
         subtitle.text_frame.paragraphs[1].font.color.rgb = RGBColor(102, 102, 102)  # Gray
+        subtitle.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+        subtitle.text_frame.paragraphs[1].alignment = PP_ALIGN.CENTER
     
     async def _add_summary_slide(
         self,
@@ -169,6 +172,7 @@ class PresentationService:
         title.text_frame.paragraphs[0].font.size = Pt(32)
         title.text_frame.paragraphs[0].font.name = self.settings.pptx_font_family
         title.text_frame.paragraphs[0].font.color.rgb = RGBColor(204, 0, 0)
+        title.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
         
         # Calculate totals
         totals = self._calculate_totals(period_data)
@@ -203,6 +207,7 @@ class PresentationService:
         title.text_frame.paragraphs[0].font.size = Pt(32)
         title.text_frame.paragraphs[0].font.name = self.settings.pptx_font_family
         title.text_frame.paragraphs[0].font.color.rgb = RGBColor(204, 0, 0)
+        title.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
         
         # Performance indicators
         calls_status = "🟢" if manager_data.calls_percentage >= 80 else "🟡" if manager_data.calls_percentage >= 60 else "🔴"
@@ -248,6 +253,7 @@ class PresentationService:
         title.text_frame.paragraphs[0].font.size = Pt(28)
         title.text_frame.paragraphs[0].font.name = self.settings.pptx_font_family
         title.text_frame.paragraphs[0].font.color.rgb = RGBColor(204, 0, 0)
+        title.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
 
         def t(m: ManagerData) -> dict[str, float]:
             return {
@@ -281,11 +287,13 @@ class PresentationService:
             cp.text = f"Предыдущий период: {previous_start.strftime('%d.%m.%Y')} — {previous_end.strftime('%d.%m.%Y')}"
             cp.paragraphs[0].font.size = Pt(12)
             cp.paragraphs[0].font.name = self.settings.pptx_font_family
+            cp.paragraphs[0].alignment = PP_ALIGN.CENTER
         cap_cur = slide.shapes.add_textbox(left_prev + Inches(6.3), top_prev - Inches(0.35), width, Inches(0.3))
         cc = cap_cur.text_frame
         cc.text = f"Текущий период: {current_start.strftime('%d.%m.%Y')} — {current_end.strftime('%d.%m.%Y')}"
         cc.paragraphs[0].font.size = Pt(12)
         cc.paragraphs[0].font.name = self.settings.pptx_font_family
+        cc.paragraphs[0].alignment = PP_ALIGN.CENTER
 
         headers = ["Показатель", "План", "Факт", "Конв (%)"]
         for i, h in enumerate(headers):
@@ -510,11 +518,13 @@ class PresentationService:
             cp.text = f"Предыдущий период: {previous_start.strftime('%d.%m.%Y')} — {previous_end.strftime('%d.%m.%Y')}"
             cp.paragraphs[0].font.size = Pt(12)
             cp.paragraphs[0].font.name = self.settings.pptx_font_family
+            cp.paragraphs[0].alignment = PP_ALIGN.CENTER
         cap_cur = slide.shapes.add_textbox(left_prev + Inches(6.3), top_prev - Inches(0.35), width, Inches(0.3))
         cc = cap_cur.text_frame
         cc.text = f"Текущий период: {current_start.strftime('%d.%m.%Y')} — {current_end.strftime('%d.%m.%Y')}"
         cc.paragraphs[0].font.size = Pt(12)
         cc.paragraphs[0].font.name = self.settings.pptx_font_family
+        cc.paragraphs[0].alignment = PP_ALIGN.CENTER
 
         headers = ["Показатель", "План", "Факт", "Конв (%)"]
         for i, h in enumerate(headers):
@@ -580,6 +590,7 @@ class PresentationService:
         title.text_frame.paragraphs[0].font.size = Pt(28)
         title.text_frame.paragraphs[0].font.name = self.settings.pptx_font_family
         title.text_frame.paragraphs[0].font.color.rgb = RGBColor(204, 0, 0)
+        title.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
 
         # Try AI-based ranking
         ai_best: list[str] = []
