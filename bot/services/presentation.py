@@ -756,6 +756,24 @@ class PresentationService:
             p.font.size = Pt(12)
             p.font.name = self.settings.pptx_font_family
 
+        # AI comparison comment block
+        def totals_dict(data: Dict[str, float]) -> Dict[str, float]:
+            return data
+
+        comment_box = slide.shapes.add_textbox(Inches(0.5), top_prev + Inches(4.2), Inches(12.3), Inches(1.8))
+        t = comment_box.text_frame
+        t.text = "Комментарий ИИ — Динамика"
+        t.paragraphs[0].font.size = Pt(14)
+        t.paragraphs[0].font.name = self.settings.pptx_font_family
+        t.paragraphs[0].font.bold = True
+        prev_totals = prev
+        cur_totals = cur
+        ai_text = await self.gpt_service.generate_comparison_comment(prev_totals, cur_totals, "Динамика: предыдущий vs текущий")
+        body = t.add_paragraph()
+        body.text = ai_text
+        body.font.size = Pt(12)
+        body.font.name = self.settings.pptx_font_family
+
     async def _add_top3_slide(self, prs: Presentation, period_data: Dict[str, ManagerData]) -> None:
         """Add slide with TOP-3 best and worst managers. Prefer AI ranking; fallback to metric-based."""
         slide = prs.slides.add_slide(prs.slide_layouts[5])  # Title Only

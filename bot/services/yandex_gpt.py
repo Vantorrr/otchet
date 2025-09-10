@@ -177,6 +177,37 @@ class YandexGPTService:
             return await self._make_request(prompt)
         except Exception as e:
             return f"Комментарий команды недоступен: {str(e)}"
+
+    async def generate_comparison_comment(self, prev: Dict[str, Any], cur: Dict[str, Any], title: str) -> str:
+        """Generate a concise comparison comment for 'Динамика: предыдущий vs текущий'."""
+        if not self.api_key or not self.folder_id:
+            return "❌ YandexGPT не настроен. Добавьте YANDEX_API_KEY и YANDEX_FOLDER_ID в .env"
+
+        def pair(name: str, key_plan: str | None, key_fact: str) -> str:
+            if key_plan:
+                return (
+                    f"{name}: было {prev.get(key_fact, 0)} из {prev.get(key_plan, 0)}, "
+                    f"стало {cur.get(key_fact, 0)} из {cur.get(key_plan, 0)}"
+                )
+            return f"{name}: было {prev.get(key_fact, 0)}, стало {cur.get(key_fact, 0)}"
+
+        prompt = (
+            "Ты руководитель продаж. Сравни два периода коротко (60–90 слов), по делу.\n"
+            "1) Где стало лучше/хуже по ключевым метрикам; 2) почему могло произойти; 3) 2–3 действия.\n"
+            f"Заголовок: {title}.\n\n"
+            + pair("Перезвоны", "calls_plan", "calls_fact") + "\n"
+            + pair("Заявки, шт", "leads_units_plan", "leads_units_fact") + "\n"
+            + pair("Заявки, млн", "leads_volume_plan", "leads_volume_fact") + "\n"
+            + pair("Одобрено, млн", None, "approved_volume") + "\n"
+            + pair("Выдано, млн", None, "issued_volume") + "\n"
+            + pair("Новые звонки", None, "new_calls") + "\n\n"
+            "Ответь обычным текстом, без markdown."
+        )
+
+        try:
+            return await self._make_request(prompt)
+        except Exception as e:
+            return f"Комментарий к динамике недоступен: {str(e)}"
     
     def _build_analysis_prompt(self, data: Dict[str, Any]) -> str:
         """Build prompt for AI analysis."""
