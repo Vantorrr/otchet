@@ -104,8 +104,16 @@ class YandexGPTService:
             fact = data.get(key_fact, 0)
             return f"{label}: {fact}/{plan}"
 
+        def delta(label: str, key_fact: str, is_float: bool = False) -> str:
+            pv = previous.get(key_fact, 0) or 0
+            cv = current.get(key_fact, 0) or 0
+            diff = cv - pv
+            if is_float:
+                return f"{label}: {pv:.1f} → {cv:.1f} ({diff:+.1f})"
+            return f"{label}: {pv} → {cv} ({diff:+})"
+
         prev_lines = [
-            line("Перезвоны", 'calls_plan', 'calls_fact', previous),
+            line("Повторные звонки", 'calls_plan', 'calls_fact', previous),
             line("Заявки шт", 'leads_units_plan', 'leads_units_fact', previous),
             line("Заявки млн", 'leads_volume_plan', 'leads_volume_fact', previous),
             f"Одобрено: {previous.get('approved_volume', 0)} млн",
@@ -114,12 +122,20 @@ class YandexGPTService:
         ]
 
         cur_lines = [
-            line("Перезвоны", 'calls_plan', 'calls_fact', current),
+            line("Повторные звонки", 'calls_plan', 'calls_fact', current),
             line("Заявки шт", 'leads_units_plan', 'leads_units_fact', current),
             line("Заявки млн", 'leads_volume_plan', 'leads_volume_fact', current),
             f"Одобрено: {current.get('approved_volume', 0)} млн",
             f"Выдано: {current.get('issued_volume', 0)} млн",
             f"Новые звонки: {current.get('new_calls', 0)}",
+        ]
+
+        deltas = [
+            delta("Повторные звонки", 'calls_fact'),
+            delta("Заявки, шт", 'leads_units_fact'),
+            delta("Заявки, млн", 'leads_volume_fact', is_float=True),
+            delta("Одобрено, млн", 'approved_volume', is_float=True),
+            delta("Выдано, млн", 'issued_volume', is_float=True),
         ]
 
         prompt = (
@@ -128,6 +144,8 @@ class YandexGPTService:
             f"Менеджер: {manager_name}. Период: {period_name}.\n\n"
             "Прошлый период:\n" + "\n".join(prev_lines) + "\n\n"
             "Текущий период:\n" + "\n".join(cur_lines) + "\n\n"
+            "Дельты (используй их, не противоречь им; если значение уменьшилось — пиши 'снизилось', если выросло — 'выросло'):\n"
+            + "\n".join(deltas) + "\n\n"
             "Ответь кратко, деловым стилем, по-русски. Не используй markdown, только простой текст."
         )
 
