@@ -196,6 +196,12 @@ class PresentationService:
         except Exception:
             title.text_frame.paragraphs[0].font.color.rgb = RGBColor(204, 0, 0)
         title.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+        # Force full-width title box for perfect centering
+        try:
+            title.left = 0
+            title.width = prs.slide_width
+        except Exception:
+            pass
         
         # Subtitle
         subtitle = slide.placeholders[1]
@@ -232,6 +238,11 @@ class PresentationService:
         except Exception:
             title.text_frame.paragraphs[0].font.color.rgb = RGBColor(204, 0, 0)
         title.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+        try:
+            title.left = 0
+            title.width = prs.slide_width
+        except Exception:
+            pass
         
         # Calculate totals
         totals = self._calculate_totals(period_data)
@@ -274,6 +285,11 @@ class PresentationService:
         except Exception:
             title.text_frame.paragraphs[0].font.color.rgb = RGBColor(204, 0, 0)
         title.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+        try:
+            title.left = 0
+            title.width = prs.slide_width
+        except Exception:
+            pass
         
         # Performance indicators
         calls_status = "🟢" if manager_data.calls_percentage >= 80 else "🟡" if manager_data.calls_percentage >= 60 else "🔴"
@@ -327,6 +343,11 @@ class PresentationService:
         except Exception:
             title.text_frame.paragraphs[0].font.color.rgb = RGBColor(204, 0, 0)
         title.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+        try:
+            title.left = 0
+            title.width = prs.slide_width
+        except Exception:
+            pass
 
         def t(m: ManagerData) -> dict[str, float]:
             return {
@@ -457,17 +478,19 @@ class PresentationService:
         comment = await self.gpt_service.generate_manager_comment(cur.name, prev_dict, cur_dict, period_name)
 
         # Place comment higher and allow wrapping to avoid clipping on last slide
-        comment_box = slide.shapes.add_textbox(Inches(0.5), top_prev + Inches(3.4), Inches(12.3), Inches(2.0))
+        # Place comment below totals with safe margin to avoid overlap
+        comment_top = top_prev + Inches(2.5) + Inches(1.3)
+        comment_box = slide.shapes.add_textbox(Inches(0.5), comment_top, Inches(12.3), Inches(2.2))
         tfc = comment_box.text_frame
         # Heading
         tfc.text = f"Комментарий ИИ — {cur.name}"
-        tfc.paragraphs[0].font.size = Pt(16)
+        tfc.paragraphs[0].font.size = Pt(14)
         tfc.paragraphs[0].font.name = self.settings.pptx_font_family
         tfc.paragraphs[0].font.bold = True
         # Body
         p = tfc.add_paragraph()
         p.text = comment
-        p.font.size = Pt(12)
+        p.font.size = Pt(11)
         p.font.name = self.settings.pptx_font_family
 
     # Backward-compatibility: older callers might still invoke this to add a separate AI comment slide
@@ -572,6 +595,11 @@ class PresentationService:
         title.text_frame.paragraphs[0].font.name = self.settings.pptx_font_family
         title.text_frame.paragraphs[0].font.color.rgb = RGBColor(204, 0, 0)
         title.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+        try:
+            title.left = 0
+            title.width = prs.slide_width
+        except Exception:
+            pass
 
         def totals(data: Dict[str, ManagerData]) -> Dict[str, float]:
             t = {
@@ -692,6 +720,11 @@ class PresentationService:
         title.text_frame.paragraphs[0].font.name = self.settings.pptx_font_family
         title.text_frame.paragraphs[0].font.color.rgb = RGBColor(204, 0, 0)
         title.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+        try:
+            title.left = 0
+            title.width = prs.slide_width
+        except Exception:
+            pass
 
         # Try AI-based ranking
         ai_best: list[str] = []
