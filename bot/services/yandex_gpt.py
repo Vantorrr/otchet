@@ -88,6 +88,54 @@ class YandexGPTService:
         except Exception as e:
             return {"best": [], "worst": [], "reasons": {}, "error": str(e)}
 
+    async def generate_manager_comment(
+        self,
+        manager_name: str,
+        previous: Dict[str, Any],
+        current: Dict[str, Any],
+        period_name: str,
+    ) -> str:
+        """Generate a brief per-manager comment (progress, risks, advice)."""
+        if not self.api_key or not self.folder_id:
+            return "❌ YandexGPT не настроен. Добавьте YANDEX_API_KEY и YANDEX_FOLDER_ID в .env"
+
+        def line(label: str, key_plan: str, key_fact: str, data: Dict[str, Any]) -> str:
+            plan = data.get(key_plan, 0)
+            fact = data.get(key_fact, 0)
+            return f"{label}: {fact}/{plan}"
+
+        prev_lines = [
+            line("Перезвоны", 'calls_plan', 'calls_fact', previous),
+            line("Заявки шт", 'leads_units_plan', 'leads_units_fact', previous),
+            line("Заявки млн", 'leads_volume_plan', 'leads_volume_fact', previous),
+            f"Одобрено: {previous.get('approved_volume', 0)} млн",
+            f"Выдано: {previous.get('issued_volume', 0)} млн",
+            f"Новые звонки: {previous.get('new_calls', 0)}",
+        ]
+
+        cur_lines = [
+            line("Перезвоны", 'calls_plan', 'calls_fact', current),
+            line("Заявки шт", 'leads_units_plan', 'leads_units_fact', current),
+            line("Заявки млн", 'leads_volume_plan', 'leads_volume_fact', current),
+            f"Одобрено: {current.get('approved_volume', 0)} млн",
+            f"Выдано: {current.get('issued_volume', 0)} млн",
+            f"Новые звонки: {current.get('new_calls', 0)}",
+        ]
+
+        prompt = (
+            "Ты руководитель отдела продаж. Дай короткий комментарий по менеджеру (80-120 слов), строго по делу, без воды.\n"
+            "Структура: 1) Итоги и динамика vs прошлый период; 2) Где отстаёт/лидирует; 3) 2-3 конкретных рекомендации.\n"
+            f"Менеджер: {manager_name}. Период: {period_name}.\n\n"
+            "Прошлый период:\n" + "\n".join(prev_lines) + "\n\n"
+            "Текущий период:\n" + "\n".join(cur_lines) + "\n\n"
+            "Ответь кратко, деловым стилем, по-русски. Не используй markdown, только простой текст."
+        )
+
+        try:
+            return await self._make_request(prompt)
+        except Exception as e:
+            return f"Комментарий недоступен: {str(e)}"
+
     async def generate_answer(self, question: str) -> str:
         """Generic Q&A generation for free-form questions."""
         if not self.api_key or not self.folder_id:
