@@ -264,6 +264,19 @@ class PresentationService:
             paragraph.font.size = Pt(18)
             paragraph.font.name = self.settings.pptx_font_family
             paragraph.space_after = Pt(6)
+
+        # Add AI team comment below
+        comment_box = prs.slides[-1].shapes.add_textbox(Inches(0.5), Inches(4.9), Inches(12.3), Inches(2.2))
+        tf = comment_box.text_frame
+        tf.text = "Комментарий ИИ — Команда"
+        tf.paragraphs[0].font.size = Pt(16)
+        tf.paragraphs[0].font.name = self.settings.pptx_font_family
+        tf.paragraphs[0].font.bold = True
+        ai_comment = await self.gpt_service.generate_team_comment(totals, period_name)
+        p = tf.add_paragraph()
+        p.text = ai_comment
+        p.font.size = Pt(12)
+        p.font.name = self.settings.pptx_font_family
     
     async def _add_manager_slide(self, prs: Presentation, manager_data: ManagerData):
         """Add individual manager slide."""

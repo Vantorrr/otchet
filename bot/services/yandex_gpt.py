@@ -150,6 +150,33 @@ class YandexGPTService:
             return await self._make_request(prompt)
         except Exception as e:
             return f"❌ Ошибка YandexGPT: {str(e)}"
+
+    async def generate_team_comment(self, totals: Dict[str, Any], period_name: str) -> str:
+        """Generate a concise team-level comment for the summary slide."""
+        if not self.api_key or not self.folder_id:
+            return "❌ YandexGPT не настроен. Добавьте YANDEX_API_KEY и YANDEX_FOLDER_ID в .env"
+
+        def pct(num: float, den: float) -> float:
+            try:
+                return round((num / den * 100.0), 1) if den else 0.0
+            except Exception:
+                return 0.0
+
+        prompt = (
+            "Ты руководитель продаж. Дай короткий комментарий по команде (60–90 слов), деловым стилем.\n"
+            "Структура: 1) Итоги и динамика в целом; 2) узкие места; 3) 2–3 действия на неделю.\n"
+            f"Период: {period_name}.\n\n"
+            f"Перезвоны: {totals.get('calls_fact', 0)} из {totals.get('calls_plan', 0)} ({pct(totals.get('calls_fact',0), totals.get('calls_plan',0))}%).\n"
+            f"Заявки, шт: {totals.get('leads_units_fact', 0)} из {totals.get('leads_units_plan', 0)} ({pct(totals.get('leads_units_fact',0), totals.get('leads_units_plan',0))}%).\n"
+            f"Заявки, млн: {totals.get('leads_volume_fact', 0.0)} из {totals.get('leads_volume_plan', 0.0)} ({pct(totals.get('leads_volume_fact',0.0), totals.get('leads_volume_plan',0.0))}%).\n"
+            f"Одобрено, млн: {totals.get('approved_volume', 0.0)}. Выдано, млн: {totals.get('issued_volume', 0.0)}. Новые звонки: {totals.get('new_calls', 0)}.\n\n"
+            "Дай вывод с приоритетами. Без markdown, только обычный текст."
+        )
+
+        try:
+            return await self._make_request(prompt)
+        except Exception as e:
+            return f"Комментарий команды недоступен: {str(e)}"
     
     def _build_analysis_prompt(self, data: Dict[str, Any]) -> str:
         """Build prompt for AI analysis."""
