@@ -34,6 +34,60 @@ class YandexGPTService:
         except Exception as e:
             return f"❌ Ошибка при генерации анализа: {str(e)}"
 
+    async def rank_top3(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Rank TOP-3 best and worst managers based on provided KPIs via YandexGPT.
+
+        Returns dict: {"best": [names...], "worst": [names...], "reasons": {name: reason}}
+        """
+        if not self.api_key or not self.folder_id:
+            return {"best": [], "worst": [], "reasons": {}, "error": "YANDEXGPT_NOT_CONFIGURED"}
+
+        # Instruct the model to return STRICT JSON, no markdown, no commentary
+        prompt = (
+            "Ты аналитик продаж. На основе KPI менеджеров оцени эффективность и верни строго JSON.\n"
+            "Правила ранжирования: основной вес — выполнение плана по перезвонам (calls_fact / calls_plan) и по объёму заявок (leads_volume_fact / leads_volume_plan).\n"
+            "Вторичные факторы (для тай-брейка): issued_volume, approved_volume.\n"
+            "Верни ТОЛЬКО JSON без пояснений в формате:\n"
+            "{\n"
+            "  \"best\": [\"Имя1\", \"Имя2\", \"Имя3\"],\n"
+            "  \"worst\": [\"ИмяA\", \"ИмяB\", \"ИмяC\"],\n"
+            "  \"reasons\": {\"Имя1\": \"краткая причина\", ...}\n"
+            "}\n\n"
+            "Данные:\n"
+        )
+
+        for manager, stats in data.items():
+            prompt += (
+                f"{manager}: calls {stats.get('calls_fact', 0)}/{stats.get('calls_plan', 0)}, "
+                f"units {stats.get('leads_units_fact', 0)}/{stats.get('leads_units_plan', 0)}, "
+                f"volume {stats.get('leads_volume_fact', 0)}/{stats.get('leads_volume_plan', 0)}, "
+                f"approved {stats.get('approved_volume', 0)}, issued {stats.get('issued_volume', 0)}\n"
+            )
+
+        try:
+            raw = await self._make_request(prompt)
+            # Try to extract JSON block
+            import json as _json
+            text = raw.strip()
+            start = text.find('{')
+            end = text.rfind('}')
+            if start != -1 and end != -1 and end > start:
+                text = text[start:end+1]
+            result = _json.loads(text)
+            best = result.get("best") or []
+            worst = result.get("worst") or []
+            reasons = result.get("reasons") or {}
+            # Ensure lists
+            if not isinstance(best, list):
+                best = []
+            if not isinstance(worst, list):
+                worst = []
+            if not isinstance(reasons, dict):
+                reasons = {}
+            return {"best": best[:3], "worst": worst[:3], "reasons": reasons}
+        except Exception as e:
+            return {"best": [], "worst": [], "reasons": {}, "error": str(e)}
+
     async def generate_answer(self, question: str) -> str:
         """Generic Q&A generation for free-form questions."""
         if not self.api_key or not self.folder_id:

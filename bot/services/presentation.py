@@ -357,7 +357,7 @@ class PresentationService:
             p.font.name = self.settings.pptx_font_family
 
     async def _add_top3_slide(self, prs: Presentation, period_data: Dict[str, ManagerData]) -> None:
-        """Add slide with TOP-3 best and worst managers by composite score."""
+        """Add slide with TOP-3 best and worst managers. Prefer AI ranking; fallback to metric-based."""
         slide = prs.slides.add_slide(prs.slide_layouts[5])  # Title Only
         title = slide.shapes.title
         title.text = "ТОП‑3 лучших и ТОП‑3 худших"
@@ -365,15 +365,45 @@ class PresentationService:
         title.text_frame.paragraphs[0].font.name = self.settings.pptx_font_family
         title.text_frame.paragraphs[0].font.color.rgb = RGBColor(204, 0, 0)
 
-        # Compute composite score: avg of calls% and leads volume%
-        scored = []
-        for m in period_data.values():
-            score = 0.5 * (m.calls_percentage) + 0.5 * (m.leads_volume_percentage)
-            scored.append((score, m.name, m))
-        scored.sort(reverse=True)
+        # Try AI-based ranking
+        ai_best: list[str] = []
+        ai_worst: list[str] = []
+        ai_reasons: dict[str, str] = {}
 
-        best = scored[:3]
-        worst = list(reversed(scored[-3:])) if len(scored) >= 3 else scored[-len(scored):]
+        try:
+            kpi = {}
+            for m in period_data.values():
+                kpi[m.name] = {
+                    'calls_plan': m.calls_plan,
+                    'calls_fact': m.calls_fact,
+                    'leads_units_plan': m.leads_units_plan,
+                    'leads_units_fact': m.leads_units_fact,
+                    'leads_volume_plan': m.leads_volume_plan,
+                    'leads_volume_fact': m.leads_volume_fact,
+                    'approved_volume': m.approved_volume,
+                    'issued_volume': m.issued_volume,
+                }
+            ai = await self.gpt_service.rank_top3(kpi)
+            ai_best = [n for n in ai.get('best', []) if n in period_data]
+            ai_worst = [n for n in ai.get('worst', []) if n in period_data]
+            ai_reasons = ai.get('reasons', {}) or {}
+        except Exception:
+            pass
+
+        def fallback_top3() -> tuple[list[str], list[str]]:
+            scored = []
+            for m in period_data.values():
+                score = 0.5 * (m.calls_percentage) + 0.5 * (m.leads_volume_percentage)
+                scored.append((score, m.name))
+            scored.sort(reverse=True)
+            best_names = [name for _, name in scored[:3]]
+            worst_names = [name for _, name in list(reversed(scored[-3:]))]
+            return best_names, worst_names
+
+        best_names = ai_best
+        worst_names = ai_worst
+        if not best_names or not worst_names:
+            best_names, worst_names = fallback_top3()
 
         left = Inches(0.5)
         top = Inches(1.6)
@@ -382,9 +412,11 @@ class PresentationService:
         tfb.text = "Лучшие:"
         tfb.paragraphs[0].font.name = self.settings.pptx_font_family
         tfb.paragraphs[0].font.size = Pt(20)
-        for score, name, m in best:
+        for name in best_names:
+            m = period_data[name]
+            reason = ai_reasons.get(name, f"звонки {m.calls_percentage:.0f}%, объем {m.leads_volume_percentage:.0f}%")
             p = tfb.add_paragraph()
-            p.text = f"🏆 {name}: звонки {m.calls_percentage:.0f}%, объем {m.leads_volume_percentage:.0f}%"
+            p.text = f"🏆 {name}: {reason}"
             p.font.name = self.settings.pptx_font_family
             p.font.size = Pt(14)
 
@@ -393,9 +425,11 @@ class PresentationService:
         tfw.text = "Ниже темпа:"
         tfw.paragraphs[0].font.name = self.settings.pptx_font_family
         tfw.paragraphs[0].font.size = Pt(20)
-        for score, name, m in worst:
+        for name in worst_names:
+            m = period_data[name]
+            reason = ai_reasons.get(name, f"звонки {m.calls_percentage:.0f}%, объем {m.leads_volume_percentage:.0f}%")
             p = tfw.add_paragraph()
-            p.text = f"⚠️ {name}: звонки {m.calls_percentage:.0f}%, объем {m.leads_volume_percentage:.0f}%"
+            p.text = f"⚠️ {name}: {reason}"
             p.font.name = self.settings.pptx_font_family
             p.font.size = Pt(14)
     
