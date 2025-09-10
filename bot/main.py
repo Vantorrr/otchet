@@ -150,6 +150,8 @@ async def main() -> None:
         hour=mh,
         minute=mm,
         id="morning_reminders",
+        misfire_grace_time=600,
+        coalesce=True,
         replace_existing=True,
     )
     scheduler.add_job(
@@ -158,6 +160,8 @@ async def main() -> None:
         hour=eh,
         minute=em,
         id="evening_reminders",
+        misfire_grace_time=600,
+        coalesce=True,
         replace_existing=True,
     )
     # Автосводку отключаем по требованию клиента
