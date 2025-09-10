@@ -536,10 +536,10 @@ class PresentationService:
                 p.font.name = self.settings.pptx_font_family
 
         metrics = [
-            ("Перезвоны", 'calls_plan', 'calls_fact'),
-            ("Новые звонки", 'new_calls', 'new_calls'),
-            ("Заявки, шт", 'leads_units_plan', 'leads_units_fact'),
-            ("Заявки, млн", 'leads_volume_plan', 'leads_volume_fact'),
+            ("📲 Перезвоны", 'calls_plan', 'calls_fact'),
+            ("☎️ Новые звонки", 'new_calls', 'new_calls'),
+            ("📝 Заявки, шт", 'leads_units_plan', 'leads_units_fact'),
+            ("💰 Заявки, млн", 'leads_volume_plan', 'leads_volume_fact'),
         ]
 
         def fill_row(tbl, row_idx, name, plan_val, fact_val):
@@ -561,10 +561,10 @@ class PresentationService:
         textbox_prev = slide.shapes.add_textbox(left_prev, top_prev + Inches(2.7), width, Inches(1.2))
         tfp = textbox_prev.text_frame
         tfp.text = (
-            f"План {prev['leads_volume_plan']:.1f} млн\n"
-            f"Одобрено {prev['approved_volume']:.1f} млн\n"
-            f"Выдано {prev['issued_volume']:.1f} млн\n"
-            f"Осталось выдать {max(prev['leads_volume_plan'] - prev['issued_volume'], 0):.1f} млн"
+            f"💰 План: {prev['leads_volume_plan']:.1f} млн\n"
+            f"✅ Одобрено: {prev['approved_volume']:.1f} млн\n"
+            f"✅ Выдано: {prev['issued_volume']:.1f} млн\n"
+            f"🎯 Осталось выдать: {max(prev['leads_volume_plan'] - prev['issued_volume'], 0):.1f} млн"
         )
         for p in tfp.paragraphs:
             p.font.size = Pt(12)
@@ -573,10 +573,10 @@ class PresentationService:
         textbox_cur = slide.shapes.add_textbox(left_prev + Inches(6.3), top_prev + Inches(2.7), width, Inches(1.2))
         tfc = textbox_cur.text_frame
         tfc.text = (
-            f"План {cur['leads_volume_plan']:.1f} млн\n"
-            f"Одобрено {cur['approved_volume']:.1f} млн\n"
-            f"Выдано {cur['issued_volume']:.1f} млн\n"
-            f"Осталось выдать {max(cur['leads_volume_plan'] - cur['issued_volume'], 0):.1f} млн"
+            f"💰 План: {cur['leads_volume_plan']:.1f} млн\n"
+            f"✅ Одобрено: {cur['approved_volume']:.1f} млн\n"
+            f"✅ Выдано: {cur['issued_volume']:.1f} млн\n"
+            f"🎯 Осталось выдать: {max(cur['leads_volume_plan'] - cur['issued_volume'], 0):.1f} млн"
         )
         for p in tfc.paragraphs:
             p.font.size = Pt(12)
