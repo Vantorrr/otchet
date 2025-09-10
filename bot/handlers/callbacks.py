@@ -166,6 +166,12 @@ async def callback_summary_week(callback: types.CallbackQuery) -> None:
         await callback.answer("Ошибка")
         return
     
+    # Answer early to avoid Telegram timeout on long operations
+    try:
+        await callback.answer("Генерация началась")
+    except Exception:
+        pass
+
     try:
         container = Container.get()
         start, end = start_end_of_week_today(container.settings)
@@ -181,10 +187,8 @@ async def callback_summary_week(callback: types.CallbackQuery) -> None:
             else:
                 await callback.message.answer(f"📄 Часть {i + 1}:\n\n{part}")
         
-        await callback.answer("Готово!")
     except Exception as e:
         await callback.message.answer(f"❌ Ошибка при генерации недельной сводки: {str(e)}")
-        await callback.answer("Ошибка!")
 
 
 @callbacks_router.callback_query(F.data == "summary_month")
@@ -193,6 +197,12 @@ async def callback_summary_month(callback: types.CallbackQuery) -> None:
         await callback.answer("Ошибка")
         return
     
+    # Answer early to avoid Telegram timeout on long operations
+    try:
+        await callback.answer("Генерация началась")
+    except Exception:
+        pass
+
     try:
         container = Container.get()
         start, end = start_end_of_month_today(container.settings)
@@ -207,10 +217,8 @@ async def callback_summary_month(callback: types.CallbackQuery) -> None:
             else:
                 await callback.message.answer(f"📄 Часть {i + 1}:\n\n{part}")
         
-        await callback.answer("Готово!")
     except Exception as e:
         await callback.message.answer(f"❌ Ошибка при генерации месячной сводки: {str(e)}")
-        await callback.answer("Ошибка!")
 
 
 @callbacks_router.callback_query(F.data == "summary_quarter")
@@ -219,6 +227,12 @@ async def callback_summary_quarter(callback: types.CallbackQuery) -> None:
         await callback.answer("Ошибка")
         return
     
+    # Answer early to avoid Telegram timeout on long operations
+    try:
+        await callback.answer("Генерация началась")
+    except Exception:
+        pass
+
     try:
         container = Container.get()
         start, end = start_end_of_quarter_today(container.settings)
@@ -233,10 +247,8 @@ async def callback_summary_quarter(callback: types.CallbackQuery) -> None:
             else:
                 await callback.message.answer(f"📄 Часть {i + 1}:\n\n{part}")
         
-        await callback.answer("Готово!")
     except Exception as e:
         await callback.message.answer(f"❌ Ошибка при генерации квартальной сводки: {str(e)}")
-        await callback.answer("Ошибка!")
 
 
 @callbacks_router.callback_query(F.data == "summary_date")
@@ -357,6 +369,12 @@ async def callback_presentation_week(callback: types.CallbackQuery) -> None:
         await callback.answer("Ошибка")
         return
     
+    # Answer early to avoid Telegram timeout on long operations
+    try:
+        await callback.answer("Генерация началась")
+    except Exception:
+        pass
+
     await callback.message.answer("🔄 Генерирую недельную AI-презентацию...")
     
     try:
@@ -393,7 +411,6 @@ async def callback_presentation_week(callback: types.CallbackQuery) -> None:
     except Exception as e:
         await callback.message.answer(f"❌ Ошибка при генерации презентации: {str(e)}")
     
-    await callback.answer()
 
 
 @callbacks_router.callback_query(F.data == "presentation_month")
@@ -403,6 +420,12 @@ async def callback_presentation_month(callback: types.CallbackQuery) -> None:
         await callback.answer("Ошибка")
         return
     
+    # Answer early to avoid Telegram timeout on long operations
+    try:
+        await callback.answer("Генерация началась")
+    except Exception:
+        pass
+
     await callback.message.answer("🔄 Генерирую месячную AI-презентацию...")
     
     try:
@@ -439,7 +462,6 @@ async def callback_presentation_month(callback: types.CallbackQuery) -> None:
     except Exception as e:
         await callback.message.answer(f"❌ Ошибка при генерации презентации: {str(e)}")
     
-    await callback.answer()
 
 
 @callbacks_router.callback_query(F.data == "presentation_quarter")
@@ -449,6 +471,12 @@ async def callback_presentation_quarter(callback: types.CallbackQuery) -> None:
         await callback.answer("Ошибка")
         return
     
+    # Answer early to avoid Telegram timeout on long operations
+    try:
+        await callback.answer("Генерация началась")
+    except Exception:
+        pass
+
     await callback.message.answer("🔄 Генерирую квартальную AI-презентацию...")
     
     try:
@@ -485,7 +513,6 @@ async def callback_presentation_quarter(callback: types.CallbackQuery) -> None:
     except Exception as e:
         await callback.message.answer(f"❌ Ошибка при генерации презентации: {str(e)}")
     
-    await callback.answer()
 
 
 @callbacks_router.callback_query(F.data == "presentation_period")
@@ -510,6 +537,12 @@ async def callback_tempo_check(callback: types.CallbackQuery) -> None:
         await callback.answer("Ошибка")
         return
     
+    # Answer early to avoid Telegram timeout on long operations
+    try:
+        await callback.answer("Анализ начался")
+    except Exception:
+        pass
+
     await callback.message.answer("🔍 Анализирую темп выполнения планов...")
     
     try:
@@ -547,4 +580,3 @@ async def callback_tempo_check(callback: types.CallbackQuery) -> None:
     except Exception as e:
         await callback.message.answer(f"❌ Ошибка при анализе темпа: {str(e)}")
     
-    await callback.answer()
