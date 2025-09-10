@@ -332,6 +332,40 @@ class PresentationService:
         p.text = comment
         p.font.size = Pt(14)
         p.font.name = self.settings.pptx_font_family
+
+    # Backward-compatibility: older callers might still invoke this to add a separate AI comment slide
+    async def _add_manager_ai_comment_slide(self, prs: Presentation, prev: ManagerData, cur: ManagerData, period_name: str) -> None:
+        """Legacy method: add a standalone AI comment slide for a manager (kept for compatibility)."""
+        slide = prs.slides.add_slide(prs.slide_layouts[5])  # Title Only
+        title = slide.shapes.title
+        title.text = f"Комментарий ИИ — {cur.name}"
+        title.text_frame.paragraphs[0].font.size = Pt(28)
+        title.text_frame.paragraphs[0].font.name = self.settings.pptx_font_family
+        title.text_frame.paragraphs[0].font.color.rgb = RGBColor(204, 0, 0)
+
+        def as_dict(m: ManagerData) -> dict[str, float]:
+            return {
+                'calls_plan': m.calls_plan,
+                'calls_fact': m.calls_fact,
+                'leads_units_plan': m.leads_units_plan,
+                'leads_units_fact': m.leads_units_fact,
+                'leads_volume_plan': m.leads_volume_plan,
+                'leads_volume_fact': m.leads_volume_fact,
+                'approved_volume': m.approved_volume,
+                'issued_volume': m.issued_volume,
+                'new_calls': m.new_calls,
+            }
+
+        prev_dict = as_dict(prev)
+        cur_dict = as_dict(cur)
+        comment = await self.gpt_service.generate_manager_comment(cur.name, prev_dict, cur_dict, period_name)
+
+        textbox = slide.shapes.add_textbox(Inches(0.5), Inches(1.8), Inches(12.5), Inches(4.5))
+        tf = textbox.text_frame
+        tf.text = comment
+        for p in tf.paragraphs:
+            p.font.size = Pt(16)
+            p.font.name = self.settings.pptx_font_family
     
     async def _add_ai_analysis_slide(
         self,
