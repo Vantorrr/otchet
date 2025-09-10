@@ -62,6 +62,8 @@ class PresentationService:
         start_date: date,
         end_date: date,
         previous_data: Optional[Dict[str, ManagerData]] = None,
+        previous_start_date: Optional[date] = None,
+        previous_end_date: Optional[date] = None,
     ) -> bytes:
         """
         Generate PowerPoint presentation with analytics.
@@ -96,11 +98,18 @@ class PresentationService:
         for manager_name, manager_data in period_data.items():
             await self._add_manager_slide(prs, manager_data)
             if previous_data is not None and manager_name in previous_data:
-                await self._add_manager_comparison_slide(prs, previous_data[manager_name], manager_data, period_name)
-                await self._add_manager_ai_comment_slide(prs, previous_data[manager_name], manager_data, period_name)
+                await self._add_manager_comparison_slide(
+                    prs,
+                    previous_data[manager_name],
+                    manager_data,
+                    start_date,
+                    end_date,
+                    previous_start_date,
+                    previous_end_date,
+                    period_name,
+                )
         
-        # AI Analysis slide
-        await self._add_ai_analysis_slide(prs, period_data, period_name)
+        # Team AI analysis slide is omitted per revised presentation flow
         
         # Save to bytes
         pptx_buffer = io.BytesIO()
@@ -213,7 +222,17 @@ class PresentationService:
             paragraph.font.name = self.settings.pptx_font_family
             paragraph.space_after = Pt(8)
 
-    async def _add_manager_comparison_slide(self, prs: Presentation, prev: ManagerData, cur: ManagerData, period_name: str) -> None:
+    async def _add_manager_comparison_slide(
+        self,
+        prs: Presentation,
+        prev: ManagerData,
+        cur: ManagerData,
+        current_start: date,
+        current_end: date,
+        previous_start: Optional[date],
+        previous_end: Optional[date],
+        period_name: str,
+    ) -> None:
         """Add per-manager comparison slide with two tables + totals + AI comment on one slide."""
         slide = prs.slides.add_slide(prs.slide_layouts[5])  # Title Only
         title = slide.shapes.title
@@ -246,6 +265,19 @@ class PresentationService:
         height = Inches(2.3)
         table_prev = slide.shapes.add_table(rows, cols, left_prev, top_prev, width, height).table
         table_cur = slide.shapes.add_table(rows, cols, left_prev + Inches(6.3), top_prev, width, height).table
+
+        # Add period captions above tables
+        if previous_start and previous_end:
+            cap_prev = slide.shapes.add_textbox(left_prev, top_prev - Inches(0.35), width, Inches(0.3))
+            cp = cap_prev.text_frame
+            cp.text = f"Предыдущий период: {previous_start.strftime('%d.%m.%Y')} — {previous_end.strftime('%d.%m.%Y')}"
+            cp.paragraphs[0].font.size = Pt(12)
+            cp.paragraphs[0].font.name = self.settings.pptx_font_family
+        cap_cur = slide.shapes.add_textbox(left_prev + Inches(6.3), top_prev - Inches(0.35), width, Inches(0.3))
+        cc = cap_cur.text_frame
+        cc.text = f"Текущий период: {current_start.strftime('%d.%m.%Y')} — {current_end.strftime('%d.%m.%Y')}"
+        cc.paragraphs[0].font.size = Pt(12)
+        cc.paragraphs[0].font.name = self.settings.pptx_font_family
 
         headers = ["Показатель", "План", "Факт", "Конв (%)"]
         for i, h in enumerate(headers):

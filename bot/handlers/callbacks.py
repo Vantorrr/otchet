@@ -375,7 +375,7 @@ async def callback_presentation_week(callback: types.CallbackQuery) -> None:
         
         # Generate presentation
         pptx_bytes = await presentation_service.generate_presentation(
-            period_data, period_name, start_date, end_date, previous_data
+            period_data, period_name, start_date, end_date, previous_data, prev_start, prev_end
         )
         
         # Send as document
@@ -421,7 +421,7 @@ async def callback_presentation_month(callback: types.CallbackQuery) -> None:
         
         # Generate presentation
         pptx_bytes = await presentation_service.generate_presentation(
-            period_data, period_name, start_date, end_date, previous_data
+            period_data, period_name, start_date, end_date, previous_data, prev_start, prev_end
         )
         
         # Send as document
@@ -467,7 +467,7 @@ async def callback_presentation_quarter(callback: types.CallbackQuery) -> None:
         
         # Generate presentation
         pptx_bytes = await presentation_service.generate_presentation(
-            period_data, period_name, start_date, end_date, previous_data
+            period_data, period_name, start_date, end_date, previous_data, prev_start, prev_end
         )
         
         # Send as document
