@@ -185,17 +185,20 @@ class YandexGPTService:
 
         def pair(name: str, key_plan: str | None, key_fact: str) -> str:
             if key_plan:
-                return (
-                    f"{name}: было {prev.get(key_fact, 0)} из {prev.get(key_plan, 0)}, "
-                    f"стало {cur.get(key_fact, 0)} из {cur.get(key_plan, 0)}"
-                )
-            return f"{name}: было {prev.get(key_fact, 0)}, стало {cur.get(key_fact, 0)}"
+                pv = prev.get(key_fact, 0)
+                pp = prev.get(key_plan, 0)
+                cv = cur.get(key_fact, 0)
+                cp = cur.get(key_plan, 0)
+                return f"{name}: было {pv} из {pp}, стало {cv} из {cp}"
+            pv = prev.get(key_fact, 0)
+            cv = cur.get(key_fact, 0)
+            return f"{name}: было {pv}, стало {cv}"
 
         prompt = (
             "Ты руководитель продаж. Сравни два периода коротко (60–90 слов), по делу.\n"
             "1) Где стало лучше/хуже по ключевым метрикам; 2) почему могло произойти; 3) 2–3 действия.\n"
             f"Заголовок: {title}.\n\n"
-            + pair("Перезвоны", "calls_plan", "calls_fact") + "\n"
+            + pair("Повторные звонки", "calls_plan", "calls_fact") + "\n"
             + pair("Заявки, шт", "leads_units_plan", "leads_units_fact") + "\n"
             + pair("Заявки, млн", "leads_volume_plan", "leads_volume_fact") + "\n"
             + pair("Одобрено, млн", None, "approved_volume") + "\n"

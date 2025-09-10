@@ -292,7 +292,7 @@ class PresentationService:
         vol_conv = f"{totals['leads_volume_percentage']:.1f}%" if totals['leads_volume_plan'] else "-"
 
         # Fill rows
-        set_row(1, "📲 Перезвоны", f"{totals['calls_plan']:,}", f"{totals['calls_fact']:,}", calls_conv)
+        set_row(1, "📲 Повторные звонки", f"{totals['calls_plan']:,}", f"{totals['calls_fact']:,}", calls_conv)
         set_row(2, "📝 Заявки, шт", f"{totals['leads_units_plan']:,}", f"{totals['leads_units_fact']:,}", units_conv)
         set_row(3, "💰 Заявки, млн", f"{totals['leads_volume_plan']:.1f}", f"{totals['leads_volume_fact']:.1f}", vol_conv)
         set_row(4, "✅ Одобрено, млн", "-", f"{totals['approved_volume']:.1f}", "-")
@@ -355,7 +355,7 @@ class PresentationService:
         content = slide.placeholders[1]
         content.text = f"""📈 Показатели эффективности
 
-{calls_status} Перезвоны: {manager_data.calls_fact:,} из {manager_data.calls_plan:,} ({manager_data.calls_percentage:.1f}%)
+{calls_status} Повторные звонки: {manager_data.calls_fact:,} из {manager_data.calls_plan:,} ({manager_data.calls_percentage:.1f}%)
 
 📝 Заявки (шт): {manager_data.leads_units_fact:,} из {manager_data.leads_units_plan:,} ({manager_data.leads_units_percentage:.1f}%)
 
@@ -470,7 +470,7 @@ class PresentationService:
                     pass
 
         metrics = [
-            ("📲 Перезвоны", 'calls_plan', 'calls_fact'),
+            ("📲 Повторные звонки", 'calls_plan', 'calls_fact'),
             ("☎️ Новые звонки", 'new_calls', 'new_calls'),
             ("📝 Заявки, шт", 'leads_units_plan', 'leads_units_fact'),
             ("💰 Заявки, млн", 'leads_volume_plan', 'leads_volume_fact'),
