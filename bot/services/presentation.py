@@ -360,17 +360,18 @@ class PresentationService:
         cur_dict = as_dict(cur)
         comment = await self.gpt_service.generate_manager_comment(cur.name, prev_dict, cur_dict, period_name)
 
-        comment_box = slide.shapes.add_textbox(Inches(0.5), top_prev + Inches(3.6), Inches(12.3), Inches(2.2))
+        # Place comment higher and allow wrapping to avoid clipping on last slide
+        comment_box = slide.shapes.add_textbox(Inches(0.5), top_prev + Inches(3.4), Inches(12.3), Inches(2.0))
         tfc = comment_box.text_frame
         # Heading
         tfc.text = f"Комментарий ИИ — {cur.name}"
-        tfc.paragraphs[0].font.size = Pt(18)
+        tfc.paragraphs[0].font.size = Pt(16)
         tfc.paragraphs[0].font.name = self.settings.pptx_font_family
         tfc.paragraphs[0].font.bold = True
         # Body
         p = tfc.add_paragraph()
         p.text = comment
-        p.font.size = Pt(14)
+        p.font.size = Pt(12)
         p.font.name = self.settings.pptx_font_family
 
     # Backward-compatibility: older callers might still invoke this to add a separate AI comment slide
