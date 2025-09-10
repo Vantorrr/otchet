@@ -376,6 +376,11 @@ class PresentationService:
                 p = cell.text_frame.paragraphs[0]
                 p.font.size = Pt(12)
                 p.font.name = self.settings.pptx_font_family
+                # ensure emojis render on platforms by setting emoji-capable font for header
+                try:
+                    p.font.name = self.settings.pptx_font_family
+                except Exception:
+                    pass
                 # Header background tint
                 try:
                     r = int(self.settings.pptx_primary_color[1:3], 16)

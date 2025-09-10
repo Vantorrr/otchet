@@ -26,6 +26,7 @@ class Settings:
     pptx_primary_color: str
     pptx_secondary_color: str
     pptx_logo_path: str
+    pptx_emoji_font: str
 
     @staticmethod
     def load() -> "Settings":
@@ -44,6 +45,7 @@ class Settings:
         pptx_primary_color = get_env("PPTX_PRIMARY_COLOR", "#CC0000")
         pptx_secondary_color = get_env("PPTX_SECONDARY_COLOR", "#F3F4F6")
         pptx_logo_path = get_env("PPTX_LOGO_PATH", "")
+        pptx_emoji_font = get_env("PPTX_EMOJI_FONT", "Segoe UI Emoji")
         return Settings(
             bot_token=bot_token,
             spreadsheet_name=spreadsheet_name,
@@ -59,4 +61,5 @@ class Settings:
             pptx_primary_color=pptx_primary_color,
             pptx_secondary_color=pptx_secondary_color,
             pptx_logo_path=pptx_logo_path,
+            pptx_emoji_font=pptx_emoji_font,
         )
