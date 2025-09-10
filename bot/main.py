@@ -45,28 +45,49 @@ async def main() -> None:
 
     # Scheduler: reminders and daily summary
     scheduler = AsyncIOScheduler(timezone=ZoneInfo(settings.default_timezone))
+    logging.getLogger(__name__).info(
+        "Scheduler timezone set to %s", settings.default_timezone
+    )
+
+    def _parse_hhmm(value: str, fallback: tuple[int, int]) -> tuple[int, int]:
+        try:
+            text = (value or "").strip()
+            hh_str, mm_str = [p.strip() for p in text.split(":", 1)]
+            return int(hh_str), int(mm_str)
+        except Exception:
+            logging.getLogger(__name__).warning(
+                "Invalid time format '%s'. Falling back to %02d:%02d", value, fallback[0], fallback[1]
+            )
+            return fallback
 
     async def send_morning_reminders():
         try:
             container = Container.get()
             chat_id = container.sheets.get_group_chat_id()
             if not chat_id:
+                logging.getLogger(__name__).warning("Morning reminder: group_chat_id is not set")
                 return
             # Send menu to each manager topic
             from bot.keyboards.main import get_main_menu_keyboard
-            for binding in container.sheets._bindings.get_all_records():
+            records = container.sheets._bindings.get_all_records()
+            sent = 0
+            total = 0
+            for binding in records:
                 topic_id_raw = str(binding.get("topic_id", "")).strip()
                 if not topic_id_raw.isdigit():
                     continue
                 topic_id = int(topic_id_raw)
                 manager = binding.get("manager")
                 if topic_id and manager:
+                    total += 1
                     await bot.send_message(
                         chat_id, 
                         f"🌅 Утреннее напоминание для <b>{manager}</b>\nВремя заполнить утренний отчет!", 
                         message_thread_id=topic_id,
                         reply_markup=get_main_menu_keyboard()
                     )
+                    sent += 1
+            logging.getLogger(__name__).info("Morning reminder sent: %d/%d", sent, total)
         except Exception as e:
             logging.getLogger(__name__).warning(f"Morning reminder error: {e}")
 
@@ -75,22 +96,29 @@ async def main() -> None:
             container = Container.get()
             chat_id = container.sheets.get_group_chat_id()
             if not chat_id:
+                logging.getLogger(__name__).warning("Evening reminder: group_chat_id is not set")
                 return
             # Send menu to each manager topic
             from bot.keyboards.main import get_main_menu_keyboard
-            for binding in container.sheets._bindings.get_all_records():
+            records = container.sheets._bindings.get_all_records()
+            sent = 0
+            total = 0
+            for binding in records:
                 topic_id_raw = str(binding.get("topic_id", "")).strip()
                 if not topic_id_raw.isdigit():
                     continue
                 topic_id = int(topic_id_raw)
                 manager = binding.get("manager")
                 if topic_id and manager:
+                    total += 1
                     await bot.send_message(
                         chat_id, 
                         f"🌆 Вечернее напоминание для <b>{manager}</b>\nВремя заполнить вечерний отчет!", 
                         message_thread_id=topic_id,
                         reply_markup=get_main_menu_keyboard()
                     )
+                    sent += 1
+            logging.getLogger(__name__).info("Evening reminder sent: %d/%d", sent, total)
         except Exception as e:
             logging.getLogger(__name__).warning(f"Evening reminder error: {e}")
 
@@ -109,12 +137,41 @@ async def main() -> None:
         except Exception as e:
             logging.getLogger(__name__).warning(f"Daily summary error: {e}")
 
-    hh, mm = map(int, settings.morning_reminder.split(":"))
-    scheduler.add_job(send_morning_reminders, "cron", hour=hh, minute=mm)
-    hh, mm = map(int, settings.evening_reminder.split(":"))
-    scheduler.add_job(send_evening_reminders, "cron", hour=hh, minute=mm)
+    mh, mm = _parse_hhmm(settings.morning_reminder, (9, 30))
+    eh, em = _parse_hhmm(settings.evening_reminder, (17, 30))
+    logging.getLogger(__name__).info(
+        "Scheduling reminders: morning %02d:%02d, evening %02d:%02d (TZ %s)",
+        mh, mm, eh, em, settings.default_timezone,
+    )
+
+    scheduler.add_job(
+        send_morning_reminders,
+        "cron",
+        hour=mh,
+        minute=mm,
+        id="morning_reminders",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        send_evening_reminders,
+        "cron",
+        hour=eh,
+        minute=em,
+        id="evening_reminders",
+        replace_existing=True,
+    )
     # Автосводку отключаем по требованию клиента
     scheduler.start()
+    try:
+        m_job = scheduler.get_job("morning_reminders")
+        e_job = scheduler.get_job("evening_reminders")
+        logging.getLogger(__name__).info(
+            "Next runs: morning=%s, evening=%s",
+            getattr(m_job, "next_run_time", None),
+            getattr(e_job, "next_run_time", None),
+        )
+    except Exception:
+        pass
 
     logging.getLogger(__name__).info("Bot is starting polling...")
     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
