@@ -25,6 +25,7 @@ from bot.keyboards.main import (
     get_admin_ai_keyboard,
 )
 from aiogram.fsm.state import StatesGroup, State
+from aiogram.filters.command import CommandObject
 
 
 def split_long_message(text: str, max_length: int = 4000) -> list[str]:
@@ -484,6 +485,19 @@ async def callback_presentation_quarter(callback: types.CallbackQuery) -> None:
     except Exception as e:
         await callback.message.answer(f"❌ Ошибка при генерации презентации: {str(e)}")
     
+    await callback.answer()
+
+
+@callbacks_router.callback_query(F.data == "presentation_period")
+async def callback_presentation_period(callback: types.CallbackQuery) -> None:
+    if not callback.message:
+        await callback.answer("Ошибка")
+        return
+    await callback.message.answer(
+        "Укажи период в формате:\n"
+        "<code>/presentation_range YYYY-MM-DD YYYY-MM-DD</code>\n\n"
+        "Например: <code>/presentation_range 2025-09-01 2025-09-07</code>"
+    )
     await callback.answer()
 
 
