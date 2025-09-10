@@ -148,6 +148,17 @@ class DataAggregatorService:
         except Exception as e:
             # Return empty dict on any error
             return {}
+
+    async def aggregate_custom_with_previous(self, start_date: date, end_date: date) -> Tuple[Dict[str, ManagerData], Dict[str, ManagerData], str, date, date, date, date]:
+        """Aggregate for custom [start_date, end_date] and previous equal-length period."""
+        data = await self._aggregate_data_for_period(start_date, end_date)
+        period_name = f"Период {start_date.strftime('%d.%m.%Y')}—{end_date.strftime('%d.%m.%Y')}"
+        # previous range of same length
+        delta = end_date - start_date
+        prev_end = start_date - timedelta(days=1)
+        prev_start = prev_end - delta
+        prev_data = await self._aggregate_data_for_period(prev_start, prev_end)
+        return data, prev_data, period_name, start_date, end_date, prev_start, prev_end
     
     def _parse_record_date(self, date_str: str) -> Optional[date]:
         """Parse date from various formats."""

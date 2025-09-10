@@ -12,6 +12,8 @@ from bot.services.data_aggregator import DataAggregatorService
 from bot.services.presentation import PresentationService
 from bot.services.tempo_analytics import TempoAnalyticsService
 from bot.keyboards.main import get_main_menu_keyboard, get_admin_menu_keyboard
+from aiogram.filters.command import CommandObject
+from bot.utils.time_utils import parse_date_or_today
 
 admin_router = Router()
 
@@ -236,6 +238,36 @@ async def cmd_generate_quarterly_presentation(message: types.Message) -> None:
         
     except Exception as e:
         await message.reply(f"❌ Ошибка при генерации презентации: {str(e)}")
+
+
+@admin_router.message(Command("presentation_range"))
+async def cmd_presentation_range(message: types.Message, command: CommandObject) -> None:
+    """Generate AI presentation for custom date range: /presentation_range YYYY-MM-DD YYYY-MM-DD"""
+    args = (command.args or "").split()
+    if len(args) != 2:
+        await message.reply("Укажите период: /presentation_range YYYY-MM-DD YYYY-MM-DD")
+        return
+    try:
+        from datetime import datetime as _dt
+        start = _dt.strptime(args[0], "%Y-%m-%d").date()
+        end = _dt.strptime(args[1], "%Y-%m-%d").date()
+    except Exception:
+        await message.reply("Неверный формат дат. Пример: /presentation_range 2025-08-01 2025-08-07")
+        return
+    await message.reply("🔄 Генерирую презентацию за указанный период...")
+    try:
+        container = Container.get()
+        aggregator = DataAggregatorService(container.sheets)
+        presentation_service = PresentationService(container.settings)
+        period_data, prev_data, period_name, start_date, end_date, prev_start, prev_end = await aggregator.aggregate_custom_with_previous(start, end)
+        if not period_data:
+            await message.reply("❌ Нет данных за этот период.")
+            return
+        pptx_bytes = await presentation_service.generate_presentation(period_data, period_name, start_date, end_date, prev_data, prev_start, prev_end)
+        document = types.BufferedInputFile(pptx_bytes, filename=f"AI_Отчет_{period_name.replace(' ', '_')}.pptx")
+        await message.reply_document(document, caption=f"📊 {period_name}\n🤖 AI-презентация готова!")
+    except Exception as e:
+        await message.reply(f"❌ Ошибка: {str(e)}")
 
 
 @admin_router.message(Command("tempo_check"))
