@@ -43,5 +43,7 @@ def get_admin_ai_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="🤖 AI-Презентация: квартал", callback_data="presentation_quarter")],
         [InlineKeyboardButton(text="💬 Спроси у ИИ", callback_data="ask_ai")],
         [InlineKeyboardButton(text="⚠️ Проверка темпа", callback_data="tempo_check")],
+        [InlineKeyboardButton(text="🌅 Утреннее напоминание", callback_data="admin_remind_morning")],
+        [InlineKeyboardButton(text="🌆 Вечернее напоминание", callback_data="admin_remind_evening")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)

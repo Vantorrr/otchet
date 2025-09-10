@@ -308,6 +308,47 @@ async def callback_summary_period(callback: types.CallbackQuery) -> None:
     await callback.answer()
 
 
+@callbacks_router.callback_query(F.data.in_({"admin_remind_morning", "admin_remind_evening"}))
+async def callback_admin_reminders(callback: types.CallbackQuery) -> None:
+    if not callback.message:
+        await callback.answer("Ошибка")
+        return
+    container = Container.get()
+    chat_id = container.sheets.get_group_chat_id()
+    if not chat_id:
+        await callback.message.answer("❌ Не задан group_chat_id. Отправьте /start в группе.")
+        await callback.answer()
+        return
+    mode = "morning" if callback.data == "admin_remind_morning" else "evening"
+    from bot.keyboards.main import get_main_menu_keyboard
+    sent = 0
+    for binding in container.sheets._bindings.get_all_records():
+        topic_id_raw = str(binding.get("topic_id", "")).strip()
+        if not topic_id_raw.isdigit():
+            continue
+        topic_id = int(topic_id_raw)
+        manager = binding.get("manager")
+        if not (topic_id and manager):
+            continue
+        text = (
+            f"🌅 Утреннее напоминание для <b>{manager}</b>\nВремя заполнить утренний отчет!"
+            if mode == "morning"
+            else f"🌆 Вечернее напоминание для <b>{manager}</b>\nВремя заполнить вечерний отчет!"
+        )
+        try:
+            await callback.bot.send_message(
+                chat_id,
+                text,
+                message_thread_id=topic_id,
+                reply_markup=get_main_menu_keyboard(),
+            )
+            sent += 1
+        except Exception:
+            continue
+    await callback.message.answer(f"✅ Отправлено напоминаний: {sent} ({mode}).")
+    await callback.answer()
+
+
 @callbacks_router.callback_query(F.data == "presentation_week")
 async def callback_presentation_week(callback: types.CallbackQuery) -> None:
     """Generate weekly AI presentation."""
