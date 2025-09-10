@@ -365,8 +365,8 @@ async def callback_presentation_week(callback: types.CallbackQuery) -> None:
         aggregator = DataAggregatorService(container.sheets)
         presentation_service = PresentationService(container.settings)
         
-        # Get weekly data
-        period_data, period_name, start_date, end_date = await aggregator.aggregate_weekly_data()
+        # Get weekly data (with previous for comparison)
+        period_data, previous_data, period_name, start_date, end_date, prev_start, prev_end = await aggregator.aggregate_weekly_data_with_previous()
         
         if not period_data:
             await callback.message.answer("❌ Нет данных за эту неделю.")
@@ -375,7 +375,7 @@ async def callback_presentation_week(callback: types.CallbackQuery) -> None:
         
         # Generate presentation
         pptx_bytes = await presentation_service.generate_presentation(
-            period_data, period_name, start_date, end_date
+            period_data, period_name, start_date, end_date, previous_data
         )
         
         # Send as document
@@ -411,8 +411,8 @@ async def callback_presentation_month(callback: types.CallbackQuery) -> None:
         aggregator = DataAggregatorService(container.sheets)
         presentation_service = PresentationService(container.settings)
         
-        # Get monthly data
-        period_data, period_name, start_date, end_date = await aggregator.aggregate_monthly_data()
+        # Get monthly data (with previous for comparison)
+        period_data, previous_data, period_name, start_date, end_date, prev_start, prev_end = await aggregator.aggregate_monthly_data_with_previous()
         
         if not period_data:
             await callback.message.answer("❌ Нет данных за этот месяц.")
@@ -421,7 +421,7 @@ async def callback_presentation_month(callback: types.CallbackQuery) -> None:
         
         # Generate presentation
         pptx_bytes = await presentation_service.generate_presentation(
-            period_data, period_name, start_date, end_date
+            period_data, period_name, start_date, end_date, previous_data
         )
         
         # Send as document
@@ -457,8 +457,8 @@ async def callback_presentation_quarter(callback: types.CallbackQuery) -> None:
         aggregator = DataAggregatorService(container.sheets)
         presentation_service = PresentationService(container.settings)
         
-        # Get quarterly data
-        period_data, period_name, start_date, end_date = await aggregator.aggregate_quarterly_data()
+        # Get quarterly data (with previous for comparison)
+        period_data, previous_data, period_name, start_date, end_date, prev_start, prev_end = await aggregator.aggregate_quarterly_data_with_previous()
         
         if not period_data:
             await callback.message.answer("❌ Нет данных за этот квартал.")
@@ -467,7 +467,7 @@ async def callback_presentation_quarter(callback: types.CallbackQuery) -> None:
         
         # Generate presentation
         pptx_bytes = await presentation_service.generate_presentation(
-            period_data, period_name, start_date, end_date
+            period_data, period_name, start_date, end_date, previous_data
         )
         
         # Send as document

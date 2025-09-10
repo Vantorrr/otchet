@@ -30,6 +30,14 @@ class DataAggregatorService:
         
         data = await self._aggregate_data_for_period(start_date, end_date)
         return data, period_name, start_date, end_date
+
+    async def aggregate_weekly_data_with_previous(self) -> Tuple[Dict[str, ManagerData], Dict[str, ManagerData], str, date, date, date, date]:
+        """Aggregate current week and previous week data."""
+        current, period_name, start_date, end_date = await self.aggregate_weekly_data()
+        prev_end = start_date - timedelta(days=1)
+        prev_start = prev_end - timedelta(days=6)
+        previous = await self._aggregate_data_for_period(prev_start, prev_end)
+        return current, previous, period_name, start_date, end_date, prev_start, prev_end
     
     async def aggregate_monthly_data(self, target_date: Optional[date] = None) -> Tuple[Dict[str, ManagerData], str, date, date]:
         """Aggregate data for a month."""
@@ -51,6 +59,16 @@ class DataAggregatorService:
         
         data = await self._aggregate_data_for_period(start_date, end_date)
         return data, period_name, start_date, end_date
+
+    async def aggregate_monthly_data_with_previous(self) -> Tuple[Dict[str, ManagerData], Dict[str, ManagerData], str, date, date, date, date]:
+        """Aggregate current month and previous month data."""
+        current, period_name, start_date, end_date = await self.aggregate_monthly_data()
+        # previous month range
+        from datetime import date as _date
+        prev_end = start_date - timedelta(days=1)
+        prev_start = _date(prev_end.year, prev_end.month, 1)
+        previous = await self._aggregate_data_for_period(prev_start, prev_end)
+        return current, previous, period_name, start_date, end_date, prev_start, prev_end
     
     async def aggregate_quarterly_data(self, target_date: Optional[date] = None) -> Tuple[Dict[str, ManagerData], str, date, date]:
         """Aggregate data for a quarter."""
@@ -64,6 +82,18 @@ class DataAggregatorService:
         
         data = await self._aggregate_data_for_period(start_date, end_date)
         return data, period_name, start_date, end_date
+
+    async def aggregate_quarterly_data_with_previous(self) -> Tuple[Dict[str, ManagerData], Dict[str, ManagerData], str, date, date, date, date]:
+        """Aggregate current quarter and previous quarter data."""
+        current, period_name, start_date, end_date = await self.aggregate_quarterly_data()
+        prev_end = start_date - timedelta(days=1)
+        # compute start of that quarter
+        q = (prev_end.month - 1) // 3 + 1
+        start_month = (q - 1) * 3 + 1
+        from datetime import date as _date
+        prev_start = _date(prev_end.year, start_month, 1)
+        previous = await self._aggregate_data_for_period(prev_start, prev_end)
+        return current, previous, period_name, start_date, end_date, prev_start, prev_end
     
     async def _aggregate_data_for_period(self, start_date: date, end_date: date) -> Dict[str, ManagerData]:
         """Aggregate data for a specific period."""
