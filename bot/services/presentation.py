@@ -275,6 +275,7 @@ class PresentationService:
                 p.font.color.rgb = RGBColor(255, 255, 255)
             except Exception:
                 pass
+            p.alignment = PP_ALIGN.CENTER if i > 0 else PP_ALIGN.LEFT
 
         def set_row(r: int, name: str, plan: str, fact: str, conv: str) -> None:
             values = [name, plan, fact, conv]
@@ -283,6 +284,7 @@ class PresentationService:
                 pp = table.cell(r, c).text_frame.paragraphs[0]
                 pp.font.size = Pt(12)
                 pp.font.name = self.settings.pptx_font_family
+                pp.alignment = PP_ALIGN.CENTER if c > 0 else PP_ALIGN.LEFT
 
         # Compute conversions
         calls_conv = f"{totals['calls_percentage']:.1f}%" if totals['calls_plan'] else "-"
