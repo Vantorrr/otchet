@@ -22,6 +22,7 @@ class Settings:
     daily_summary_time: str
     yandex_api_key: str
     yandex_folder_id: str
+    pptx_font_family: str
 
     @staticmethod
     def load() -> "Settings":
@@ -36,6 +37,7 @@ class Settings:
         daily_summary_time = get_env("DAILY_SUMMARY_TIME", "20:30")
         yandex_api_key = get_env("YANDEX_API_KEY", "")
         yandex_folder_id = get_env("YANDEX_FOLDER_ID", "")
+        pptx_font_family = get_env("PPTX_FONT_FAMILY", "Montserrat")
         return Settings(
             bot_token=bot_token,
             spreadsheet_name=spreadsheet_name,
@@ -47,4 +49,5 @@ class Settings:
             daily_summary_time=daily_summary_time,
             yandex_api_key=yandex_api_key,
             yandex_folder_id=yandex_folder_id,
+            pptx_font_family=pptx_font_family,
         )

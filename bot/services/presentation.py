@@ -60,7 +60,8 @@ class PresentationService:
         period_data: Dict[str, ManagerData],
         period_name: str,
         start_date: date,
-        end_date: date
+        end_date: date,
+        previous_data: Optional[Dict[str, ManagerData]] = None,
     ) -> bytes:
         """
         Generate PowerPoint presentation with analytics.
@@ -86,6 +87,10 @@ class PresentationService:
         
         # Summary slide
         await self._add_summary_slide(prs, period_data, period_name)
+
+        # Comparison slide (previous vs current)
+        if previous_data is not None:
+            await self._add_comparison_slide(prs, previous_data, period_data)
         
         # Manager slides
         for manager_name, manager_data in period_data.items():
@@ -116,13 +121,16 @@ class PresentationService:
         title = slide.shapes.title
         title.text = f"Отчет по продажам"
         title.text_frame.paragraphs[0].font.size = Pt(44)
+        title.text_frame.paragraphs[0].font.name = self.settings.pptx_font_family
         title.text_frame.paragraphs[0].font.color.rgb = RGBColor(204, 0, 0)  # Red
         
         # Subtitle
         subtitle = slide.placeholders[1]
         subtitle.text = f"{period_name}\n{start_date.strftime('%d.%m.%Y')} — {end_date.strftime('%d.%m.%Y')}"
         subtitle.text_frame.paragraphs[0].font.size = Pt(28)
+        subtitle.text_frame.paragraphs[0].font.name = self.settings.pptx_font_family
         subtitle.text_frame.paragraphs[1].font.size = Pt(20)
+        subtitle.text_frame.paragraphs[1].font.name = self.settings.pptx_font_family
         subtitle.text_frame.paragraphs[1].font.color.rgb = RGBColor(102, 102, 102)  # Gray
     
     async def _add_summary_slide(
@@ -139,6 +147,7 @@ class PresentationService:
         title = slide.shapes.title
         title.text = f"Общие показатели команды"
         title.text_frame.paragraphs[0].font.size = Pt(32)
+        title.text_frame.paragraphs[0].font.name = self.settings.pptx_font_family
         title.text_frame.paragraphs[0].font.color.rgb = RGBColor(204, 0, 0)
         
         # Calculate totals
@@ -160,6 +169,7 @@ class PresentationService:
         # Format content
         for paragraph in content.text_frame.paragraphs:
             paragraph.font.size = Pt(18)
+            paragraph.font.name = self.settings.pptx_font_family
             paragraph.space_after = Pt(6)
     
     async def _add_manager_slide(self, prs: Presentation, manager_data: ManagerData):
@@ -171,6 +181,7 @@ class PresentationService:
         title = slide.shapes.title
         title.text = f"👤 {manager_data.name}"
         title.text_frame.paragraphs[0].font.size = Pt(32)
+        title.text_frame.paragraphs[0].font.name = self.settings.pptx_font_family
         title.text_frame.paragraphs[0].font.color.rgb = RGBColor(204, 0, 0)
         
         # Performance indicators
@@ -196,6 +207,7 @@ class PresentationService:
         # Format content
         for paragraph in content.text_frame.paragraphs:
             paragraph.font.size = Pt(16)
+            paragraph.font.name = self.settings.pptx_font_family
             paragraph.space_after = Pt(8)
     
     async def _add_ai_analysis_slide(
@@ -212,6 +224,7 @@ class PresentationService:
         title = slide.shapes.title
         title.text = "🤖 AI-Анализ и рекомендации"
         title.text_frame.paragraphs[0].font.size = Pt(32)
+        title.text_frame.paragraphs[0].font.name = self.settings.pptx_font_family
         title.text_frame.paragraphs[0].font.color.rgb = RGBColor(204, 0, 0)
         
         # Generate AI analysis
@@ -237,7 +250,154 @@ class PresentationService:
         # Format content
         for paragraph in content.text_frame.paragraphs:
             paragraph.font.size = Pt(14)
+            paragraph.font.name = self.settings.pptx_font_family
             paragraph.space_after = Pt(6)
+
+    async def _add_comparison_slide(
+        self,
+        prs: Presentation,
+        previous_data: Dict[str, ManagerData],
+        current_data: Dict[str, ManagerData],
+    ) -> None:
+        """Add slide with two tables: previous period vs current period with dynamics."""
+        slide = prs.slides.add_slide(prs.slide_layouts[5])  # Title Only
+        title = slide.shapes.title
+        title.text = "Динамика: предыдущий период vs текущий"
+        title.text_frame.paragraphs[0].font.size = Pt(28)
+        title.text_frame.paragraphs[0].font.name = self.settings.pptx_font_family
+        title.text_frame.paragraphs[0].font.color.rgb = RGBColor(204, 0, 0)
+
+        def totals(data: Dict[str, ManagerData]) -> Dict[str, float]:
+            t = {
+                'calls_plan': 0, 'calls_fact': 0,
+                'leads_units_plan': 0, 'leads_units_fact': 0,
+                'leads_volume_plan': 0.0, 'leads_volume_fact': 0.0,
+                'approved_volume': 0.0, 'issued_volume': 0.0,
+                'new_calls': 0,
+            }
+            for d in data.values():
+                t['calls_plan'] += d.calls_plan
+                t['calls_fact'] += d.calls_fact
+                t['leads_units_plan'] += d.leads_units_plan
+                t['leads_units_fact'] += d.leads_units_fact
+                t['leads_volume_plan'] += d.leads_volume_plan
+                t['leads_volume_fact'] += d.leads_volume_fact
+                t['approved_volume'] += d.approved_volume
+                t['issued_volume'] += d.issued_volume
+                t['new_calls'] += d.new_calls
+            return t
+
+        prev = totals(previous_data)
+        cur = totals(current_data)
+
+        # Create two tables
+        rows = 5  # headers + 4 metrics
+        cols = 4  # metric name + Plan + Fact + Conv
+        left_prev = Inches(0.5)
+        top_prev = Inches(1.8)
+        width = Inches(6.0)
+        height = Inches(2.5)
+        table_prev = slide.shapes.add_table(rows, cols, left_prev, top_prev, width, height).table
+        table_cur = slide.shapes.add_table(rows, cols, left_prev + Inches(6.3), top_prev, width, height).table
+
+        headers = ["Показатель", "План", "Факт", "Конв (%)"]
+        for i, h in enumerate(headers):
+            for tbl in (table_prev, table_cur):
+                cell = tbl.cell(0, i)
+                cell.text = h
+                p = cell.text_frame.paragraphs[0]
+                p.font.size = Pt(12)
+                p.font.name = self.settings.pptx_font_family
+
+        metrics = [
+            ("Перезвоны", 'calls_plan', 'calls_fact'),
+            ("Новые звонки", 'new_calls', 'new_calls'),
+            ("Заявки, шт", 'leads_units_plan', 'leads_units_fact'),
+            ("Заявки, млн", 'leads_volume_plan', 'leads_volume_fact'),
+        ]
+
+        def fill_row(tbl, row_idx, name, plan_val, fact_val):
+            tbl.cell(row_idx, 0).text = name
+            tbl.cell(row_idx, 1).text = f"{plan_val:,.1f}" if isinstance(plan_val, float) else f"{plan_val:,}"
+            tbl.cell(row_idx, 2).text = f"{fact_val:,.1f}" if isinstance(fact_val, float) else f"{fact_val:,}"
+            conv = (fact_val / plan_val * 100) if (isinstance(plan_val, (int, float)) and plan_val) else 0
+            tbl.cell(row_idx, 3).text = f"{conv:.1f}%"
+            for c in range(4):
+                p = tbl.cell(row_idx, c).text_frame.paragraphs[0]
+                p.font.size = Pt(11)
+                p.font.name = self.settings.pptx_font_family
+
+        for idx, (name, plan_key, fact_key) in enumerate(metrics, start=1):
+            fill_row(table_prev, idx, name, prev.get(plan_key, 0), prev.get(fact_key, 0))
+            fill_row(table_cur, idx, name, cur.get(plan_key, 0), cur.get(fact_key, 0))
+
+        # Totals summary text boxes below tables
+        textbox_prev = slide.shapes.add_textbox(left_prev, top_prev + Inches(2.7), width, Inches(1.2))
+        tfp = textbox_prev.text_frame
+        tfp.text = (
+            f"План {prev['leads_volume_plan']:.1f} млн\n"
+            f"Одобрено {prev['approved_volume']:.1f} млн\n"
+            f"Выдано {prev['issued_volume']:.1f} млн\n"
+            f"Осталось выдать {max(prev['leads_volume_plan'] - prev['issued_volume'], 0):.1f} млн"
+        )
+        for p in tfp.paragraphs:
+            p.font.size = Pt(12)
+            p.font.name = self.settings.pptx_font_family
+
+        textbox_cur = slide.shapes.add_textbox(left_prev + Inches(6.3), top_prev + Inches(2.7), width, Inches(1.2))
+        tfc = textbox_cur.text_frame
+        tfc.text = (
+            f"План {cur['leads_volume_plan']:.1f} млн\n"
+            f"Одобрено {cur['approved_volume']:.1f} млн\n"
+            f"Выдано {cur['issued_volume']:.1f} млн\n"
+            f"Осталось выдать {max(cur['leads_volume_plan'] - cur['issued_volume'], 0):.1f} млн"
+        )
+        for p in tfc.paragraphs:
+            p.font.size = Pt(12)
+            p.font.name = self.settings.pptx_font_family
+
+    async def _add_top3_slide(self, prs: Presentation, period_data: Dict[str, ManagerData]) -> None:
+        """Add slide with TOP-3 best and worst managers by composite score."""
+        slide = prs.slides.add_slide(prs.slide_layouts[5])  # Title Only
+        title = slide.shapes.title
+        title.text = "ТОП‑3 лучших и ТОП‑3 худших"
+        title.text_frame.paragraphs[0].font.size = Pt(28)
+        title.text_frame.paragraphs[0].font.name = self.settings.pptx_font_family
+        title.text_frame.paragraphs[0].font.color.rgb = RGBColor(204, 0, 0)
+
+        # Compute composite score: avg of calls% and leads volume%
+        scored = []
+        for m in period_data.values():
+            score = 0.5 * (m.calls_percentage) + 0.5 * (m.leads_volume_percentage)
+            scored.append((score, m.name, m))
+        scored.sort(reverse=True)
+
+        best = scored[:3]
+        worst = list(reversed(scored[-3:])) if len(scored) >= 3 else scored[-len(scored):]
+
+        left = Inches(0.5)
+        top = Inches(1.6)
+        box_best = slide.shapes.add_textbox(left, top, Inches(6.0), Inches(4.5))
+        tfb = box_best.text_frame
+        tfb.text = "Лучшие:"
+        tfb.paragraphs[0].font.name = self.settings.pptx_font_family
+        tfb.paragraphs[0].font.size = Pt(20)
+        for score, name, m in best:
+            p = tfb.add_paragraph()
+            p.text = f"🏆 {name}: звонки {m.calls_percentage:.0f}%, объем {m.leads_volume_percentage:.0f}%"
+            p.font.name = self.settings.pptx_font_family
+            p.font.size = Pt(14)
+
+        box_worst = slide.shapes.add_textbox(left + Inches(6.5), top, Inches(6.0), Inches(4.5))
+        tfw = box_worst.text_frame
+        tfw.text = "Ниже темпа:"
+        tfw.paragraphs[0].font.name = self.settings.pptx_font_family
+        tfw.paragraphs[0].font.size = Pt(20)
+        for score, name, m in worst:
+            p = tfw.add_paragraph()
+            p.text = f"⚠️ {name}: звонки {m.calls_percentage:.0f}%, объем {m.leads_volume_percentage:.0f}%"
+            p.font.name = self.settings.pptx_font_family
+            p.font.size = Pt(14)
     
     def _calculate_totals(self, period_data: Dict[str, ManagerData]) -> Dict[str, float]:
         """Calculate team totals."""
