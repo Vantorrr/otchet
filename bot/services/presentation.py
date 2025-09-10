@@ -246,27 +246,60 @@ class PresentationService:
         # Calculate totals
         totals = self._calculate_totals(period_data)
         
-        # Content
+        # Content placeholder: clear to avoid overlap, we will render a table instead
         content = slide.placeholders[1]
-        content.text = f"""📊 Итоги за {period_name}
+        try:
+            content.text = ""
+        except Exception:
+            pass
 
-📞 Перезвоны: {totals['calls_fact']:,} из {totals['calls_plan']:,} ({totals['calls_percentage']:.1f}%)
-📝 Заявки (шт): {totals['leads_units_fact']:,} из {totals['leads_units_plan']:,} ({totals['leads_units_percentage']:.1f}%)
-💰 Заявки (млн): {totals['leads_volume_fact']:.1f} из {totals['leads_volume_plan']:.1f} ({totals['leads_volume_percentage']:.1f}%)
-✅ Одобрено (млн): {totals['approved_volume']:.1f}
-✅ Выдано (млн): {totals['issued_volume']:.1f}
-☎️ Новые звонки: {totals['new_calls']:,}
+        # Summary table
+        top = Inches(1.8)
+        left = Inches(0.5)
+        width = Inches(12.3)
+        height = Inches(2.6)
+        rows = 7  # header + 6 metrics
+        cols = 4  # metric, plan, fact, conv
+        table = slide.shapes.add_table(rows, cols, left, top, width, height).table
 
-👥 Активных менеджеров: {len(period_data)}"""
-        
-        # Format content
-        for paragraph in content.text_frame.paragraphs:
-            paragraph.font.size = Pt(18)
-            paragraph.font.name = self.settings.pptx_font_family
-            paragraph.space_after = Pt(6)
+        headers = ["Показатель", "План", "Факт", "Конв (%)"]
+        for i, h in enumerate(headers):
+            cell = table.cell(0, i)
+            cell.text = h
+            p = cell.text_frame.paragraphs[0]
+            p.font.size = Pt(12)
+            p.font.name = self.settings.pptx_font_family
+            try:
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = self._rgb_from_hex(self.settings.pptx_primary_color)
+                p.font.color.rgb = RGBColor(255, 255, 255)
+            except Exception:
+                pass
+
+        def set_row(r: int, name: str, plan: str, fact: str, conv: str) -> None:
+            values = [name, plan, fact, conv]
+            for c, val in enumerate(values):
+                table.cell(r, c).text = val
+                pp = table.cell(r, c).text_frame.paragraphs[0]
+                pp.font.size = Pt(12)
+                pp.font.name = self.settings.pptx_font_family
+
+        # Compute conversions
+        calls_conv = f"{totals['calls_percentage']:.1f}%" if totals['calls_plan'] else "-"
+        units_conv = f"{totals['leads_units_percentage']:.1f}%" if totals['leads_units_plan'] else "-"
+        vol_conv = f"{totals['leads_volume_percentage']:.1f}%" if totals['leads_volume_plan'] else "-"
+
+        # Fill rows
+        set_row(1, "📲 Перезвоны", f"{totals['calls_plan']:,}", f"{totals['calls_fact']:,}", calls_conv)
+        set_row(2, "📝 Заявки, шт", f"{totals['leads_units_plan']:,}", f"{totals['leads_units_fact']:,}", units_conv)
+        set_row(3, "💰 Заявки, млн", f"{totals['leads_volume_plan']:.1f}", f"{totals['leads_volume_fact']:.1f}", vol_conv)
+        set_row(4, "✅ Одобрено, млн", "-", f"{totals['approved_volume']:.1f}", "-")
+        set_row(5, "✅ Выдано, млн", "-", f"{totals['issued_volume']:.1f}", "-")
+        set_row(6, "☎️ Новые звонки", "-", f"{totals['new_calls']:,}", "-")
 
         # Add AI team comment below
-        comment_box = prs.slides[-1].shapes.add_textbox(Inches(0.5), Inches(4.9), Inches(12.3), Inches(2.2))
+        # Place AI team comment right under the table
+        comment_box = prs.slides[-1].shapes.add_textbox(left, top + height + Inches(0.3), width, Inches(2.0))
         tf = comment_box.text_frame
         tf.text = "Комментарий ИИ — Команда"
         tf.paragraphs[0].font.size = Pt(16)
