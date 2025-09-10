@@ -300,18 +300,27 @@ class PresentationService:
         set_row(6, "☎️ Новые звонки", "-", f"{totals['new_calls']:,}", "-")
 
         # Add AI team comment below
-        # Place AI team comment right under the table
-        comment_box = prs.slides[-1].shapes.add_textbox(left, top + height + Inches(0.3), width, Inches(2.0))
+        # Place AI team comment right under the table (extra height to avoid clipping)
+        comment_box = prs.slides[-1].shapes.add_textbox(left, top + height + Inches(0.25), width, Inches(2.4))
         tf = comment_box.text_frame
         tf.text = "Комментарий ИИ — Команда"
         tf.paragraphs[0].font.size = Pt(16)
         tf.paragraphs[0].font.name = self.settings.pptx_font_family
         tf.paragraphs[0].font.bold = True
         ai_comment = await self.gpt_service.generate_team_comment(totals, period_name)
+        # Trim overly long comments to keep layout stable
+        if len(ai_comment) > 700:
+            ai_comment = ai_comment[:700].rstrip() + "…"
         p = tf.add_paragraph()
         p.text = ai_comment
         p.font.size = Pt(12)
         p.font.name = self.settings.pptx_font_family
+        # Tighten spacing to avoid overflow
+        for par in tf.paragraphs:
+            try:
+                par.space_after = Pt(4)
+            except Exception:
+                pass
     
     async def _add_manager_slide(self, prs: Presentation, manager_data: ManagerData):
         """Add individual manager slide."""
@@ -526,19 +535,27 @@ class PresentationService:
 
         # Place comment higher and allow wrapping to avoid clipping on last slide
         # Place comment below totals with safe margin to avoid overlap
-        comment_top = top_prev + Inches(2.5) + Inches(1.3)
-        comment_box = slide.shapes.add_textbox(Inches(0.5), comment_top, Inches(12.3), Inches(2.2))
+        comment_top = top_prev + Inches(2.5) + Inches(1.1)
+        comment_box = slide.shapes.add_textbox(Inches(0.5), comment_top, Inches(12.3), Inches(2.4))
         tfc = comment_box.text_frame
         # Heading
         tfc.text = f"Комментарий ИИ — {cur.name}"
-        tfc.paragraphs[0].font.size = Pt(14)
+        tfc.paragraphs[0].font.size = Pt(13)
         tfc.paragraphs[0].font.name = self.settings.pptx_font_family
         tfc.paragraphs[0].font.bold = True
         # Body
         p = tfc.add_paragraph()
+        # Trim to keep within slide height
+        if len(comment) > 700:
+            comment = comment[:700].rstrip() + "…"
         p.text = comment
         p.font.size = Pt(11)
         p.font.name = self.settings.pptx_font_family
+        try:
+            for par in tfc.paragraphs:
+                par.space_after = Pt(3)
+        except Exception:
+            pass
 
     # Backward-compatibility: older callers might still invoke this to add a separate AI comment slide
     async def _add_manager_ai_comment_slide(self, prs: Presentation, prev: ManagerData, cur: ManagerData, period_name: str) -> None:
