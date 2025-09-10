@@ -23,6 +23,9 @@ class Settings:
     yandex_api_key: str
     yandex_folder_id: str
     pptx_font_family: str
+    pptx_primary_color: str
+    pptx_secondary_color: str
+    pptx_logo_path: str
 
     @staticmethod
     def load() -> "Settings":
@@ -38,6 +41,9 @@ class Settings:
         yandex_api_key = get_env("YANDEX_API_KEY", "")
         yandex_folder_id = get_env("YANDEX_FOLDER_ID", "")
         pptx_font_family = get_env("PPTX_FONT_FAMILY", "Montserrat")
+        pptx_primary_color = get_env("PPTX_PRIMARY_COLOR", "#CC0000")
+        pptx_secondary_color = get_env("PPTX_SECONDARY_COLOR", "#F3F4F6")
+        pptx_logo_path = get_env("PPTX_LOGO_PATH", "")
         return Settings(
             bot_token=bot_token,
             spreadsheet_name=spreadsheet_name,
@@ -50,4 +56,7 @@ class Settings:
             yandex_api_key=yandex_api_key,
             yandex_folder_id=yandex_folder_id,
             pptx_font_family=pptx_font_family,
+            pptx_primary_color=pptx_primary_color,
+            pptx_secondary_color=pptx_secondary_color,
+            pptx_logo_path=pptx_logo_path,
         )

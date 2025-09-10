@@ -13,6 +13,8 @@ from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.enum.text import PP_ALIGN
 from pptx.dml.color import RGBColor
+from pptx.enum.dml import MSO_THEME_COLOR
+from pptx.util import Cm
 
 from bot.services.yandex_gpt import YandexGPTService
 from bot.config import Settings
@@ -83,6 +85,17 @@ class PresentationService:
         # Set slide size (16:9)
         prs.slide_width = Inches(13.33)
         prs.slide_height = Inches(7.5)
+
+        # Apply optional logo on master (top-right) and light gray background band
+        try:
+            if self.settings.pptx_logo_path and os.path.exists(self.settings.pptx_logo_path):
+                for layout in prs.slide_layouts:
+                    slide = prs.slides.add_slide(layout)
+                    slide.shapes.add_picture(self.settings.pptx_logo_path, prs.slide_width - Inches(1.8), Inches(0.2), height=Inches(0.9))
+                    # remove after cloning: keep normal slides clean
+                    prs.slides._sldIdLst.remove(slide._element.getparent())
+        except Exception:
+            pass
         
         # Title slide
         await self._add_title_slide(prs, period_name, start_date, end_date)
@@ -142,7 +155,14 @@ class PresentationService:
         title.text = f"Отчет по продажам"
         title.text_frame.paragraphs[0].font.size = Pt(44)
         title.text_frame.paragraphs[0].font.name = self.settings.pptx_font_family
-        title.text_frame.paragraphs[0].font.color.rgb = RGBColor(204, 0, 0)  # Red
+        # Primary color
+        try:
+            r = int(self.settings.pptx_primary_color[1:3], 16)
+            g = int(self.settings.pptx_primary_color[3:5], 16)
+            b = int(self.settings.pptx_primary_color[5:7], 16)
+            title.text_frame.paragraphs[0].font.color.rgb = RGBColor(r, g, b)
+        except Exception:
+            title.text_frame.paragraphs[0].font.color.rgb = RGBColor(204, 0, 0)
         title.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
         
         # Subtitle
@@ -171,7 +191,13 @@ class PresentationService:
         title.text = f"Общие показатели команды"
         title.text_frame.paragraphs[0].font.size = Pt(32)
         title.text_frame.paragraphs[0].font.name = self.settings.pptx_font_family
-        title.text_frame.paragraphs[0].font.color.rgb = RGBColor(204, 0, 0)
+        try:
+            r = int(self.settings.pptx_primary_color[1:3], 16)
+            g = int(self.settings.pptx_primary_color[3:5], 16)
+            b = int(self.settings.pptx_primary_color[5:7], 16)
+            title.text_frame.paragraphs[0].font.color.rgb = RGBColor(r, g, b)
+        except Exception:
+            title.text_frame.paragraphs[0].font.color.rgb = RGBColor(204, 0, 0)
         title.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
         
         # Calculate totals
@@ -206,7 +232,13 @@ class PresentationService:
         title.text = f"👤 {manager_data.name}"
         title.text_frame.paragraphs[0].font.size = Pt(32)
         title.text_frame.paragraphs[0].font.name = self.settings.pptx_font_family
-        title.text_frame.paragraphs[0].font.color.rgb = RGBColor(204, 0, 0)
+        try:
+            r = int(self.settings.pptx_primary_color[1:3], 16)
+            g = int(self.settings.pptx_primary_color[3:5], 16)
+            b = int(self.settings.pptx_primary_color[5:7], 16)
+            title.text_frame.paragraphs[0].font.color.rgb = RGBColor(r, g, b)
+        except Exception:
+            title.text_frame.paragraphs[0].font.color.rgb = RGBColor(204, 0, 0)
         title.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
         
         # Performance indicators
@@ -252,7 +284,13 @@ class PresentationService:
         title.text = f"Динамика — {cur.name}"
         title.text_frame.paragraphs[0].font.size = Pt(28)
         title.text_frame.paragraphs[0].font.name = self.settings.pptx_font_family
-        title.text_frame.paragraphs[0].font.color.rgb = RGBColor(204, 0, 0)
+        try:
+            r = int(self.settings.pptx_primary_color[1:3], 16)
+            g = int(self.settings.pptx_primary_color[3:5], 16)
+            b = int(self.settings.pptx_primary_color[5:7], 16)
+            title.text_frame.paragraphs[0].font.color.rgb = RGBColor(r, g, b)
+        except Exception:
+            title.text_frame.paragraphs[0].font.color.rgb = RGBColor(204, 0, 0)
         title.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
 
         def t(m: ManagerData) -> dict[str, float]:
@@ -303,6 +341,16 @@ class PresentationService:
                 p = cell.text_frame.paragraphs[0]
                 p.font.size = Pt(12)
                 p.font.name = self.settings.pptx_font_family
+                # Header background tint
+                try:
+                    r = int(self.settings.pptx_primary_color[1:3], 16)
+                    g = int(self.settings.pptx_primary_color[3:5], 16)
+                    b = int(self.settings.pptx_primary_color[5:7], 16)
+                    cell.fill.solid()
+                    cell.fill.fore_color.rgb = RGBColor(r, g, b)
+                    p.font.color.rgb = RGBColor(255, 255, 255)
+                except Exception:
+                    pass
 
         metrics = [
             ("📲 Перезвоны", 'calls_plan', 'calls_fact'),
@@ -390,7 +438,13 @@ class PresentationService:
         title.text = f"Комментарий ИИ — {cur.name}"
         title.text_frame.paragraphs[0].font.size = Pt(28)
         title.text_frame.paragraphs[0].font.name = self.settings.pptx_font_family
-        title.text_frame.paragraphs[0].font.color.rgb = RGBColor(204, 0, 0)
+        try:
+            r = int(self.settings.pptx_primary_color[1:3], 16)
+            g = int(self.settings.pptx_primary_color[3:5], 16)
+            b = int(self.settings.pptx_primary_color[5:7], 16)
+            title.text_frame.paragraphs[0].font.color.rgb = RGBColor(r, g, b)
+        except Exception:
+            title.text_frame.paragraphs[0].font.color.rgb = RGBColor(204, 0, 0)
 
         def as_dict(m: ManagerData) -> dict[str, float]:
             return {
