@@ -96,7 +96,7 @@ class PresentationService:
         for manager_name, manager_data in period_data.items():
             await self._add_manager_slide(prs, manager_data)
             if previous_data is not None and manager_name in previous_data:
-                await self._add_manager_comparison_slide(prs, previous_data[manager_name], manager_data)
+                await self._add_manager_comparison_slide(prs, previous_data[manager_name], manager_data, period_name)
                 await self._add_manager_ai_comment_slide(prs, previous_data[manager_name], manager_data, period_name)
         
         # AI Analysis slide
@@ -213,8 +213,8 @@ class PresentationService:
             paragraph.font.name = self.settings.pptx_font_family
             paragraph.space_after = Pt(8)
 
-    async def _add_manager_comparison_slide(self, prs: Presentation, prev: ManagerData, cur: ManagerData) -> None:
-        """Add per-manager comparison slide with two tables and totals below, like the team dynamic slide."""
+    async def _add_manager_comparison_slide(self, prs: Presentation, prev: ManagerData, cur: ManagerData, period_name: str) -> None:
+        """Add per-manager comparison slide with two tables + totals + AI comment on one slide."""
         slide = prs.slides.add_slide(prs.slide_layouts[5])  # Title Only
         title = slide.shapes.title
         title.text = f"Динамика — {cur.name}"
@@ -241,9 +241,9 @@ class PresentationService:
         rows = 5
         cols = 4
         left_prev = Inches(0.5)
-        top_prev = Inches(1.8)
+        top_prev = Inches(1.6)
         width = Inches(6.0)
-        height = Inches(2.5)
+        height = Inches(2.3)
         table_prev = slide.shapes.add_table(rows, cols, left_prev, top_prev, width, height).table
         table_cur = slide.shapes.add_table(rows, cols, left_prev + Inches(6.3), top_prev, width, height).table
 
@@ -257,10 +257,10 @@ class PresentationService:
                 p.font.name = self.settings.pptx_font_family
 
         metrics = [
-            ("Перезвоны", 'calls_plan', 'calls_fact'),
-            ("Новые звонки", 'new_calls', 'new_calls'),
-            ("Заявки, шт", 'leads_units_plan', 'leads_units_fact'),
-            ("Заявки, млн", 'leads_volume_plan', 'leads_volume_fact'),
+            ("📲 Перезвоны", 'calls_plan', 'calls_fact'),
+            ("☎️ Новые звонки", 'new_calls', 'new_calls'),
+            ("📝 Заявки, шт", 'leads_units_plan', 'leads_units_fact'),
+            ("💰 Заявки, млн", 'leads_volume_plan', 'leads_volume_fact'),
         ]
 
         def fill_row(tbl, row_idx, name, plan_val, fact_val):
@@ -278,39 +278,31 @@ class PresentationService:
             fill_row(table_prev, idx, name, prev_d.get(plan_key, 0), prev_d.get(fact_key, 0))
             fill_row(table_cur, idx, name, cur_d.get(plan_key, 0), cur_d.get(fact_key, 0))
 
-        textbox_prev = slide.shapes.add_textbox(left_prev, top_prev + Inches(2.7), width, Inches(1.2))
+        textbox_prev = slide.shapes.add_textbox(left_prev, top_prev + Inches(2.5), width, Inches(0.9))
         tfp = textbox_prev.text_frame
         tfp.text = (
-            f"План {prev_d['leads_volume_plan']:.1f} млн\n"
-            f"Одобрено {prev_d['approved_volume']:.1f} млн\n"
-            f"Выдано {prev_d['issued_volume']:.1f} млн\n"
-            f"Осталось выдать {max(prev_d['leads_volume_plan'] - prev_d['issued_volume'], 0):.1f} млн"
+            f"💰 План: {prev_d['leads_volume_plan']:.1f} млн\n"
+            f"✅ Одобрено: {prev_d['approved_volume']:.1f} млн\n"
+            f"✅ Выдано: {prev_d['issued_volume']:.1f} млн\n"
+            f"🎯 Осталось выдать: {max(prev_d['leads_volume_plan'] - prev_d['issued_volume'], 0):.1f} млн"
         )
         for p in tfp.paragraphs:
-            p.font.size = Pt(12)
+            p.font.size = Pt(11)
             p.font.name = self.settings.pptx_font_family
 
-        textbox_cur = slide.shapes.add_textbox(left_prev + Inches(6.3), top_prev + Inches(2.7), width, Inches(1.2))
+        textbox_cur = slide.shapes.add_textbox(left_prev + Inches(6.3), top_prev + Inches(2.5), width, Inches(0.9))
         tfc = textbox_cur.text_frame
         tfc.text = (
-            f"План {cur_d['leads_volume_plan']:.1f} млн\n"
-            f"Одобрено {cur_d['approved_volume']:.1f} млн\n"
-            f"Выдано {cur_d['issued_volume']:.1f} млн\n"
-            f"Осталось выдать {max(cur_d['leads_volume_plan'] - cur_d['issued_volume'], 0):.1f} млн"
+            f"💰 План: {cur_d['leads_volume_plan']:.1f} млн\n"
+            f"✅ Одобрено: {cur_d['approved_volume']:.1f} млн\n"
+            f"✅ Выдано: {cur_d['issued_volume']:.1f} млн\n"
+            f"🎯 Осталось выдать: {max(cur_d['leads_volume_plan'] - cur_d['issued_volume'], 0):.1f} млн"
         )
         for p in tfc.paragraphs:
-            p.font.size = Pt(12)
+            p.font.size = Pt(11)
             p.font.name = self.settings.pptx_font_family
 
-    async def _add_manager_ai_comment_slide(self, prs: Presentation, prev: ManagerData, cur: ManagerData, period_name: str) -> None:
-        """Add per-manager AI comment slide under comparison."""
-        slide = prs.slides.add_slide(prs.slide_layouts[5])  # Title Only
-        title = slide.shapes.title
-        title.text = f"Комментарий ИИ — {cur.name}"
-        title.text_frame.paragraphs[0].font.size = Pt(28)
-        title.text_frame.paragraphs[0].font.name = self.settings.pptx_font_family
-        title.text_frame.paragraphs[0].font.color.rgb = RGBColor(204, 0, 0)
-
+        # AI comment block on the same slide
         def as_dict(m: ManagerData) -> dict[str, float]:
             return {
                 'calls_plan': m.calls_plan,
@@ -324,17 +316,22 @@ class PresentationService:
                 'new_calls': m.new_calls,
             }
 
-        prev_d = as_dict(prev)
-        cur_d = as_dict(cur)
+        prev_dict = as_dict(prev)
+        cur_dict = as_dict(cur)
+        comment = await self.gpt_service.generate_manager_comment(cur.name, prev_dict, cur_dict, period_name)
 
-        comment = await self.gpt_service.generate_manager_comment(cur.name, prev_d, cur_d, period_name)
-
-        textbox = prs.slides[-1].shapes.add_textbox(Inches(0.5), Inches(1.8), Inches(12.5), Inches(4.5))
-        tf = textbox.text_frame
-        tf.text = comment
-        for p in tf.paragraphs:
-            p.font.size = Pt(16)
-            p.font.name = self.settings.pptx_font_family
+        comment_box = slide.shapes.add_textbox(Inches(0.5), top_prev + Inches(3.6), Inches(12.3), Inches(2.2))
+        tfc = comment_box.text_frame
+        # Heading
+        tfc.text = f"Комментарий ИИ — {cur.name}"
+        tfc.paragraphs[0].font.size = Pt(18)
+        tfc.paragraphs[0].font.name = self.settings.pptx_font_family
+        tfc.paragraphs[0].font.bold = True
+        # Body
+        p = tfc.add_paragraph()
+        p.text = comment
+        p.font.size = Pt(14)
+        p.font.name = self.settings.pptx_font_family
     
     async def _add_ai_analysis_slide(
         self,
