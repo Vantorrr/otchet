@@ -270,6 +270,38 @@ async def cmd_presentation_range(message: types.Message, command: CommandObject)
         await message.reply(f"❌ Ошибка: {str(e)}")
 
 
+@admin_router.message(Command("presentation_compare"))
+async def cmd_presentation_compare(message: types.Message, command: CommandObject) -> None:
+    """Generate AI presentation comparing two custom periods: /presentation_compare YYYY-MM-DD YYYY-MM-DD YYYY-MM-DD YYYY-MM-DD"""
+    args = (command.args or "").split()
+    if len(args) != 4:
+        await message.reply("Формат: /presentation_compare YYYY-MM-DD YYYY-MM-DD YYYY-MM-DD YYYY-MM-DD\n(первый период A: start end, второй период B: start end)")
+        return
+    try:
+        from datetime import datetime as _dt
+        a_start = _dt.strptime(args[0], "%Y-%m-%d").date()
+        a_end = _dt.strptime(args[1], "%Y-%m-%d").date()
+        b_start = _dt.strptime(args[2], "%Y-%m-%d").date()
+        b_end = _dt.strptime(args[3], "%Y-%m-%d").date()
+    except Exception:
+        await message.reply("Неверные даты. Пример: /presentation_compare 2025-08-01 2025-08-07 2025-09-01 2025-09-07")
+        return
+    await message.reply("🔄 Генерирую презентацию (сравнение двух периодов)...")
+    try:
+        container = Container.get()
+        aggregator = DataAggregatorService(container.sheets)
+        presentation_service = PresentationService(container.settings)
+        data_a, data_b, title, start_a, end_a, start_b, end_b = await aggregator.aggregate_two_periods(a_start, a_end, b_start, b_end)
+        if not data_a and not data_b:
+            await message.reply("❌ Нет данных за выбранные периоды.")
+            return
+        pptx_bytes = await presentation_service.generate_presentation(data_a, title, start_a, end_a, data_b, start_b, end_b)
+        document = types.BufferedInputFile(pptx_bytes, filename=f"AI_Отчет_{title.replace(' ', '_')}.pptx")
+        await message.reply_document(document, caption=f"📊 {title}\n🤖 AI-презентация готова!")
+    except Exception as e:
+        await message.reply(f"❌ Ошибка: {str(e)}")
+
+
 @admin_router.message(Command("tempo_check"))
 async def cmd_tempo_check(message: types.Message) -> None:
     """Check managers falling behind tempo."""

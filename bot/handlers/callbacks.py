@@ -496,7 +496,9 @@ async def callback_presentation_period(callback: types.CallbackQuery) -> None:
     await callback.message.answer(
         "Укажи период в формате:\n"
         "<code>/presentation_range YYYY-MM-DD YYYY-MM-DD</code>\n\n"
-        "Например: <code>/presentation_range 2025-09-01 2025-09-07</code>"
+        "Или сравни два периода:\n"
+        "<code>/presentation_compare YYYY-MM-DD YYYY-MM-DD YYYY-MM-DD YYYY-MM-DD</code>\n\n"
+        "Например: <code>/presentation_compare 2025-08-01 2025-08-07 2025-09-01 2025-09-07</code>"
     )
     await callback.answer()
 

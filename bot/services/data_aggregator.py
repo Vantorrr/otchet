@@ -159,6 +159,19 @@ class DataAggregatorService:
         prev_start = prev_end - delta
         prev_data = await self._aggregate_data_for_period(prev_start, prev_end)
         return data, prev_data, period_name, start_date, end_date, prev_start, prev_end
+
+    async def aggregate_two_periods(
+        self,
+        start_a: date,
+        end_a: date,
+        start_b: date,
+        end_b: date,
+    ) -> Tuple[Dict[str, ManagerData], Dict[str, ManagerData], str, date, date, date, date]:
+        """Aggregate for two arbitrary periods A and B, to compare A vs B."""
+        data_a = await self._aggregate_data_for_period(start_a, end_a)
+        data_b = await self._aggregate_data_for_period(start_b, end_b)
+        title = f"Период {start_a.strftime('%d.%m.%Y')}—{end_a.strftime('%d.%m.%Y')} vs {start_b.strftime('%d.%m.%Y')}—{end_b.strftime('%d.%m.%Y')}"
+        return data_a, data_b, title, start_a, end_a, start_b, end_b
     
     def _parse_record_date(self, date_str: str) -> Optional[date]:
         """Parse date from various formats."""
