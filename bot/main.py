@@ -80,13 +80,16 @@ async def main() -> None:
                 manager = binding.get("manager")
                 if topic_id and manager:
                     total += 1
-                    await bot.send_message(
-                        chat_id, 
-                        f"🌅 Утреннее напоминание для <b>{manager}</b>\nВремя заполнить утренний отчет!", 
-                        message_thread_id=topic_id,
-                        reply_markup=get_main_menu_keyboard()
-                    )
-                    sent += 1
+                    try:
+                        await bot.send_message(
+                            chat_id, 
+                            f"🌅 Утреннее напоминание для <b>{manager}</b>\nВремя заполнить утренний отчет!", 
+                            message_thread_id=topic_id,
+                            reply_markup=get_main_menu_keyboard()
+                        )
+                        sent += 1
+                    except Exception as err:
+                        logging.getLogger(__name__).warning(f"Failed to send morning reminder to {manager} (topic {topic_id}): {err}")
             logging.getLogger(__name__).info("Morning reminder sent: %d/%d", sent, total)
         except Exception as e:
             logging.getLogger(__name__).warning(f"Morning reminder error: {e}")
@@ -111,13 +114,16 @@ async def main() -> None:
                 manager = binding.get("manager")
                 if topic_id and manager:
                     total += 1
-                    await bot.send_message(
-                        chat_id, 
-                        f"🌆 Вечернее напоминание для <b>{manager}</b>\nВремя заполнить вечерний отчет!", 
-                        message_thread_id=topic_id,
-                        reply_markup=get_main_menu_keyboard()
-                    )
-                    sent += 1
+                    try:
+                        await bot.send_message(
+                            chat_id, 
+                            f"🌆 Вечернее напоминание для <b>{manager}</b>\nВремя заполнить вечерний отчет!", 
+                            message_thread_id=topic_id,
+                            reply_markup=get_main_menu_keyboard()
+                        )
+                        sent += 1
+                    except Exception as err:
+                        logging.getLogger(__name__).warning(f"Failed to send evening reminder to {manager} (topic {topic_id}): {err}")
             logging.getLogger(__name__).info("Evening reminder sent: %d/%d", sent, total)
         except Exception as e:
             logging.getLogger(__name__).warning(f"Evening reminder error: {e}")
