@@ -33,6 +33,7 @@ class ManagerData:
     approved_volume: float = 0.0
     issued_volume: float = 0.0
     new_calls: int = 0
+    new_calls_plan: int = 0
     
     @property
     def calls_percentage(self) -> float:
@@ -470,7 +471,7 @@ class PresentationService:
 
         metrics = [
             ("📲 Повторные звонки", 'calls_plan', 'calls_fact'),
-            ("☎️ Новые звонки", 'new_calls', 'new_calls'),
+            ("☎️ Новые звонки", 'new_calls_plan', 'new_calls'),
             ("📝 Заявки, шт", 'leads_units_plan', 'leads_units_fact'),
             ("💰 Заявки, млн", 'leads_volume_plan', 'leads_volume_fact'),
         ]
@@ -670,6 +671,7 @@ class PresentationService:
                 'leads_volume_plan': 0.0, 'leads_volume_fact': 0.0,
                 'approved_volume': 0.0, 'issued_volume': 0.0,
                 'new_calls': 0,
+                'new_calls_plan': 0,
             }
             for d in data.values():
                 t['calls_plan'] += d.calls_plan
@@ -681,6 +683,7 @@ class PresentationService:
                 t['approved_volume'] += d.approved_volume
                 t['issued_volume'] += d.issued_volume
                 t['new_calls'] += d.new_calls
+                t['new_calls_plan'] += d.new_calls_plan
             return t
 
         prev = totals(previous_data)
@@ -730,7 +733,7 @@ class PresentationService:
 
         metrics = [
             ("📲 Повторные звонки", 'calls_plan', 'calls_fact'),
-            ("☎️ Новые звонки", 'new_calls', 'new_calls'),
+            ("☎️ Новые звонки", 'new_calls_plan', 'new_calls'),
             ("📝 Заявки, шт", 'leads_units_plan', 'leads_units_fact'),
             ("💰 Заявки, млн", 'leads_volume_plan', 'leads_volume_fact'),
         ]
@@ -905,6 +908,7 @@ class PresentationService:
             'approved_volume': 0.0,
             'issued_volume': 0.0,
             'new_calls': 0,
+            'new_calls_plan': 0,
         }
         
         for manager_data in period_data.values():
@@ -917,6 +921,7 @@ class PresentationService:
             totals['approved_volume'] += manager_data.approved_volume
             totals['issued_volume'] += manager_data.issued_volume
             totals['new_calls'] += manager_data.new_calls
+            totals['new_calls_plan'] += manager_data.new_calls_plan
         
         # Calculate percentages
         totals['calls_percentage'] = (totals['calls_fact'] / totals['calls_plan'] * 100) if totals['calls_plan'] > 0 else 0

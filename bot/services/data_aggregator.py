@@ -208,7 +208,7 @@ class DataAggregatorService:
             manager_data.calls_plan += int(record.get('morning_calls_planned', 0) or 0)
             manager_data.leads_units_plan += int(record.get('morning_leads_planned_units', 0) or 0)
             manager_data.leads_volume_plan += float(record.get('morning_leads_planned_volume', 0) or 0)
-            manager_data.new_calls += int(record.get('morning_new_calls_planned', 0) or 0)
+            manager_data.new_calls_plan += int(record.get('morning_new_calls_planned', 0) or 0)
         except (ValueError, TypeError):
             pass  # Skip invalid data
     
@@ -220,5 +220,6 @@ class DataAggregatorService:
             manager_data.leads_volume_fact += float(record.get('evening_leads_volume', 0) or 0)
             manager_data.approved_volume += float(record.get('evening_approved_volume', 0) or 0)
             manager_data.issued_volume += float(record.get('evening_issued_volume', 0) or 0)
+            manager_data.new_calls += int(record.get('evening_new_calls', 0) or 0)
         except (ValueError, TypeError):
             pass  # Skip invalid data
