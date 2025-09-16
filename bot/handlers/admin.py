@@ -135,16 +135,25 @@ async def cmd_generate_weekly_presentation(message: types.Message) -> None:
         aggregator = DataAggregatorService(container.sheets)
         presentation_service = PresentationService(container.settings)
         
-        # Get weekly data
-        period_data, period_name, start_date, end_date = await aggregator.aggregate_weekly_data()
+        # Get weekly data with previous
+        period_data, prev_data, period_name, start_date, end_date, prev_start, prev_end = await aggregator.aggregate_weekly_data_with_previous()
         
         if not period_data:
             await message.reply("❌ Нет данных за эту неделю.")
             return
         
-        # Generate presentation
+        # Check if previous period has data
+        if not prev_data:
+            await message.reply(
+                f"⚠️ Нет данных за предыдущую неделю ({prev_start.strftime('%d.%m.%Y')}—{prev_end.strftime('%d.%m.%Y')}).\n"
+                f"\nГенерирую презентацию только за текущий период..."
+            )
+            # Generate without comparison
+            prev_data = {}
+            
+        # Generate presentation with comparison
         pptx_bytes = await presentation_service.generate_presentation(
-            period_data, period_name, start_date, end_date
+            period_data, period_name, start_date, end_date, prev_data, prev_start, prev_end
         )
         
         # Send as document
@@ -174,16 +183,25 @@ async def cmd_generate_monthly_presentation(message: types.Message) -> None:
         aggregator = DataAggregatorService(container.sheets)
         presentation_service = PresentationService(container.settings)
         
-        # Get monthly data
-        period_data, period_name, start_date, end_date = await aggregator.aggregate_monthly_data()
+        # Get monthly data with previous
+        period_data, prev_data, period_name, start_date, end_date, prev_start, prev_end = await aggregator.aggregate_monthly_data_with_previous()
         
         if not period_data:
             await message.reply("❌ Нет данных за этот месяц.")
             return
         
-        # Generate presentation
+        # Check if previous period has data
+        if not prev_data:
+            await message.reply(
+                f"⚠️ Нет данных за предыдущий месяц ({prev_start.strftime('%d.%m.%Y')}—{prev_end.strftime('%d.%m.%Y')}).\n"
+                f"\nГенерирую презентацию только за текущий период..."
+            )
+            # Generate without comparison
+            prev_data = {}
+            
+        # Generate presentation with comparison
         pptx_bytes = await presentation_service.generate_presentation(
-            period_data, period_name, start_date, end_date
+            period_data, period_name, start_date, end_date, prev_data, prev_start, prev_end
         )
         
         # Send as document
@@ -213,16 +231,25 @@ async def cmd_generate_quarterly_presentation(message: types.Message) -> None:
         aggregator = DataAggregatorService(container.sheets)
         presentation_service = PresentationService(container.settings)
         
-        # Get quarterly data
-        period_data, period_name, start_date, end_date = await aggregator.aggregate_quarterly_data()
+        # Get quarterly data with previous
+        period_data, prev_data, period_name, start_date, end_date, prev_start, prev_end = await aggregator.aggregate_quarterly_data_with_previous()
         
         if not period_data:
             await message.reply("❌ Нет данных за этот квартал.")
             return
         
-        # Generate presentation
+        # Check if previous period has data
+        if not prev_data:
+            await message.reply(
+                f"⚠️ Нет данных за предыдущий квартал ({prev_start.strftime('%d.%m.%Y')}—{prev_end.strftime('%d.%m.%Y')}).\n"
+                f"\nГенерирую презентацию только за текущий период..."
+            )
+            # Generate without comparison
+            prev_data = {}
+            
+        # Generate presentation with comparison
         pptx_bytes = await presentation_service.generate_presentation(
-            period_data, period_name, start_date, end_date
+            period_data, period_name, start_date, end_date, prev_data, prev_start, prev_end
         )
         
         # Send as document
@@ -263,6 +290,19 @@ async def cmd_presentation_range(message: types.Message, command: CommandObject)
         if not period_data:
             await message.reply("❌ Нет данных за этот период.")
             return
+        
+        # Check if previous period has data
+        if not prev_data:
+            # Try to find nearest period with data
+            await message.reply(
+                f"⚠️ Нет данных за предыдущий период ({prev_start.strftime('%d.%m.%Y')}—{prev_end.strftime('%d.%m.%Y')}).\n"
+                f"\nВарианты:\n"
+                f"1. Используйте /presentation_compare для сравнения с другим периодом\n"
+                f"2. Попробуйте более поздний период\n"
+                f"\nПример: /presentation_compare {start.strftime('%Y-%m-%d')} {end.strftime('%Y-%m-%d')} 2025-09-01 2025-09-16"
+            )
+            return
+            
         pptx_bytes = await presentation_service.generate_presentation(period_data, period_name, start_date, end_date, prev_data, prev_start, prev_end)
         document = types.BufferedInputFile(pptx_bytes, filename=f"AI_Отчет_{period_name.replace(' ', '_')}.pptx")
         await message.reply_document(document, caption=f"📊 {period_name}\n🤖 AI-презентация готова!")
