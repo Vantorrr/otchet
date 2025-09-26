@@ -337,7 +337,7 @@ async def cmd_slides_range(message: types.Message, command: CommandObject) -> No
         prs_service = PresentationService(container.settings)
         totals = prs_service._calculate_totals(period_data)  # reuse same logic
         office_name = "Офис"
-        slides.build_title_and_summary(deck_id, office_name, f"{period_name} — {start.strftime('%d.%m.%Y')}—{end.strftime('%d.%m.%Y')}", totals)
+        await slides.build_title_and_summary(deck_id, office_name, f"{period_name} — {start.strftime('%d.%m.%Y')}—{end.strftime('%d.%m.%Y')}", totals)
         slides.move_presentation_to_folder(deck_id)
         pdf_bytes = slides.export_pdf(deck_id)
         document = types.BufferedInputFile(pdf_bytes, filename=f"Отчет_{period_name.replace(' ', '_')}.pdf")

@@ -9,6 +9,7 @@ from googleapiclient.http import MediaIoBaseUpload
 from google.oauth2.service_account import Credentials
 
 from bot.config import Settings
+from bot.services.yandex_gpt import YandexGPTService
 
 
 SCOPES = [
@@ -32,6 +33,7 @@ class GoogleSlidesService:
             drive=build("drive", "v3", credentials=creds),
             slides=build("slides", "v1", credentials=creds),
         )
+        self._ai = YandexGPTService(settings)
 
     # --- Helpers ---
     def _get_folder_id(self) -> str:
@@ -67,7 +69,7 @@ class GoogleSlidesService:
         return buf.getvalue()
 
     # --- High-level deck builder (phase 1) ---
-    def build_title_and_summary(
+    async def build_title_and_summary(
         self,
         presentation_id: str,
         office_name: str,
@@ -114,6 +116,13 @@ class GoogleSlidesService:
             self.add_textbox(presentation_id, page_id, f"p_{r}", f"{plan}", x0 + 1 * col_w, y0 + r * row_h, col_w, row_h, 11)
             self.add_textbox(presentation_id, page_id, f"f_{r}", f"{fact}", x0 + 2 * col_w, y0 + r * row_h, col_w, row_h, 11)
             self.add_textbox(presentation_id, page_id, f"c_{r}", f"{conv}", x0 + 3 * col_w, y0 + r * row_h, col_w, row_h, 11)
+
+        # AI team comment under the table
+        comment_title_id = "team_comment_title"
+        comment_body_id = "team_comment_body"
+        self.add_textbox(presentation_id, page_id, comment_title_id, "Комментарий ИИ — Команда", x0, y0 + (len(metrics)+1) * row_h + 20, col_w * 4, 22, 13)
+        team_comment = await self._ai.generate_team_comment(totals, period_title)
+        self.add_textbox(presentation_id, page_id, comment_body_id, team_comment, x0, y0 + (len(metrics)+1) * row_h + 44, col_w * 4, 100, 11)
 
     # --- Content helpers (basic) ---
     def set_title_slide(self, presentation_id: str, title: str, subtitle: str) -> None:
