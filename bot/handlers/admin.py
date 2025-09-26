@@ -371,6 +371,26 @@ async def cmd_slides_range(message: types.Message, command: CommandObject) -> No
             await slides.add_top2_antitop2(deck_id, ranking)
         except Exception:
             pass
+
+        # Charts MVP: write totals to a dedicated sheet and embed chart
+        try:
+            sheet_title = "AI_Отчет_Сводка"
+            headers = ["Показатель", "План", "Факт"]
+            rows = [
+                ["Повторные звонки", totals.get('calls_plan',0), totals.get('calls_fact',0)],
+                ["Заявки, шт", totals.get('leads_units_plan',0), totals.get('leads_units_fact',0)],
+                ["Заявки, млн", totals.get('leads_volume_plan',0.0), totals.get('leads_volume_fact',0.0)],
+                ["Одобрено, млн", 0, totals.get('approved_volume',0.0)],
+                ["Выдано, млн", 0, totals.get('issued_volume',0.0)],
+                ["Новые звонки", totals.get('new_calls_plan',0), totals.get('new_calls',0)],
+            ]
+            slides.upsert_values_sheet(container.sheets.spreadsheet_id, sheet_title, headers, rows)
+            chart_id = slides.ensure_basic_chart(container.sheets.spreadsheet_id, sheet_title, "Сводные показатели")
+            pres = slides._resources.slides.presentations().get(presentationId=deck_id).execute()
+            page_id = pres["slides"][-1]["objectId"]
+            slides.embed_sheets_chart(deck_id, page_id, container.sheets.spreadsheet_id, chart_id, 40, 300, 600, 260)
+        except Exception:
+            pass
         slides.move_presentation_to_folder(deck_id)
         pdf_bytes = slides.export_pdf(deck_id)
         document = types.BufferedInputFile(pdf_bytes, filename=f"Отчет_{period_name.replace(' ', '_')}.pdf")

@@ -15,7 +15,7 @@ from bot.services.yandex_gpt import YandexGPTService
 SCOPES = [
     "https://www.googleapis.com/auth/drive",
     "https://www.googleapis.com/auth/presentations",
-    "https://www.googleapis.com/auth/spreadsheets.readonly",
+    "https://www.googleapis.com/auth/spreadsheets",
 ]
 
 
@@ -23,6 +23,7 @@ SCOPES = [
 class SlidesResources:
     drive: Any
     slides: Any
+    sheets: Any
 
 
 class GoogleSlidesService:
@@ -32,6 +33,7 @@ class GoogleSlidesService:
         self._resources = SlidesResources(
             drive=build("drive", "v3", credentials=creds),
             slides=build("slides", "v1", credentials=creds),
+            sheets=build("sheets", "v4", credentials=creds),
         )
         self._ai = YandexGPTService(settings)
 
@@ -198,6 +200,93 @@ class GoogleSlidesService:
         self.add_textbox(presentation_id, page_id, "worst_hdr", "Ниже темпа:", x_right, y0, 260, lh, 13)
         for i, name in enumerate(worst, start=1):
             self.add_textbox(presentation_id, page_id, f"worst_{i}", f"⚠️ {name}: {reasons.get(name,'просадка по KPI')}", x_right, y0 + i*lh, 300, lh, 11)
+
+    # --- Sheets data and charts helpers ---
+    def upsert_values_sheet(self, spreadsheet_id: str, sheet_title: str, headers: List[str], rows: List[List[Any]]) -> None:
+        # Ensure sheet exists
+        ss = self._resources.sheets.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+        sheet_id = None
+        for s in ss.get("sheets", []):
+            if s.get("properties", {}).get("title") == sheet_title:
+                sheet_id = s.get("properties", {}).get("sheetId")
+                break
+        if sheet_id is None:
+            # Add sheet
+            self._resources.sheets.spreadsheets().batchUpdate(
+                spreadsheetId=spreadsheet_id,
+                body={"requests": [{"addSheet": {"properties": {"title": sheet_title}}}]}
+            ).execute()
+        # Write values
+        values = [headers] + rows
+        self._resources.sheets.spreadsheets().values().update(
+            spreadsheetId=spreadsheet_id,
+            range=f"{sheet_title}!A1",
+            valueInputOption="RAW",
+            body={"values": values}
+        ).execute()
+
+    def ensure_basic_chart(self, spreadsheet_id: str, sheet_title: str, chart_title: str) -> int:
+        # Find sheetId
+        ss = self._resources.sheets.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+        sheet_id = None
+        for s in ss.get("sheets", []):
+            if s.get("properties", {}).get("title") == sheet_title:
+                sheet_id = s.get("properties", {}).get("sheetId")
+                break
+        if sheet_id is None:
+            raise RuntimeError("Data sheet not found for chart")
+        # Create a simple column chart for range A1:D7
+        add_chart_req = {
+            "addChart": {
+                "chart": {
+                    "spec": {
+                        "title": chart_title,
+                        "basicChart": {
+                            "chartType": "COLUMN",
+                            "legendPosition": "RIGHT_LEGEND",
+                            "axis": [
+                                {"position": "BOTTOM_AXIS", "title": "Показатель"},
+                                {"position": "LEFT_AXIS", "title": "Значение"}
+                            ],
+                            "domains": [
+                                {"domain": {"sourceRange": {"sources": [{"sheetId": sheet_id, "startRowIndex": 0, "endRowIndex": 7, "startColumnIndex": 0, "endColumnIndex": 1}]}}}
+                            ],
+                            "series": [
+                                {"series": {"sourceRange": {"sources": [{"sheetId": sheet_id, "startRowIndex": 0, "endRowIndex": 7, "startColumnIndex": 1, "endColumnIndex": 2}]}}, "targetAxis": "LEFT_AXIS"},
+                                {"series": {"sourceRange": {"sources": [{"sheetId": sheet_id, "startRowIndex": 0, "endRowIndex": 7, "startColumnIndex": 2, "endColumnIndex": 3}]}}, "targetAxis": "LEFT_AXIS"}
+                            ],
+                        }
+                    },
+                    "position": {"newSheet": False, "overlayPosition": {"anchorCell": {"sheetId": sheet_id, "rowIndex": 9, "columnIndex": 0}, "widthPixels": 800, "heightPixels": 300}}
+                }
+            }
+        }
+        resp = self._resources.sheets.spreadsheets().batchUpdate(spreadsheetId=spreadsheet_id, body={"requests": [add_chart_req]}).execute()
+        chart_id = resp.get("replies", [{}])[0].get("addChart", {}).get("chart", {}).get("chartId")
+        if chart_id is None:
+            # Fallback: try reading last charts
+            ss = self._resources.sheets.spreadsheets().get(spreadsheetId=spreadsheet_id, includeGridData=False).execute()
+            for s in ss.get("sheets", []):
+                if s.get("charts"):
+                    chart_id = s["charts"][-1]["chartId"]
+        if chart_id is None:
+            raise RuntimeError("Failed to create chart")
+        return int(chart_id)
+
+    def embed_sheets_chart(self, presentation_id: str, page_id: str, spreadsheet_id: str, chart_id: int, x: int, y: int, w: int, h: int) -> None:
+        req = {
+            "createSheetsChart": {
+                "spreadsheetId": spreadsheet_id,
+                "chartId": chart_id,
+                "linkingMode": "LINKED",
+                "elementProperties": {
+                    "pageObjectId": page_id,
+                    "size": {"width": {"magnitude": w, "unit": "PT"}, "height": {"magnitude": h, "unit": "PT"}},
+                    "transform": {"scaleX": 1, "scaleY": 1, "translateX": x, "translateY": y, "unit": "PT"}
+                }
+            }
+        }
+        self._resources.slides.presentations().batchUpdate(presentationId=presentation_id, body={"requests": [req]}).execute()
 
     # --- Content helpers (basic) ---
     def set_title_slide(self, presentation_id: str, title: str, subtitle: str) -> None:
