@@ -45,3 +45,21 @@ python -m bot.main
 Разработано командой N0FACE — Digital Legends | [noface.digital](https://noface.digital)
 
 Контакт: Telegram `@pavel_xdev`
+
+## Slides (про-версия)
+
+Добавьте в `.env` переменные бренда и папку Drive:
+
+```env
+USE_GOOGLE_SLIDES=true
+DRIVE_FOLDER_ID=<your_drive_folder_id>
+SLIDES_FONT_FAMILY=Roboto
+SLIDES_PRIMARY_COLOR=#2E7D32
+SLIDES_ALERT_COLOR=#C62828
+SLIDES_ACCENT2_COLOR=#FF8A65
+SLIDES_TEXT_COLOR=#222222
+SLIDES_MUTED_COLOR=#6B6B6B
+SLIDES_CARD_BG_COLOR=#F5F5F5
+```
+
+После изменения `.env` перезапустите бота и используйте команду `/slides_range YYYY-MM-DD YYYY-MM-DD`.
