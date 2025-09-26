@@ -27,6 +27,8 @@ class Settings:
     pptx_secondary_color: str
     pptx_logo_path: str
     pptx_emoji_font: str
+    drive_folder_id: str
+    use_google_slides: bool
 
     @staticmethod
     def load() -> "Settings":
@@ -46,6 +48,8 @@ class Settings:
         pptx_secondary_color = get_env("PPTX_SECONDARY_COLOR", "#F3F4F6")
         pptx_logo_path = get_env("PPTX_LOGO_PATH", "")
         pptx_emoji_font = get_env("PPTX_EMOJI_FONT", "Segoe UI Emoji")
+        drive_folder_id = get_env("DRIVE_FOLDER_ID", "")
+        use_google_slides = get_env("USE_GOOGLE_SLIDES", "false").lower() in ("1", "true", "yes")
         return Settings(
             bot_token=bot_token,
             spreadsheet_name=spreadsheet_name,
@@ -62,4 +66,6 @@ class Settings:
             pptx_secondary_color=pptx_secondary_color,
             pptx_logo_path=pptx_logo_path,
             pptx_emoji_font=pptx_emoji_font,
+            drive_folder_id=drive_folder_id,
+            use_google_slides=use_google_slides,
         )

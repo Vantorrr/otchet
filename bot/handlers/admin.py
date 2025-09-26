@@ -10,6 +10,7 @@ from bot.config import Settings
 from bot.services.di import Container
 from bot.services.data_aggregator import DataAggregatorService
 from bot.services.presentation import PresentationService
+from bot.services.google_slides import GoogleSlidesService
 from bot.services.tempo_analytics import TempoAnalyticsService
 from bot.keyboards.main import get_main_menu_keyboard, get_admin_menu_keyboard
 from aiogram.filters.command import CommandObject
@@ -293,21 +294,50 @@ async def cmd_presentation_range(message: types.Message, command: CommandObject)
         
         # Check if previous period has data
         if not prev_data:
-            # Try to find nearest period with data
-            await message.reply(
-                f"⚠️ Нет данных за предыдущий период ({prev_start.strftime('%d.%m.%Y')}—{prev_end.strftime('%d.%m.%Y')}).\n"
-                f"\nВарианты:\n"
-                f"1. Используйте /presentation_compare для сравнения с другим периодом\n"
-                f"2. Попробуйте более поздний период\n"
-                f"\nПример: /presentation_compare {start.strftime('%Y-%m-%d')} {end.strftime('%Y-%m-%d')} 2025-09-01 2025-09-16"
-            )
-            return
+            # Proceed without comparison
+            prev_data = {}
             
         pptx_bytes = await presentation_service.generate_presentation(period_data, period_name, start_date, end_date, prev_data, prev_start, prev_end)
         document = types.BufferedInputFile(pptx_bytes, filename=f"AI_Отчет_{period_name.replace(' ', '_')}.pptx")
         await message.reply_document(document, caption=f"📊 {period_name}\n🤖 AI-презентация готова!")
     except Exception as e:
         await message.reply(f"❌ Ошибка: {str(e)}")
+
+
+@admin_router.message(Command("slides_range"))
+async def cmd_slides_range(message: types.Message, command: CommandObject) -> None:
+    """Generate Google Slides deck for custom date range and export PDF to Drive folder.
+    Usage: /slides_range YYYY-MM-DD YYYY-MM-DD
+    """
+    args = (command.args or "").split()
+    if len(args) != 2:
+        await message.reply("Укажите период: /slides_range YYYY-MM-DD YYYY-MM-DD")
+        return
+    try:
+        from datetime import datetime as _dt
+        start = _dt.strptime(args[0], "%Y-%m-%d").date()
+        end = _dt.strptime(args[1], "%Y-%m-%d").date()
+    except Exception:
+        await message.reply("Неверный формат дат. Пример: /slides_range 2025-08-01 2025-08-07")
+        return
+
+    await message.reply("🔄 Генерирую Google Slides и PDF…")
+    try:
+        container = Container.get()
+        aggregator = DataAggregatorService(container.sheets)
+        period_data, prev_data, period_name, start_date, end_date, prev_start, prev_end = await aggregator.aggregate_custom_with_previous(start, end)
+        if not period_data:
+            await message.reply("❌ Нет данных за этот период.")
+            return
+
+        slides = GoogleSlidesService(container.settings)
+        deck_id = slides.create_presentation(f"Отчет {period_name}")
+        slides.move_presentation_to_folder(deck_id)
+        pdf_bytes = slides.export_pdf(deck_id)
+        document = types.BufferedInputFile(pdf_bytes, filename=f"Отчет_{period_name.replace(' ', '_')}.pdf")
+        await message.reply_document(document, caption=f"📄 PDF экспортировано. Презентация создана в папке Drive.")
+    except Exception as e:
+        await message.reply(f"❌ Ошибка Slides: {str(e)}")
 
 
 @admin_router.message(Command("presentation_compare"))
