@@ -416,6 +416,7 @@ class GoogleSlidesService:
                 "slideLayoutReference": {"predefinedLayout": "TITLE"}
             }
         })
+        # Apply brand colors and font via text replacements (simple)
         # After createSlide, we cannot know objectIds beforehand. We'll replace texts in placeholders.
         # Use replaceAllText on {{TITLE}}/{{SUBTITLE}} tokens; simpler: insert then replace defaults
         # Replace default 'Click to add title' and 'subtitle' with provided text

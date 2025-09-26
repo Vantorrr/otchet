@@ -29,6 +29,13 @@ class Settings:
     pptx_emoji_font: str
     drive_folder_id: str
     use_google_slides: bool
+    slides_font_family: str
+    slides_primary_color: str
+    slides_alert_color: str
+    slides_accent2_color: str
+    slides_text_color: str
+    slides_muted_color: str
+    slides_card_bg_color: str
 
     @staticmethod
     def load() -> "Settings":
@@ -50,6 +57,13 @@ class Settings:
         pptx_emoji_font = get_env("PPTX_EMOJI_FONT", "Segoe UI Emoji")
         drive_folder_id = get_env("DRIVE_FOLDER_ID", "")
         use_google_slides = get_env("USE_GOOGLE_SLIDES", "false").lower() in ("1", "true", "yes")
+        slides_font_family = get_env("SLIDES_FONT_FAMILY", "Roboto")
+        slides_primary_color = get_env("SLIDES_PRIMARY_COLOR", "#2E7D32")
+        slides_alert_color = get_env("SLIDES_ALERT_COLOR", "#C62828")
+        slides_accent2_color = get_env("SLIDES_ACCENT2_COLOR", "#FF8A65")
+        slides_text_color = get_env("SLIDES_TEXT_COLOR", "#222222")
+        slides_muted_color = get_env("SLIDES_MUTED_COLOR", "#6B6B6B")
+        slides_card_bg_color = get_env("SLIDES_CARD_BG_COLOR", "#F5F5F5")
         return Settings(
             bot_token=bot_token,
             spreadsheet_name=spreadsheet_name,
@@ -68,4 +82,11 @@ class Settings:
             pptx_emoji_font=pptx_emoji_font,
             drive_folder_id=drive_folder_id,
             use_google_slides=use_google_slides,
+            slides_font_family=slides_font_family,
+            slides_primary_color=slides_primary_color,
+            slides_alert_color=slides_alert_color,
+            slides_accent2_color=slides_accent2_color,
+            slides_text_color=slides_text_color,
+            slides_muted_color=slides_muted_color,
+            slides_card_bg_color=slides_card_bg_color,
         )
