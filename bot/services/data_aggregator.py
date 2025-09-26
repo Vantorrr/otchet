@@ -149,6 +149,65 @@ class DataAggregatorService:
             # Return empty dict on any error
             return {}
 
+    async def get_daily_series(self, start_date: date, end_date: date) -> List[Dict[str, float]]:
+        """Aggregate daily totals for the given period for charts.
+        Returns list of dicts sorted by date with keys: date, calls_fact, new_calls, leads_units_fact,
+        leads_volume_plan, leads_volume_fact, approved_volume, issued_volume.
+        """
+        try:
+            worksheet = self.sheets_service._reports
+            all_records = worksheet.get_all_records()
+            from collections import defaultdict
+            buckets: Dict[str, Dict[str, float]] = defaultdict(lambda: {
+                'calls_fact': 0,
+                'new_calls': 0,
+                'leads_units_fact': 0,
+                'leads_volume_plan': 0.0,
+                'leads_volume_fact': 0.0,
+                'approved_volume': 0.0,
+                'issued_volume': 0.0,
+            })
+
+            for record in all_records:
+                record = {str(k).strip().lower(): v for k, v in record.items()}
+                date_str = str(record.get('date', '')).strip()
+                if not date_str:
+                    continue
+                d = self._parse_record_date(date_str)
+                if d is None or d < start_date or d > end_date:
+                    continue
+                key = d.strftime('%Y-%m-%d')
+                try:
+                    buckets[key]['calls_fact'] += int(record.get('evening_calls_success', 0) or 0)
+                    buckets[key]['new_calls'] += int(record.get('evening_new_calls', 0) or 0)
+                    buckets[key]['leads_units_fact'] += int(record.get('evening_leads_units', 0) or 0)
+                    buckets[key]['leads_volume_plan'] += float(record.get('morning_leads_planned_volume', 0) or 0)
+                    buckets[key]['leads_volume_fact'] += float(record.get('evening_leads_volume', 0) or 0)
+                    buckets[key]['approved_volume'] += float(record.get('evening_approved_volume', 0) or 0)
+                    buckets[key]['issued_volume'] += float(record.get('evening_issued_volume', 0) or 0)
+                except (ValueError, TypeError):
+                    continue
+
+            # Sort by date and render list
+            items: List[Dict[str, float]] = []
+            cur = start_date
+            while cur <= end_date:
+                k = cur.strftime('%Y-%m-%d')
+                v = buckets.get(k, {
+                    'calls_fact': 0,
+                    'new_calls': 0,
+                    'leads_units_fact': 0,
+                    'leads_volume_plan': 0.0,
+                    'leads_volume_fact': 0.0,
+                    'approved_volume': 0.0,
+                    'issued_volume': 0.0,
+                })
+                items.append({'date': k, **v})
+                cur = cur + timedelta(days=1)
+            return items
+        except Exception:
+            return []
+
     async def aggregate_custom_with_previous(self, start_date: date, end_date: date) -> Tuple[Dict[str, ManagerData], Dict[str, ManagerData], str, date, date, date, date]:
         """Aggregate for custom [start_date, end_date] and previous equal-length period."""
         data = await self._aggregate_data_for_period(start_date, end_date)

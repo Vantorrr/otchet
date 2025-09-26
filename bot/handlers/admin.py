@@ -391,6 +391,22 @@ async def cmd_slides_range(message: types.Message, command: CommandObject) -> No
             slides.embed_sheets_chart(deck_id, page_id, container.sheets.spreadsheet_id, chart_id, 40, 300, 600, 260)
         except Exception:
             pass
+
+        # Advanced charts: daily series Plan→Issued + per-manager columns
+        try:
+            daily = await aggregator.get_daily_series(start, end)
+            daily_rows = [[d['date'], d['leads_volume_plan'], d['leads_volume_fact'], d['issued_volume']] for d in daily]
+            mgr_rows = [[m.name, m.leads_units_fact, m.calls_fact] for m in period_data.values()]
+            slides.add_charts_from_series(
+                deck_id,
+                container.sheets.spreadsheet_id,
+                series_sheet="AI_Отчет_Дни",
+                daily_rows=daily_rows,
+                managers_sheet="AI_Отчет_Менеджеры",
+                managers_rows=mgr_rows,
+            )
+        except Exception:
+            pass
         slides.move_presentation_to_folder(deck_id)
         pdf_bytes = slides.export_pdf(deck_id)
         document = types.BufferedInputFile(pdf_bytes, filename=f"Отчет_{period_name.replace(' ', '_')}.pdf")

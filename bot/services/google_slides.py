@@ -288,6 +288,36 @@ class GoogleSlidesService:
         }
         self._resources.slides.presentations().batchUpdate(presentationId=presentation_id, body={"requests": [req]}).execute()
 
+    # High-level: add line chart Plan→Issued and per-manager columns
+    def add_charts_from_series(
+        self,
+        presentation_id: str,
+        spreadsheet_id: str,
+        series_sheet: str,
+        daily_rows: List[List[Any]],
+        managers_sheet: str,
+        managers_rows: List[List[Any]],
+    ) -> None:
+        # Daily series write
+        self.upsert_values_sheet(spreadsheet_id, series_sheet, ["Дата", "План, млн", "Факт, млн", "Выдано, млн"], daily_rows)
+        # Create chart on series_sheet (columns B-D vs A)
+        chart_id = self.ensure_basic_chart(spreadsheet_id, series_sheet, "План → Выдано (млн)")
+        pres = self._resources.slides.presentations().get(presentationId=presentation_id).execute()
+        page_id = pres["slides"][-1]["objectId"]
+        self.embed_sheets_chart(presentation_id, page_id, spreadsheet_id, chart_id, 40, 580, 800, 260)
+
+        # Managers columns (шт или млн)
+        self.upsert_values_sheet(spreadsheet_id, managers_sheet, ["Менеджер", "Заявки, шт", "Звонки, повторные"], managers_rows)
+        chart_id2 = self.ensure_basic_chart(spreadsheet_id, managers_sheet, "По менеджерам")
+        # New slide for managers chart
+        self._resources.slides.presentations().batchUpdate(
+            presentationId=presentation_id,
+            body={"requests": [{"createSlide": {"slideLayoutReference": {"predefinedLayout": "BLANK"}}}]}
+        ).execute()
+        pres = self._resources.slides.presentations().get(presentationId=presentation_id).execute()
+        page2 = pres["slides"][-1]["objectId"]
+        self.embed_sheets_chart(presentation_id, page2, spreadsheet_id, chart_id2, 40, 120, 800, 420)
+
     # --- Content helpers (basic) ---
     def set_title_slide(self, presentation_id: str, title: str, subtitle: str) -> None:
         # Create a title slide and set text
