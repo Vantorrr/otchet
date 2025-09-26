@@ -124,6 +124,81 @@ class GoogleSlidesService:
         team_comment = await self._ai.generate_team_comment(totals, period_title)
         self.add_textbox(presentation_id, page_id, comment_body_id, team_comment, x0, y0 + (len(metrics)+1) * row_h + 44, col_w * 4, 100, 11)
 
+    async def add_comparison_with_ai(
+        self,
+        presentation_id: str,
+        prev_totals: Dict[str, float],
+        cur_totals: Dict[str, float],
+        title: str,
+    ) -> None:
+        # Create slide
+        self._resources.slides.presentations().batchUpdate(
+            presentationId=presentation_id,
+            body={"requests": [{"createSlide": {"slideLayoutReference": {"predefinedLayout": "TITLE_AND_BODY"}}}]}
+        ).execute()
+        pres = self._resources.slides.presentations().get(presentationId=presentation_id).execute()
+        page_id = pres["slides"][-1]["objectId"]
+        # Title
+        self._resources.slides.presentations().batchUpdate(
+            presentationId=presentation_id,
+            body={"requests": [{
+                "replaceAllText": {
+                    "containsText": {"text": "Click to add title", "matchCase": False},
+                    "replaceText": title
+                }
+            }]}
+        ).execute()
+
+        # Two-column text boxes with totals (простая версия)
+        x0, y0, row_h, col_w = 40, 120, 22, 220
+        def write_col(prefix: str, totals: Dict[str, float], x: int):
+            lines = [
+                f"Повторные звонки: {int(totals.get('calls_fact',0))} из {int(totals.get('calls_plan',0))}",
+                f"Заявки, шт: {int(totals.get('leads_units_fact',0))} из {int(totals.get('leads_units_plan',0))}",
+                f"Заявки, млн: {totals.get('leads_volume_fact',0.0):.1f} из {totals.get('leads_volume_plan',0.0):.1f}",
+                f"Одобрено, млн: {totals.get('approved_volume',0.0):.1f}",
+                f"Выдано, млн: {totals.get('issued_volume',0.0):.1f}",
+                f"Новые звонки: {int(totals.get('new_calls',0))} из {int(totals.get('new_calls_plan',0))}",
+            ]
+            for i, t in enumerate([prefix] + lines):
+                oid = f"{prefix}_{i}"
+                self.add_textbox(presentation_id, page_id, oid, t, x, y0 + i*row_h, col_w, row_h, 11 if i>0 else 13)
+
+        write_col("Предыдущий", prev_totals, x0)
+        write_col("Текущий", cur_totals, x0 + col_w + 40)
+
+        # AI comparison comment
+        ai_text = await self._ai.generate_comparison_comment(prev_totals, cur_totals, title)
+        self.add_textbox(presentation_id, page_id, "cmp_ai", ai_text, x0, y0 + 9*row_h, col_w*2 + 40, 100, 11)
+
+    async def add_top2_antitop2(self, presentation_id: str, ranking: Dict[str, Any]) -> None:
+        self._resources.slides.presentations().batchUpdate(
+            presentationId=presentation_id,
+            body={"requests": [{"createSlide": {"slideLayoutReference": {"predefinedLayout": "TITLE_AND_TWO_COLUMNS"}}}]}
+        ).execute()
+        pres = self._resources.slides.presentations().get(presentationId=presentation_id).execute()
+        page_id = pres["slides"][-1]["objectId"]
+        # Title
+        self._resources.slides.presentations().batchUpdate(
+            presentationId=presentation_id,
+            body={"requests": [{
+                "replaceAllText": {
+                    "containsText": {"text": "Click to add title", "matchCase": False},
+                    "replaceText": "ТОП-2 и АнтиТОП-2"
+                }
+            }]}
+        ).execute()
+        best = ranking.get("best", [])[:2]
+        worst = ranking.get("worst", [])[:2]
+        reasons = ranking.get("reasons", {}) or {}
+        x_left, x_right, y0, lh = 40, 360, 120, 22
+        self.add_textbox(presentation_id, page_id, "best_hdr", "Лучшие:", x_left, y0, 260, lh, 13)
+        for i, name in enumerate(best, start=1):
+            self.add_textbox(presentation_id, page_id, f"best_{i}", f"🏆 {name}: {reasons.get(name,'отрыв по KPI')}", x_left, y0 + i*lh, 300, lh, 11)
+        self.add_textbox(presentation_id, page_id, "worst_hdr", "Ниже темпа:", x_right, y0, 260, lh, 13)
+        for i, name in enumerate(worst, start=1):
+            self.add_textbox(presentation_id, page_id, f"worst_{i}", f"⚠️ {name}: {reasons.get(name,'просадка по KPI')}", x_right, y0 + i*lh, 300, lh, 11)
+
     # --- Content helpers (basic) ---
     def set_title_slide(self, presentation_id: str, title: str, subtitle: str) -> None:
         # Create a title slide and set text

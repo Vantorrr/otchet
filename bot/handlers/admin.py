@@ -337,7 +337,40 @@ async def cmd_slides_range(message: types.Message, command: CommandObject) -> No
         prs_service = PresentationService(container.settings)
         totals = prs_service._calculate_totals(period_data)  # reuse same logic
         office_name = "Офис"
-        await slides.build_title_and_summary(deck_id, office_name, f"{period_name} — {start.strftime('%d.%m.%Y')}—{end.strftime('%d.%m.%Y')}", totals)
+        period_full = f"{period_name} — {start.strftime('%d.%m.%Y')}—{end.strftime('%d.%m.%Y')}"
+        await slides.build_title_and_summary(deck_id, office_name, period_full, totals)
+
+        # If previous period exists, add comparison with AI
+        if prev_data:
+            prev_totals = prs_service._calculate_totals(prev_data)
+            await slides.add_comparison_with_ai(deck_id, prev_totals, totals, "Динамика: предыдущий vs текущий")
+
+        # TOP/AntiTOP using simple ranking from current data
+        try:
+            from bot.services.presentation import ManagerData
+            kpi = {}
+            for m in period_data.values():
+                kpi[m.name] = {
+                    'calls_plan': m.calls_plan,
+                    'calls_fact': m.calls_fact,
+                    'leads_units_plan': m.leads_units_plan,
+                    'leads_units_fact': m.leads_units_fact,
+                    'leads_volume_plan': m.leads_volume_plan,
+                    'leads_volume_fact': m.leads_volume_fact,
+                }
+            # Simple score
+            scored = []
+            for name, v in kpi.items():
+                calls_pct = (v['calls_fact']/v['calls_plan']*100) if v['calls_plan'] else 0
+                vol_pct = (v['leads_volume_fact']/v['leads_volume_plan']*100) if v['leads_volume_plan'] else 0
+                scored.append((0.5*calls_pct+0.5*vol_pct, name))
+            scored.sort(reverse=True)
+            best = [n for _, n in scored[:2]]
+            worst = [n for _, n in list(reversed(scored[-2:]))]
+            ranking = {"best": best, "worst": worst, "reasons": {}}
+            await slides.add_top2_antitop2(deck_id, ranking)
+        except Exception:
+            pass
         slides.move_presentation_to_folder(deck_id)
         pdf_bytes = slides.export_pdf(deck_id)
         document = types.BufferedInputFile(pdf_bytes, filename=f"Отчет_{period_name.replace(' ', '_')}.pdf")
