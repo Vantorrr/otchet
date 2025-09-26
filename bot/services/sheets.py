@@ -58,6 +58,14 @@ class SheetsClient:
         self._bindings = self._get_or_create_worksheet(BINDINGS_SHEET, BINDINGS_HEADERS)
         self._config = self._get_or_create_worksheet(CONFIG_SHEET, CONFIG_HEADERS)
 
+    @property
+    def spreadsheet_id(self) -> str:
+        try:
+            return self._spread.id  # gspread client provides id
+        except Exception:
+            # Fallback: try to fetch via open call
+            return getattr(self._spread, 'id', '')
+
     def _open_or_create_spreadsheet(self, name: str):
         try:
             return self._gc.open(name)
