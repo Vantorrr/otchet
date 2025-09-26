@@ -407,6 +407,34 @@ async def cmd_slides_range(message: types.Message, command: CommandObject) -> No
             )
         except Exception:
             pass
+
+        # Radar per key manager (берем первого в списке) и GAP‑таблица
+        try:
+            if period_data:
+                # Department averages
+                avg = prs_service._calculate_totals(period_data)
+                cnt = max(len(period_data), 1)
+                def avg_of(key: str) -> float:
+                    return (avg.get(key, 0.0) / cnt) if cnt else 0.0
+                # Choose manager (первый по имени)
+                m = list(period_data.values())[0]
+                radar_rows = [
+                    ["Повторные звонки", avg_of('calls_fact'), m.calls_fact],
+                    ["Новые звонки", avg_of('new_calls'), m.new_calls],
+                    ["Заявки шт", avg_of('leads_units_fact'), m.leads_units_fact],
+                    ["Заявки млн", avg_of('leads_volume_fact'), m.leads_volume_fact],
+                    ["Одобрено млн", avg_of('approved_volume'), m.approved_volume],
+                    ["Выдано млн", avg_of('issued_volume'), m.issued_volume],
+                ]
+                slides.add_radar_slide(deck_id, container.sheets.spreadsheet_id, "AI_Отчет_Radar", radar_rows, m.name)
+
+            gap_rows = []
+            for m in period_data.values():
+                gap = max(m.leads_volume_plan - m.issued_volume, 0.0)
+                gap_rows.append([m.name, float(m.leads_volume_plan), float(m.issued_volume), float(gap)])
+            slides.add_gap_table(deck_id, gap_rows)
+        except Exception:
+            pass
         slides.move_presentation_to_folder(deck_id)
         pdf_bytes = slides.export_pdf(deck_id)
         document = types.BufferedInputFile(pdf_bytes, filename=f"Отчет_{period_name.replace(' ', '_')}.pdf")

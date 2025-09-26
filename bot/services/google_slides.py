@@ -318,6 +318,94 @@ class GoogleSlidesService:
         page2 = pres["slides"][-1]["objectId"]
         self.embed_sheets_chart(presentation_id, page2, spreadsheet_id, chart_id2, 40, 120, 800, 420)
 
+    # Radar (Spider) chart: manager vs department average
+    def ensure_radar_chart(self, spreadsheet_id: str, sheet_title: str, chart_title: str, row_count: int) -> int:
+        ss = self._resources.sheets.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+        sheet_id = None
+        for s in ss.get("sheets", []):
+            if s.get("properties", {}).get("title") == sheet_title:
+                sheet_id = s.get("properties", {}).get("sheetId")
+                break
+        if sheet_id is None:
+            raise RuntimeError("Radar data sheet not found")
+        add_chart_req = {
+            "addChart": {
+                "chart": {
+                    "spec": {
+                        "title": chart_title,
+                        "basicChart": {
+                            "chartType": "RADAR",
+                            "legendPosition": "RIGHT_LEGEND",
+                            "domains": [
+                                {"domain": {"sourceRange": {"sources": [{"sheetId": sheet_id, "startRowIndex": 0, "endRowIndex": row_count, "startColumnIndex": 0, "endColumnIndex": 1}]}}}
+                            ],
+                            "series": [
+                                {"series": {"sourceRange": {"sources": [{"sheetId": sheet_id, "startRowIndex": 0, "endRowIndex": row_count, "startColumnIndex": 1, "endColumnIndex": 2}]}}},
+                                {"series": {"sourceRange": {"sources": [{"sheetId": sheet_id, "startRowIndex": 0, "endRowIndex": row_count, "startColumnIndex": 2, "endColumnIndex": 3}]}}}
+                            ]
+                        }
+                    },
+                    "position": {"newSheet": False, "overlayPosition": {"anchorCell": {"sheetId": sheet_id, "rowIndex": 12, "columnIndex": 0}, "widthPixels": 800, "heightPixels": 400}}
+                }
+            }
+        }
+        resp = self._resources.sheets.spreadsheets().batchUpdate(spreadsheetId=spreadsheet_id, body={"requests": [add_chart_req]}).execute()
+        chart_id = resp.get("replies", [{}])[0].get("addChart", {}).get("chart", {}).get("chartId")
+        if chart_id is None:
+            raise RuntimeError("Failed to create radar chart")
+        return int(chart_id)
+
+    def add_radar_slide(self, presentation_id: str, spreadsheet_id: str, sheet_title: str, rows: List[List[Any]], manager_name: str) -> None:
+        self.upsert_values_sheet(spreadsheet_id, sheet_title, ["Метрика", "Среднее отдела", manager_name], rows)
+        chart_id = self.ensure_radar_chart(spreadsheet_id, sheet_title, f"{manager_name} vs отдел", len(rows))
+        # New slide
+        self._resources.slides.presentations().batchUpdate(
+            presentationId=presentation_id,
+            body={"requests": [{"createSlide": {"slideLayoutReference": {"predefinedLayout": "TITLE_AND_BODY"}}}]}
+        ).execute()
+        pres = self._resources.slides.presentations().get(presentationId=presentation_id).execute()
+        page_id = pres["slides"][-1]["objectId"]
+        # Replace title
+        self._resources.slides.presentations().batchUpdate(
+            presentationId=presentation_id,
+            body={"requests": [{
+                "replaceAllText": {
+                    "containsText": {"text": "Click to add title", "matchCase": False},
+                    "replaceText": f"Сравнение — {manager_name}"
+                }
+            }]}
+        ).execute()
+        self.embed_sheets_chart(presentation_id, page_id, spreadsheet_id, chart_id, 40, 140, 800, 400)
+
+    def add_gap_table(self, presentation_id: str, rows: List[List[Any]]) -> None:
+        # New slide with table constructed from text boxes (compact)
+        self._resources.slides.presentations().batchUpdate(
+            presentationId=presentation_id,
+            body={"requests": [{"createSlide": {"slideLayoutReference": {"predefinedLayout": "TITLE_AND_BODY"}}}]}
+        ).execute()
+        pres = self._resources.slides.presentations().get(presentationId=presentation_id).execute()
+        page_id = pres["slides"][-1]["objectId"]
+        # Title
+        self._resources.slides.presentations().batchUpdate(
+            presentationId=presentation_id,
+            body={"requests": [{
+                "replaceAllText": {
+                    "containsText": {"text": "Click to add title", "matchCase": False},
+                    "replaceText": "GAP: отставание от плана (млн)"
+                }
+            }]}
+        ).execute()
+        # Grid
+        x0, y0, row_h, col_w = 40, 140, 22, 180
+        headers = ["Менеджер", "План, млн", "Выдано, млн", "GAP, млн"]
+        for c, text in enumerate(headers):
+            self.add_textbox(presentation_id, page_id, f"gap_h_{c}", text, x0 + c*col_w, y0, col_w, row_h, 12)
+        for r, (name, plan, issued, gap) in enumerate(rows, start=1):
+            self.add_textbox(presentation_id, page_id, f"gap_n_{r}", str(name), x0 + 0*col_w, y0 + r*row_h, col_w, row_h, 11)
+            self.add_textbox(presentation_id, page_id, f"gap_p_{r}", f"{plan:.1f}", x0 + 1*col_w, y0 + r*row_h, col_w, row_h, 11)
+            self.add_textbox(presentation_id, page_id, f"gap_i_{r}", f"{issued:.1f}", x0 + 2*col_w, y0 + r*row_h, col_w, row_h, 11)
+            self.add_textbox(presentation_id, page_id, f"gap_g_{r}", f"{gap:.1f}", x0 + 3*col_w, y0 + r*row_h, col_w, row_h, 11)
+
     # --- Content helpers (basic) ---
     def set_title_slide(self, presentation_id: str, title: str, subtitle: str) -> None:
         # Create a title slide and set text
