@@ -61,11 +61,8 @@ class GoogleSlidesService:
             pres = self._resources.slides.presentations().create(body=body).execute()
             return pres["presentationId"]
         except Exception:
-            # Fallback: create empty Slides file via Drive API (some projects block Slides create)
-            parents = [self._get_folder_id()] if getattr(self._settings, 'drive_folder_id', '') else None
+            # Fallback: create empty Slides file via Drive API in root (avoid quota)
             metadata: Dict[str, Any] = {"name": title, "mimeType": "application/vnd.google-apps.presentation"}
-            if parents:
-                metadata["parents"] = parents
             file = self._resources.drive.files().create(body=metadata, fields="id", supportsAllDrives=True).execute()
             return file["id"]
 
