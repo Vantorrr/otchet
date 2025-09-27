@@ -232,8 +232,14 @@ class GoogleSlidesService:
             }]}
         ).execute()
 
-        # Two-column text boxes with totals (простая версия)
-        x0, y0, row_h, col_w = 40, 120, 22, 220
+        # Two-column text boxes with totals (брендовая шапка + зебра)
+        x0, y0, row_h, col_w = 40, 120, 22, 240
+        # Header bar
+        self.add_textbox(
+            presentation_id, page_id, "cmp_hdr", "Динамика: предыдущий vs текущий",
+            x0, y0 - 36, col_w * 2 + 40, 24, font_size=13, align="CENTER", bold=True,
+            fill_hex=getattr(self._settings, 'slides_primary_color', '#2E7D32'), text_color_hex="#FFFFFF"
+        )
         def write_col(prefix: str, totals: Dict[str, float], x: int):
             lines = [
                 f"Повторные звонки: {int(totals.get('calls_fact',0))} из {int(totals.get('calls_plan',0))}",
@@ -245,7 +251,9 @@ class GoogleSlidesService:
             ]
             for i, t in enumerate([prefix] + lines):
                 oid = f"{prefix}_{i}"
-                self.add_textbox(presentation_id, page_id, oid, t, x, y0 + i*row_h, col_w, row_h, 11 if i>0 else 13)
+                zebra = (i % 2 == 0)
+                bg = getattr(self._settings, 'slides_card_bg_color', '#F5F5F5') if (i > 0 and zebra) else None
+                self.add_textbox(presentation_id, page_id, oid, t, x, y0 + i*row_h, col_w, row_h, 11 if i>0 else 12, align="LEFT" if i>0 else "CENTER", bold=(i==0), fill_hex=bg)
 
         write_col("Предыдущий", prev_totals, x0)
         write_col("Текущий", cur_totals, x0 + col_w + 40)
@@ -275,12 +283,16 @@ class GoogleSlidesService:
         worst = ranking.get("worst", [])[:2]
         reasons = ranking.get("reasons", {}) or {}
         x_left, x_right, y0, lh = 40, 360, 120, 22
-        self.add_textbox(presentation_id, page_id, "best_hdr", "Лучшие:", x_left, y0, 260, lh, 13)
+        self.add_textbox(presentation_id, page_id, "best_hdr", "Лучшие:", x_left, y0, 260, lh, 13, bold=True)
         for i, name in enumerate(best, start=1):
-            self.add_textbox(presentation_id, page_id, f"best_{i}", f"🏆 {name}: {reasons.get(name,'отрыв по KPI')}", x_left, y0 + i*lh, 300, lh, 11)
-        self.add_textbox(presentation_id, page_id, "worst_hdr", "Ниже темпа:", x_right, y0, 260, lh, 13)
+            zebra = (i % 2 == 0)
+            bg = getattr(self._settings, 'slides_card_bg_color', '#F5F5F5') if zebra else None
+            self.add_textbox(presentation_id, page_id, f"best_{i}", f"🏆 {name}: {reasons.get(name,'отрыв по KPI')}", x_left, y0 + i*lh, 300, lh, 11, fill_hex=bg)
+        self.add_textbox(presentation_id, page_id, "worst_hdr", "Ниже темпа:", x_right, y0, 260, lh, 13, bold=True)
         for i, name in enumerate(worst, start=1):
-            self.add_textbox(presentation_id, page_id, f"worst_{i}", f"⚠️ {name}: {reasons.get(name,'просадка по KPI')}", x_right, y0 + i*lh, 300, lh, 11)
+            zebra = (i % 2 == 0)
+            bg = getattr(self._settings, 'slides_card_bg_color', '#F5F5F5') if zebra else None
+            self.add_textbox(presentation_id, page_id, f"worst_{i}", f"⚠️ {name}: {reasons.get(name,'просадка по KPI')}", x_right, y0 + i*lh, 300, lh, 11, fill_hex=bg)
 
     # --- Sheets data and charts helpers ---
     def upsert_values_sheet(self, spreadsheet_id: str, sheet_title: str, headers: List[str], rows: List[List[Any]]) -> None:
