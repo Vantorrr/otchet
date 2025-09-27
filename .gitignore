@@ -3,3 +3,5 @@ __pycache__/
 *.pyc
 .env
 service_account.json
+scripts/credentials.json
+scripts/token.json

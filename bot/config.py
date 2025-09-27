@@ -36,6 +36,7 @@ class Settings:
     slides_text_color: str
     slides_muted_color: str
     slides_card_bg_color: str
+    office_name: str
 
     @staticmethod
     def load() -> "Settings":
@@ -64,6 +65,7 @@ class Settings:
         slides_text_color = get_env("SLIDES_TEXT_COLOR", "#222222")
         slides_muted_color = get_env("SLIDES_MUTED_COLOR", "#6B6B6B")
         slides_card_bg_color = get_env("SLIDES_CARD_BG_COLOR", "#F5F5F5")
+        office_name = get_env("OFFICE_NAME", "Банковские гарантии")
         return Settings(
             bot_token=bot_token,
             spreadsheet_name=spreadsheet_name,
@@ -89,4 +91,5 @@ class Settings:
             slides_text_color=slides_text_color,
             slides_muted_color=slides_muted_color,
             slides_card_bg_color=slides_card_bg_color,
+            office_name=office_name,
         )

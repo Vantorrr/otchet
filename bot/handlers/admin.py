@@ -331,120 +331,35 @@ async def cmd_slides_range(message: types.Message, command: CommandObject) -> No
             return
 
         slides = GoogleSlidesService(container.settings)
+        from bot.services.slides_builder import PremiumSlidesBuilder
+        builder = PremiumSlidesBuilder(container.settings, slides)
+        
         deck_id = slides.create_presentation(f"Отчет {period_name}")
-        # Apply branding (top band + optional logo)
-        try:
-            logo_id = slides.upload_logo_to_drive()
-            slides.apply_branding(deck_id, logo_id)
-        except Exception:
-            pass
-        # build totals like in PPTX
-        from bot.services.presentation import PresentationService, ManagerData
+        
+        from bot.services.presentation import PresentationService
         prs_service = PresentationService(container.settings)
-        totals = prs_service._calculate_totals(period_data)  # reuse same logic
-        office_name = "Офис"
-        period_full = f"{period_name} — {start.strftime('%d.%m.%Y')}—{end.strftime('%d.%m.%Y')}"
-        await slides.build_title_and_summary(deck_id, office_name, period_full, totals)
+        totals = prs_service._calculate_totals(period_data)
+        
+        period_full = f"{start.strftime('%d.%m.%Y')}—{end.strftime('%d.%m.%Y')}"
+        await builder.build_title_slide(deck_id, period_name, period_full)
+        await builder.build_team_summary_slide(deck_id, totals, period_name)
 
-        # If previous period exists, add comparison with AI
-        if prev_data:
-            prev_totals = prs_service._calculate_totals(prev_data)
-            await slides.add_comparison_with_ai(deck_id, prev_totals, totals, "Динамика: предыдущий vs текущий")
-
-        # TOP/AntiTOP using simple ranking from current data
-        try:
-            from bot.services.presentation import ManagerData
-            kpi = {}
-            for m in period_data.values():
-                kpi[m.name] = {
-                    'calls_plan': m.calls_plan,
-                    'calls_fact': m.calls_fact,
-                    'leads_units_plan': m.leads_units_plan,
-                    'leads_units_fact': m.leads_units_fact,
-                    'leads_volume_plan': m.leads_volume_plan,
-                    'leads_volume_fact': m.leads_volume_fact,
-                }
-            # Simple score
+        # TOP/AntiTOP ranking
+        if period_data:
             scored = []
-            for name, v in kpi.items():
-                calls_pct = (v['calls_fact']/v['calls_plan']*100) if v['calls_plan'] else 0
-                vol_pct = (v['leads_volume_fact']/v['leads_volume_plan']*100) if v['leads_volume_plan'] else 0
-                scored.append((0.5*calls_pct+0.5*vol_pct, name))
+            for m in period_data.values():
+                calls_pct = (m.calls_fact/m.calls_plan*100) if m.calls_plan else 0
+                vol_pct = (m.leads_volume_fact/m.leads_volume_plan*100) if m.leads_volume_plan else 0
+                scored.append((0.5*calls_pct+0.5*vol_pct, m.name))
             scored.sort(reverse=True)
             best = [n for _, n in scored[:2]]
             worst = [n for _, n in list(reversed(scored[-2:]))]
             ranking = {"best": best, "worst": worst, "reasons": {}}
-            await slides.add_top2_antitop2(deck_id, ranking)
-        except Exception:
-            pass
+            await builder.build_top_ranking_slide(deck_id, ranking)
 
-        # Charts MVP: write totals to a dedicated sheet and embed chart
-        try:
-            sheet_title = "AI_Отчет_Сводка"
-            headers = ["Показатель", "План", "Факт"]
-            rows = [
-                ["Повторные звонки", totals.get('calls_plan',0), totals.get('calls_fact',0)],
-                ["Заявки, шт", totals.get('leads_units_plan',0), totals.get('leads_units_fact',0)],
-                ["Заявки, млн", totals.get('leads_volume_plan',0.0), totals.get('leads_volume_fact',0.0)],
-                ["Одобрено, млн", 0, totals.get('approved_volume',0.0)],
-                ["Выдано, млн", 0, totals.get('issued_volume',0.0)],
-                ["Новые звонки", totals.get('new_calls_plan',0), totals.get('new_calls',0)],
-            ]
-            slides.upsert_values_sheet(container.sheets.spreadsheet_id, sheet_title, headers, rows)
-            chart_id = slides.ensure_basic_chart(container.sheets.spreadsheet_id, sheet_title, "Сводные показатели")
-            pres = slides._resources.slides.presentations().get(presentationId=deck_id).execute()
-            page_id = pres["slides"][-1]["objectId"]
-            slides.embed_sheets_chart(deck_id, page_id, container.sheets.spreadsheet_id, chart_id, 40, 300, 600, 260)
-        except Exception:
-            pass
-
-        # Advanced charts: daily series Plan→Issued + per-manager columns
-        try:
-            daily = await aggregator.get_daily_series(start, end)
-            daily_rows = [[d['date'], d['leads_volume_plan'], d['leads_volume_fact'], d['issued_volume']] for d in daily]
-            mgr_rows = [[m.name, m.leads_units_fact, m.calls_fact] for m in period_data.values()]
-            slides.add_charts_from_series(
-                deck_id,
-                container.sheets.spreadsheet_id,
-                series_sheet="AI_Отчет_Дни",
-                daily_rows=daily_rows,
-                managers_sheet="AI_Отчет_Менеджеры",
-                managers_rows=mgr_rows,
-            )
-        except Exception:
-            pass
-
-        # Radar per key manager (берем первого в списке) и GAP‑таблица
-        try:
-            if period_data:
-                # Department averages
-                avg = prs_service._calculate_totals(period_data)
-                cnt = max(len(period_data), 1)
-                def avg_of(key: str) -> float:
-                    return (avg.get(key, 0.0) / cnt) if cnt else 0.0
-                # Choose manager (первый по имени)
-                m = list(period_data.values())[0]
-                radar_rows = [
-                    ["Повторные звонки", avg_of('calls_fact'), m.calls_fact],
-                    ["Новые звонки", avg_of('new_calls'), m.new_calls],
-                    ["Заявки шт", avg_of('leads_units_fact'), m.leads_units_fact],
-                    ["Заявки млн", avg_of('leads_volume_fact'), m.leads_volume_fact],
-                    ["Одобрено млн", avg_of('approved_volume'), m.approved_volume],
-                    ["Выдано млн", avg_of('issued_volume'), m.issued_volume],
-                ]
-                slides.add_radar_slide(deck_id, container.sheets.spreadsheet_id, "AI_Отчет_Radar", radar_rows, m.name)
-
-            gap_rows = []
-            for m in period_data.values():
-                gap = max(m.leads_volume_plan - m.issued_volume, 0.0)
-                gap_rows.append([m.name, float(m.leads_volume_plan), float(m.issued_volume), float(gap)])
-            slides.add_gap_table(deck_id, gap_rows)
-        except Exception:
-            pass
-        slides.move_presentation_to_folder(deck_id)
-        pdf_bytes = slides.export_pdf(deck_id)
-        document = types.BufferedInputFile(pdf_bytes, filename=f"Отчет_{period_name.replace(' ', '_')}.pdf")
-        await message.reply_document(document, caption=f"📄 PDF экспортировано. Презентация создана в папке Drive.")
+        # Export with premium naming
+        pdf_link = builder.export_to_drive_pdf(deck_id, period_name)
+        await message.reply(f"✅ Презентация готова!\n📊 Google Slides: в папке Drive\n📄 PDF: {pdf_link}")
     except Exception as e:
         await message.reply(f"❌ Ошибка Slides: {str(e)}")
 

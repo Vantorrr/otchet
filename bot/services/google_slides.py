@@ -3,11 +3,14 @@ from __future__ import annotations
 import io
 import os
 from dataclasses import dataclass
+import re
+import hashlib
 from typing import Any, Dict, List, Optional
 
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
-from google.oauth2.service_account import Credentials
+from google.oauth2.service_account import Credentials as SACredentials
+from google.oauth2.credentials import Credentials as UserCredentials
 
 from bot.config import Settings
 from bot.services.yandex_gpt import YandexGPTService
@@ -30,7 +33,14 @@ class SlidesResources:
 class GoogleSlidesService:
     def __init__(self, settings: Settings) -> None:
         self._settings = settings
-        creds = Credentials.from_service_account_file(settings.google_credentials_path, scopes=SCOPES)
+        creds = None
+        # Prefer user OAuth if token.json exists (creates files under your account quota)
+        token_path = os.path.join(os.path.dirname(__file__), "..", "..", "scripts", "token.json")
+        token_path = os.path.abspath(token_path)
+        if os.path.exists(token_path):
+            creds = UserCredentials.from_authorized_user_file(token_path, SCOPES)
+        else:
+            creds = SACredentials.from_service_account_file(settings.google_credentials_path, scopes=SCOPES)
         self._resources = SlidesResources(
             drive=build("drive", "v3", credentials=creds),
             slides=build("slides", "v1", credentials=creds),
@@ -47,19 +57,29 @@ class GoogleSlidesService:
     # --- Public API ---
     def create_presentation(self, title: str) -> str:
         body = {"title": title}
-        pres = self._resources.slides.presentations().create(body=body).execute()
-        return pres["presentationId"]
+        try:
+            pres = self._resources.slides.presentations().create(body=body).execute()
+            return pres["presentationId"]
+        except Exception:
+            # Fallback: create empty Slides file via Drive API (some projects block Slides create)
+            parents = [self._get_folder_id()] if getattr(self._settings, 'drive_folder_id', '') else None
+            metadata: Dict[str, Any] = {"name": title, "mimeType": "application/vnd.google-apps.presentation"}
+            if parents:
+                metadata["parents"] = parents
+            file = self._resources.drive.files().create(body=metadata, fields="id", supportsAllDrives=True).execute()
+            return file["id"]
 
     def move_presentation_to_folder(self, presentation_id: str) -> None:
         folder_id = self._get_folder_id()
         # Get current parents
-        file = self._resources.drive.files().get(fileId=presentation_id, fields="parents").execute()
+        file = self._resources.drive.files().get(fileId=presentation_id, fields="parents", supportsAllDrives=True).execute()
         prev_parents = ",".join(file.get("parents", []))
         self._resources.drive.files().update(
             fileId=presentation_id,
             addParents=folder_id,
             removeParents=prev_parents or None,
             fields="id, parents",
+            supportsAllDrives=True,
         ).execute()
 
     def export_pdf(self, presentation_id: str) -> bytes:
@@ -92,7 +112,7 @@ class GoogleSlidesService:
             metadata["parents"] = [folder_id]
         with open(path, 'rb') as f:
             media = MediaIoBaseUpload(f, mimetype="image/png")
-            file = self._resources.drive.files().create(body=metadata, media_body=media, fields="id").execute()
+            file = self._resources.drive.files().create(body=metadata, media_body=media, fields="id", supportsAllDrives=True).execute()
             return file.get("id")
         return None
 
@@ -153,34 +173,46 @@ class GoogleSlidesService:
     ) -> None:
         # Title slide
         self.set_title_slide(presentation_id, f"{office_name} — Отчет по продажам", period_title)
-        # Add summary slide: simple table via createSlide + text boxes (fast MVP)
+        # Add summary slide on BLANK layout and place header + table manually
         create = self._resources.slides.presentations().batchUpdate(
             presentationId=presentation_id,
-            body={"requests": [{"createSlide": {"slideLayoutReference": {"predefinedLayout": "TITLE_AND_BODY"}}}]}
+            body={"requests": [{"createSlide": {"slideLayoutReference": {"predefinedLayout": "BLANK"}}}]}
         ).execute()
         # Get last page id (the slide we just created)
         pres = self._resources.slides.presentations().get(presentationId=presentation_id).execute()
         page_id = pres["slides"][-1]["objectId"]
-        # Set title
-        self._resources.slides.presentations().batchUpdate(
-            presentationId=presentation_id,
-            body={"requests": [{
-                "replaceAllText": {
-                    "containsText": {"text": "Click to add title", "matchCase": False},
-                    "replaceText": "Общие показатели команды"
-                }
-            }]}
-        ).execute()
+        # Header text
+        self.add_textbox(
+            presentation_id, page_id, "summary_hdr", "Общие показатели команды",
+            40, 80, 840, 28, font_size=18, align="CENTER", bold=True,
+            text_color_hex=getattr(self._settings, 'slides_primary_color', '#2E7D32'),
+        )
         # Create a simple 4x7 text grid using text boxes (left aligned for names, centered for numbers)
         x0, y0, row_h, col_w = 40, 120, 24, 150  # pt
         headers = ["Показатель", "План", "Факт", "Конв (%)"]
+        # RU formatting helpers
+        def _fmt_int(n):
+            try:
+                return f"{int(n):,}".replace(",", " ")
+            except Exception:
+                return str(n)
+        def _fmt_mln(x):
+            try:
+                return f"{float(x):.1f}".replace(".", ",")
+            except Exception:
+                return str(x)
+        def _fmt_pct(p):
+            try:
+                return f"{float(p):.1f}%".replace(".", ",")
+            except Exception:
+                return str(p)
         metrics = [
-            ("Повторные звонки", totals.get("calls_plan", 0), totals.get("calls_fact", 0), totals.get("calls_percentage", 0.0)),
-            ("Заявки, шт", totals.get("leads_units_plan", 0), totals.get("leads_units_fact", 0), totals.get("leads_units_percentage", 0.0)),
-            ("Заявки, млн", totals.get("leads_volume_plan", 0.0), totals.get("leads_volume_fact", 0.0), totals.get("leads_volume_percentage", 0.0)),
-            ("Одобрено, млн", "-", totals.get("approved_volume", 0.0), "-"),
-            ("Выдано, млн", "-", totals.get("issued_volume", 0.0), "-"),
-            ("Новые звонки", "-", totals.get("new_calls", 0), "-")
+            ("Повторные звонки", _fmt_int(totals.get("calls_plan", 0)), _fmt_int(totals.get("calls_fact", 0)), _fmt_pct(totals.get("calls_percentage", 0.0))),
+            ("Заявки, шт", _fmt_int(totals.get("leads_units_plan", 0)), _fmt_int(totals.get("leads_units_fact", 0)), _fmt_pct(totals.get("leads_units_percentage", 0.0))),
+            ("Заявки, млн", _fmt_mln(totals.get("leads_volume_plan", 0.0)), _fmt_mln(totals.get("leads_volume_fact", 0.0)), _fmt_pct(totals.get("leads_volume_percentage", 0.0))),
+            ("Одобрено, млн", "-", _fmt_mln(totals.get("approved_volume", 0.0)), "-"),
+            ("Выдано, млн", "-", _fmt_mln(totals.get("issued_volume", 0.0)), "-"),
+            ("Новые звонки", "-", _fmt_int(totals.get("new_calls", 0)), "-")
         ]
         # Header row
         for c, text in enumerate(headers):
@@ -474,58 +506,49 @@ class GoogleSlidesService:
         # New slide with table constructed from text boxes (compact)
         self._resources.slides.presentations().batchUpdate(
             presentationId=presentation_id,
-            body={"requests": [{"createSlide": {"slideLayoutReference": {"predefinedLayout": "TITLE_AND_BODY"}}}]}
+            body={"requests": [{"createSlide": {"slideLayoutReference": {"predefinedLayout": "BLANK"}}}]}
         ).execute()
         pres = self._resources.slides.presentations().get(presentationId=presentation_id).execute()
         page_id = pres["slides"][-1]["objectId"]
-        # Title
-        self._resources.slides.presentations().batchUpdate(
-            presentationId=presentation_id,
-            body={"requests": [{
-                "replaceAllText": {
-                    "containsText": {"text": "Click to add title", "matchCase": False},
-                    "replaceText": "GAP: отставание от плана (млн)"
-                }
-            }]}
-        ).execute()
+        # Header
+        self.add_textbox(
+            presentation_id, page_id, "gap_header", "GAP: отставание от плана (млн)",
+            40, 80, 840, 28, font_size=18, align="CENTER", bold=True,
+            text_color_hex=getattr(self._settings, 'slides_primary_color', '#2E7D32'),
+        )
         # Grid
-        x0, y0, row_h, col_w = 40, 140, 22, 180
+        x0, y0, row_h, col_w = 40, 120, 22, 180
         headers = ["Менеджер", "План, млн", "Выдано, млн", "GAP, млн"]
         for c, text in enumerate(headers):
-            self.add_textbox(presentation_id, page_id, f"gap_h_{c}", text, x0 + c*col_w, y0, col_w, row_h, 12)
+            self.add_textbox(presentation_id, page_id, f"gap_h_{c}", text, x0 + c*col_w, y0, col_w, row_h, 12, align="CENTER", bold=True,
+                             fill_hex=getattr(self._settings, 'slides_primary_color', '#2E7D32'), text_color_hex="#FFFFFF")
         for r, (name, plan, issued, gap) in enumerate(rows, start=1):
-            self.add_textbox(presentation_id, page_id, f"gap_n_{r}", str(name), x0 + 0*col_w, y0 + r*row_h, col_w, row_h, 11)
-            self.add_textbox(presentation_id, page_id, f"gap_p_{r}", f"{plan:.1f}", x0 + 1*col_w, y0 + r*row_h, col_w, row_h, 11)
-            self.add_textbox(presentation_id, page_id, f"gap_i_{r}", f"{issued:.1f}", x0 + 2*col_w, y0 + r*row_h, col_w, row_h, 11)
-            self.add_textbox(presentation_id, page_id, f"gap_g_{r}", f"{gap:.1f}", x0 + 3*col_w, y0 + r*row_h, col_w, row_h, 11)
+            zebra = (r % 2 == 0)
+            bg = getattr(self._settings, 'slides_card_bg_color', '#F5F5F5') if zebra else None
+            self.add_textbox(presentation_id, page_id, f"gap_n_{r}", str(name), x0 + 0*col_w, y0 + r*row_h, col_w, row_h, 11, align="START", fill_hex=bg)
+            self.add_textbox(presentation_id, page_id, f"gap_p_{r}", f"{plan:.1f}".replace('.', ','), x0 + 1*col_w, y0 + r*row_h, col_w, row_h, 11, align="CENTER", fill_hex=bg)
+            self.add_textbox(presentation_id, page_id, f"gap_i_{r}", f"{issued:.1f}".replace('.', ','), x0 + 2*col_w, y0 + r*row_h, col_w, row_h, 11, align="CENTER", fill_hex=bg)
+            self.add_textbox(presentation_id, page_id, f"gap_g_{r}", f"{gap:.1f}".replace('.', ','), x0 + 3*col_w, y0 + r*row_h, col_w, row_h, 11, align="CENTER", fill_hex=bg)
 
     # --- Content helpers (basic) ---
     def set_title_slide(self, presentation_id: str, title: str, subtitle: str) -> None:
-        # Create a title slide and set text
-        requests: List[Dict[str, Any]] = []
-        # Create slide
-        requests.append({
-            "createSlide": {
-                "slideLayoutReference": {"predefinedLayout": "TITLE"}
-            }
-        })
-        # Apply brand colors and font via text replacements (simple)
-        # After createSlide, we cannot know objectIds beforehand. We'll replace texts in placeholders.
-        # Use replaceAllText on {{TITLE}}/{{SUBTITLE}} tokens; simpler: insert then replace defaults
-        # Replace default 'Click to add title' and 'subtitle' with provided text
-        requests.append({
-            "replaceAllText": {
-                "containsText": {"text": "Click to add title", "matchCase": False},
-                "replaceText": title
-            }
-        })
-        requests.append({
-            "replaceAllText": {
-                "containsText": {"text": "Click to add subtitle", "matchCase": False},
-                "replaceText": subtitle
-            }
-        })
-        self._resources.slides.presentations().batchUpdate(presentationId=presentation_id, body={"requests": requests}).execute()
+        # BLANK slide; place our title/subtitle
+        self._resources.slides.presentations().batchUpdate(
+            presentationId=presentation_id,
+            body={"requests": [{"createSlide": {"slideLayoutReference": {"predefinedLayout": "BLANK"}}}]}
+        ).execute()
+        pres = self._resources.slides.presentations().get(presentationId=presentation_id).execute()
+        page_id = pres["slides"][-1]["objectId"]
+        self.add_textbox(
+            presentation_id, page_id, "ttl_main", title,
+            40, 100, 840, 60, font_size=34, align="CENTER", bold=True,
+            text_color_hex=getattr(self._settings, 'slides_text_color', '#222222'),
+        )
+        self.add_textbox(
+            presentation_id, page_id, "ttl_sub", subtitle,
+            40, 165, 840, 32, font_size=18, align="CENTER",
+            text_color_hex=getattr(self._settings, 'slides_muted_color', '#6B6B6B'),
+        )
 
     def add_textbox(
         self,
@@ -538,15 +561,31 @@ class GoogleSlidesService:
         w: int,
         h: int,
         font_size: int = 12,
-        align: str = "LEFT",
+        align: str = "START",
         bold: bool = False,
         fill_hex: Optional[str] = None,
         text_color_hex: Optional[str] = None,
     ) -> None:
         # Position in EMUs (1 pt ~ 12700 emu). Slides API uses magnitude + unit.
+        # Normalize alignment to Slides enum
+        align_map = {"LEFT": "START", "CENTER": "CENTER", "RIGHT": "END", "START": "START", "END": "END", "JUSTIFIED": "JUSTIFIED"}
+        norm_align = align_map.get(align, "START")
+
+        # Sanitize object id: only [A-Za-z0-9_] and >= 5 chars
+        def _sanitize(oid: str) -> str:
+            ascii_oid = re.sub(r"[^A-Za-z0-9_]", "_", oid)
+            if not ascii_oid or len(ascii_oid) < 5:
+                digest = hashlib.md5(oid.encode('utf-8')).hexdigest()[:10]
+                ascii_oid = f"id_{digest}"
+            if not re.match(r"^[A-Za-z]", ascii_oid):
+                ascii_oid = "id_" + ascii_oid
+            return ascii_oid
+
+        safe_id = _sanitize(object_id)
+
         requests: List[Dict[str, Any]] = [
             {"createShape": {
-                "objectId": object_id,
+                "objectId": safe_id,
                 "shapeType": "TEXT_BOX",
                 "elementProperties": {
                     "pageObjectId": page_id,
@@ -554,9 +593,9 @@ class GoogleSlidesService:
                     "transform": {"scaleX": 1, "scaleY": 1, "translateX": x, "translateY": y, "unit": "PT"}
                 }
             }},
-            {"insertText": {"objectId": object_id, "text": text}},
+            {"insertText": {"objectId": safe_id, "text": text}},
             {"updateTextStyle": {
-                "objectId": object_id,
+                "objectId": safe_id,
                 "fields": "fontSize,fontFamily,bold",
                 "style": {
                     "fontSize": {"magnitude": font_size, "unit": "PT"},
@@ -565,15 +604,15 @@ class GoogleSlidesService:
                 }
             }},
             {"updateParagraphStyle": {
-                "objectId": object_id,
+                "objectId": safe_id,
                 "fields": "alignment",
-                "style": {"alignment": align}
+                "style": {"alignment": norm_align}
             }}
         ]
         if fill_hex:
             requests.append({
                 "updateShapeProperties": {
-                    "objectId": object_id,
+                    "objectId": safe_id,
                     "fields": "shapeBackgroundFill.solidFill.color",
                     "shapeProperties": {
                         "shapeBackgroundFill": {"solidFill": {"color": {"rgbColor": self._hex_to_rgb01(fill_hex)}}}
@@ -583,7 +622,7 @@ class GoogleSlidesService:
         if text_color_hex:
             requests.append({
                 "updateTextStyle": {
-                    "objectId": object_id,
+                    "objectId": safe_id,
                     "fields": "foregroundColor",
                     "style": {"foregroundColor": {"opaqueColor": {"rgbColor": self._hex_to_rgb01(text_color_hex)}}}
                 }
