@@ -70,6 +70,78 @@ class GoogleSlidesService:
         buf.write(data)
         return buf.getvalue()
 
+    # --- Branding helpers ---
+    def _hex_to_rgb01(self, hex_color: str) -> Dict[str, float]:
+        try:
+            hex_color = hex_color.lstrip('#')
+            r = int(hex_color[0:2], 16) / 255.0
+            g = int(hex_color[2:4], 16) / 255.0
+            b = int(hex_color[4:6], 16) / 255.0
+            return {"red": r, "green": g, "blue": b}
+        except Exception:
+            return {"red": 0.8, "green": 0.0, "blue": 0.0}
+
+    def upload_logo_to_drive(self) -> Optional[str]:
+        path = getattr(self._settings, 'pptx_logo_path', '')
+        if not path or not os.path.exists(path):
+            return None
+        metadata = {"name": "logo.png", "mimeType": "image/png"}
+        folder_id = self._settings.drive_folder_id or None
+        if folder_id:
+            metadata["parents"] = [folder_id]
+        with open(path, 'rb') as f:
+            media = MediaIoBaseUpload(f, mimetype="image/png")
+            file = self._resources.drive.files().create(body=metadata, media_body=media, fields="id").execute()
+            return file.get("id")
+        return None
+
+    def apply_branding(self, presentation_id: str, logo_drive_id: Optional[str]) -> None:
+        pres = self._resources.slides.presentations().get(presentationId=presentation_id).execute()
+        page_w = int(pres.get('pageSize', {}).get('width', {}).get('magnitude', 960))
+        requests: List[Dict[str, Any]] = []
+        band_color = self._hex_to_rgb01(getattr(self._settings, 'slides_card_bg_color', '#F5F5F5'))
+        for s in pres.get('slides', []):
+            sid = s.get('objectId')
+            # Top band
+            band_id = f"band_{sid}"
+            requests.append({
+                "createShape": {
+                    "objectId": band_id,
+                    "shapeType": "RECTANGLE",
+                    "elementProperties": {
+                        "pageObjectId": sid,
+                        "size": {"width": {"magnitude": page_w, "unit": "PT"}, "height": {"magnitude": 36, "unit": "PT"}},
+                        "transform": {"scaleX": 1, "scaleY": 1, "translateX": 0, "translateY": 0, "unit": "PT"}
+                    }
+                }
+            })
+            requests.append({
+                "updateShapeProperties": {
+                    "objectId": band_id,
+                    "fields": "shapeBackgroundFill.solidFill.color",
+                    "shapeProperties": {
+                        "shapeBackgroundFill": {
+                            "solidFill": {"color": {"rgbColor": band_color}}
+                        }
+                    }
+                }
+            })
+            # Logo
+            if logo_drive_id:
+                requests.append({
+                    "createImage": {
+                        "url": None,
+                        "driveImageId": logo_drive_id,
+                        "elementProperties": {
+                            "pageObjectId": sid,
+                            "size": {"width": {"magnitude": 110, "unit": "PT"}, "height": {"magnitude": 40, "unit": "PT"}},
+                            "transform": {"scaleX": 1, "scaleY": 1, "translateX": page_w - 130, "translateY": 0, "unit": "PT"}
+                        }
+                    }
+                })
+        if requests:
+            self._resources.slides.presentations().batchUpdate(presentationId=presentation_id, body={"requests": requests}).execute()
+
     # --- High-level deck builder (phase 1) ---
     async def build_title_and_summary(
         self,

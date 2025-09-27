@@ -332,6 +332,12 @@ async def cmd_slides_range(message: types.Message, command: CommandObject) -> No
 
         slides = GoogleSlidesService(container.settings)
         deck_id = slides.create_presentation(f"Отчет {period_name}")
+        # Apply branding (top band + optional logo)
+        try:
+            logo_id = slides.upload_logo_to_drive()
+            slides.apply_branding(deck_id, logo_id)
+        except Exception:
+            pass
         # build totals like in PPTX
         from bot.services.presentation import PresentationService, ManagerData
         prs_service = PresentationService(container.settings)
