@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import os
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
@@ -183,18 +184,26 @@ class GoogleSlidesService:
         ]
         # Header row
         for c, text in enumerate(headers):
-            self.add_textbox(presentation_id, page_id, f"hdr_{c}", text, x0 + c * col_w, y0, col_w, row_h, font_size=12)
+            self.add_textbox(
+                presentation_id, page_id, f"hdr_{c}", text,
+                x0 + c * col_w, y0, col_w, row_h,
+                font_size=12, align="CENTER", bold=True,
+                fill_hex=getattr(self._settings, 'slides_primary_color', '#2E7D32'),
+                text_color_hex="#FFFFFF",
+            )
         # Data rows
         for r, (name, plan, fact, conv) in enumerate(metrics, start=1):
-            self.add_textbox(presentation_id, page_id, f"n_{r}", name, x0 + 0 * col_w, y0 + r * row_h, col_w, row_h, 11)
-            self.add_textbox(presentation_id, page_id, f"p_{r}", f"{plan}", x0 + 1 * col_w, y0 + r * row_h, col_w, row_h, 11)
-            self.add_textbox(presentation_id, page_id, f"f_{r}", f"{fact}", x0 + 2 * col_w, y0 + r * row_h, col_w, row_h, 11)
-            self.add_textbox(presentation_id, page_id, f"c_{r}", f"{conv}", x0 + 3 * col_w, y0 + r * row_h, col_w, row_h, 11)
+            zebra = (r % 2 == 0)
+            bg = getattr(self._settings, 'slides_card_bg_color', '#F5F5F5') if zebra else None
+            self.add_textbox(presentation_id, page_id, f"n_{r}", name, x0 + 0 * col_w, y0 + r * row_h, col_w, row_h, 11, align="LEFT", fill_hex=bg)
+            self.add_textbox(presentation_id, page_id, f"p_{r}", f"{plan}", x0 + 1 * col_w, y0 + r * row_h, col_w, row_h, 11, align="CENTER", fill_hex=bg)
+            self.add_textbox(presentation_id, page_id, f"f_{r}", f"{fact}", x0 + 2 * col_w, y0 + r * row_h, col_w, row_h, 11, align="CENTER", fill_hex=bg)
+            self.add_textbox(presentation_id, page_id, f"c_{r}", f"{conv}", x0 + 3 * col_w, y0 + r * row_h, col_w, row_h, 11, align="CENTER", fill_hex=bg)
 
         # AI team comment under the table
         comment_title_id = "team_comment_title"
         comment_body_id = "team_comment_body"
-        self.add_textbox(presentation_id, page_id, comment_title_id, "Комментарий ИИ — Команда", x0, y0 + (len(metrics)+1) * row_h + 20, col_w * 4, 22, 13)
+        self.add_textbox(presentation_id, page_id, comment_title_id, "Комментарий ИИ — Команда", x0, y0 + (len(metrics)+1) * row_h + 20, col_w * 4, 22, 13, bold=True)
         team_comment = await self._ai.generate_team_comment(totals, period_title)
         self.add_textbox(presentation_id, page_id, comment_body_id, team_comment, x0, y0 + (len(metrics)+1) * row_h + 44, col_w * 4, 100, 11)
 
@@ -506,7 +515,22 @@ class GoogleSlidesService:
         })
         self._resources.slides.presentations().batchUpdate(presentationId=presentation_id, body={"requests": requests}).execute()
 
-    def add_textbox(self, presentation_id: str, page_id: str, object_id: str, text: str, x: int, y: int, w: int, h: int, font_size: int = 12) -> None:
+    def add_textbox(
+        self,
+        presentation_id: str,
+        page_id: str,
+        object_id: str,
+        text: str,
+        x: int,
+        y: int,
+        w: int,
+        h: int,
+        font_size: int = 12,
+        align: str = "LEFT",
+        bold: bool = False,
+        fill_hex: Optional[str] = None,
+        text_color_hex: Optional[str] = None,
+    ) -> None:
         # Position in EMUs (1 pt ~ 12700 emu). Slides API uses magnitude + unit.
         requests: List[Dict[str, Any]] = [
             {"createShape": {
@@ -521,10 +545,37 @@ class GoogleSlidesService:
             {"insertText": {"objectId": object_id, "text": text}},
             {"updateTextStyle": {
                 "objectId": object_id,
-                "fields": "fontSize",
-                "style": {"fontSize": {"magnitude": font_size, "unit": "PT"}}
+                "fields": "fontSize,fontFamily,bold",
+                "style": {
+                    "fontSize": {"magnitude": font_size, "unit": "PT"},
+                    "fontFamily": getattr(self._settings, 'slides_font_family', 'Roboto'),
+                    "bold": bold,
+                }
+            }},
+            {"updateParagraphStyle": {
+                "objectId": object_id,
+                "fields": "alignment",
+                "style": {"alignment": align}
             }}
         ]
+        if fill_hex:
+            requests.append({
+                "updateShapeProperties": {
+                    "objectId": object_id,
+                    "fields": "shapeBackgroundFill.solidFill.color",
+                    "shapeProperties": {
+                        "shapeBackgroundFill": {"solidFill": {"color": {"rgbColor": self._hex_to_rgb01(fill_hex)}}}
+                    }
+                }
+            })
+        if text_color_hex:
+            requests.append({
+                "updateTextStyle": {
+                    "objectId": object_id,
+                    "fields": "foregroundColor",
+                    "style": {"foregroundColor": {"opaqueColor": {"rgbColor": self._hex_to_rgb01(text_color_hex)}}}
+                }
+            })
         self._resources.slides.presentations().batchUpdate(presentationId=presentation_id, body={"requests": requests}).execute()
 
 
