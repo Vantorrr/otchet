@@ -14,6 +14,7 @@ from bot.config import Settings
 from bot.services.di import Container
 from bot.services.data_aggregator import DataAggregatorService
 from bot.services.presentation import PresentationService
+from bot.services.yandex_gpt import YandexGPTService
 
 # PPTX advanced + plotly
 from pptx import Presentation
@@ -218,26 +219,46 @@ def main():
     # Логотип
     add_logo_to_slide(slide1, prs, logo_path)
     
+    # Логотип справа сверху
+    add_logo_to_slide(slide1, prs, logo_path)
+    
+    # Компактное название офиса сверху слева
+    office_box = slide1.shapes.add_textbox(Inches(1), Inches(0.3), Inches(6), Inches(0.5))
+    office_box.text_frame.text = getattr(settings, 'office_name', 'БАНКОВСКИЕ ГАРАНТИИ').upper()
+    office_box.text_frame.paragraphs[0].font.size = Pt(16)
+    office_box.text_frame.paragraphs[0].font.name = "Roboto"
+    office_box.text_frame.paragraphs[0].font.bold = True
+    office_box.text_frame.paragraphs[0].font.color.rgb = hex_to_rgb("#E8F5E8")
+    office_box.text_frame.paragraphs[0].alignment = PP_ALIGN.LEFT
+    
     # КРУПНЫЙ заголовок с тенью
-    title_box = slide1.shapes.add_textbox(Inches(2.5), Inches(1.8), Inches(8.33), Inches(3))
+    title_box = slide1.shapes.add_textbox(Inches(2), Inches(2.5), Inches(9.33), Inches(1.5))
     title_frame = title_box.text_frame
-    title_frame.text = f"{getattr(settings, 'office_name', 'БАНКОВСКИЕ ГАРАНТИИ').upper()}\n\nОТЧЁТ ПО ЭФФЕКТИВНОСТИ"
-    for p in title_frame.paragraphs:
-        p.font.size = Pt(52)
-        p.font.name = "Roboto"
-        p.font.bold = True
-        p.font.color.rgb = RGBColor(255, 255, 255)
-        p.alignment = PP_ALIGN.CENTER
+    title_frame.text = "ОТЧЁТ ПО ЭФФЕКТИВНОСТИ"
+    title_frame.paragraphs[0].font.size = Pt(58)
+    title_frame.paragraphs[0].font.name = "Roboto"
+    title_frame.paragraphs[0].font.bold = True
+    title_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+    title_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
     add_shadow(title_box)
     
-    # Период
-    period_box = slide1.shapes.add_textbox(Inches(2.5), Inches(5), Inches(8.33), Inches(1.5))
+    # Период НАД отчётом (заметный)
+    period_box = slide1.shapes.add_textbox(Inches(2), Inches(1.5), Inches(9.33), Inches(0.8))
     period_frame = period_box.text_frame
-    period_frame.text = f"{period_name} • {start.strftime('%d.%m.%Y')} — {end.strftime('%d.%m.%Y')}"
-    period_frame.paragraphs[0].font.size = Pt(24)
+    period_frame.text = f"{period_name}"
+    period_frame.paragraphs[0].font.size = Pt(20)
     period_frame.paragraphs[0].font.name = "Roboto"
-    period_frame.paragraphs[0].font.color.rgb = hex_to_rgb("#E8F5E8")
+    period_frame.paragraphs[0].font.color.rgb = hex_to_rgb("#C8E6C9")
     period_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+    
+    # Даты под заголовком
+    dates_box = slide1.shapes.add_textbox(Inches(2), Inches(4.2), Inches(9.33), Inches(0.6))
+    dates_box.text_frame.text = f"{start.strftime('%d.%m.%Y')} — {end.strftime('%d.%m.%Y')}"
+    dates_box.text_frame.paragraphs[0].font.size = Pt(28)
+    dates_box.text_frame.paragraphs[0].font.name = "Roboto"
+    dates_box.text_frame.paragraphs[0].font.bold = True
+    dates_box.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+    dates_box.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
     
     # === 2. ГРАФИКИ ЗВОНКОВ (по вашему эскизу) ===
     slide2 = prs.slides.add_slide(prs.slide_layouts[6])
@@ -267,29 +288,34 @@ def main():
     if os.path.exists(calls_chart_path):
         slide2.shapes.add_picture(calls_chart_path, Inches(1), Inches(1.5), width=Inches(6), height=Inches(3.5))
     
-    # Карточка итогов справа
-    summary_card = slide2.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(7.5), Inches(1.5), Inches(5), Inches(3.5))
-    add_gradient_fill(summary_card, "#FFFFFF", "#F5F5F5")
-    summary_card.line.color.rgb = hex_to_rgb("#E0E0E0")
-    add_shadow(summary_card)
+    # AI‑комментарий справа с градиентом
+    ai_card = slide2.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(7.5), Inches(1.5), Inches(5), Inches(5.5))
+    add_gradient_fill(ai_card, "#FFFFFF", "#F1F8E9")
+    ai_card.line.color.rgb = hex_to_rgb("#C5E1A5")
+    ai_card.line.width = Pt(2)
+    add_shadow(ai_card)
     
-    summary_text = slide2.shapes.add_textbox(Inches(8), Inches(2), Inches(4), Inches(2.5))
-    summary_frame = summary_text.text_frame
-    summary_frame.text = f"""📞 ИТОГИ НЕДЕЛИ
-
-🎯 План звонков: {int(totals.get('calls_plan', 0)):,}
-✅ Выполнено: {int(totals.get('calls_fact', 0)):,}
-📊 Процент: {totals.get('calls_percentage', 0):.1f}%
-
-💡 Новые контакты: {int(totals.get('new_calls', 0)):,}""".replace(",", " ").replace(".", ",")
+    # Заголовок AI
+    ai_title = slide2.shapes.add_textbox(Inches(8), Inches(1.8), Inches(4), Inches(0.4))
+    ai_title.text_frame.text = "🤖 АНАЛИЗ КОМАНДЫ"
+    ai_title.text_frame.paragraphs[0].font.size = Pt(16)
+    ai_title.text_frame.paragraphs[0].font.name = "Roboto"
+    ai_title.text_frame.paragraphs[0].font.bold = True
+    ai_title.text_frame.paragraphs[0].font.color.rgb = hex_to_rgb("#2E7D32")
+    ai_title.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
     
-    for p in summary_frame.paragraphs:
+    # AI текст (генерируем)
+    ai_comment = __import__("asyncio").get_event_loop().run_until_complete(
+        YandexGPTService(settings).generate_team_comment(totals, period_name)
+    )
+    ai_text_box = slide2.shapes.add_textbox(Inches(8), Inches(2.4), Inches(4), Inches(4))
+    ai_text_box.text_frame.text = ai_comment[:220] + ("..." if len(ai_comment) > 220 else "")
+    ai_text_box.text_frame.word_wrap = True
+    for p in ai_text_box.text_frame.paragraphs:
         p.font.name = "Roboto"
-        p.font.size = Pt(14)
-        p.font.color.rgb = hex_to_rgb("#1B5E20")
-        if "ИТОГИ" in p.text:
-            p.font.bold = True
-            p.font.size = Pt(16)
+        p.font.size = Pt(13)
+        p.font.color.rgb = hex_to_rgb("#424242")
+        p.line_spacing = 1.3
     
     # === 3. ТАБЛИЦА МЕНЕДЖЕРОВ 3×3 (ваш эскиз) ===
     slide3 = prs.slides.add_slide(prs.slide_layouts[6])
