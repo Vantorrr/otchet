@@ -40,11 +40,27 @@ CARD_BG = "#F5F5F5"
 SLIDE_BG = "#FFFFFF"
 
 def add_logo(slide, prs, logo_path):
-    if logo_path and os.path.exists(logo_path):
-        try:
-            slide.shapes.add_picture(logo_path, prs.slide_width - Inches(2), Inches(0.15), height=Inches(0.7))
-        except:
-            pass
+    """Добавить логотип справа сверху."""
+    # Check multiple possible paths
+    possible_paths = [
+        logo_path,
+        os.path.join(os.path.dirname(__file__), "..", "Логотип.png"),
+        "Логотип.png",
+        "assets/logo.png"
+    ]
+    
+    for path in possible_paths:
+        if path and os.path.exists(path):
+            try:
+                slide.shapes.add_picture(
+                    path, 
+                    prs.slide_width - Inches(2.2), 
+                    Inches(0.2), 
+                    height=Inches(0.75)
+                )
+                return
+            except Exception as e:
+                continue
 
 def create_donut_chart(totals, path="donut.png"):
     labels = ['Повторные звонки', 'Заявки шт', 'Заявки млн', 'Выдано']
@@ -224,10 +240,10 @@ def main():
                 p.font.color.rgb = hex_to_rgb(TEXT_MAIN)
                 p.alignment = PP_ALIGN.CENTER if c > 0 else PP_ALIGN.LEFT
     
-    # Donut справа
+    # Donut НИЖЕ таблицы (отдельно)
     donut_path = create_donut_chart(totals, "donut_metrics.png")
     if os.path.exists(donut_path):
-        s2.shapes.add_picture(donut_path, Inches(9), Inches(1.3), width=Inches(3.5), height=Inches(3))
+        s2.shapes.add_picture(donut_path, Inches(4), Inches(6.2), width=Inches(5), height=Inches(1.2))
     
     # === 3. AI‑КОММЕНТАРИЙ КОМАНДЫ ===
     print("  Слайд 3/9: AI-комментарий по команде...")
@@ -413,24 +429,112 @@ def main():
                 p.font.color.rgb = hex_to_rgb(TEXT_MAIN)
                 p.alignment = PP_ALIGN.CENTER if c > 0 else PP_ALIGN.LEFT
     
-    # === 7-9. ЗАГЛУШКИ (динамика, карточки, выводы) ===
-    print("  Слайды 7-9: Динамика, карточки менеджеров, итоги...")
-    for idx in range(3):
-        s = prs.slides.add_slide(prs.slide_layouts[6])
-        bg = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, prs.slide_height)
-        bg.fill.solid()
-        bg.fill.fore_color.rgb = hex_to_rgb(SLIDE_BG)
-        bg.line.fill.background()
-        add_logo(s, prs, logo)
+    # === 7. ИНДИВИДУАЛЬНЫЕ КАРТОЧКИ МЕНЕДЖЕРОВ ===
+    print("  Слайд 7/9: Карточки менеджеров...")
+    s7 = prs.slides.add_slide(prs.slide_layouts[6])
+    bg7 = s7.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, prs.slide_height)
+    bg7.fill.solid()
+    bg7.fill.fore_color.rgb = hex_to_rgb(SLIDE_BG)
+    bg7.line.fill.background()
+    add_logo(s7, prs, logo)
+    
+    h7 = s7.shapes.add_textbox(margin, Inches(0.5), prs.slide_width - 2*margin, Inches(0.6))
+    h7.text_frame.text = "Индивидуальные показатели"
+    h7.text_frame.paragraphs[0].font.name = "Roboto"
+    h7.text_frame.paragraphs[0].font.size = Pt(28)
+    h7.text_frame.paragraphs[0].font.bold = True
+    h7.text_frame.paragraphs[0].font.color.rgb = hex_to_rgb(PRIMARY)
+    h7.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+    
+    # Сетка карточек менеджеров 3×3
+    managers = list(period_data.values())
+    for i, mgr in enumerate(managers[:9]):
+        col, row = i % 3, i // 3
+        x = margin + col * Inches(4.2)
+        y = Inches(1.5) + row * Inches(1.9)
         
-        titles = ["Динамика ключевых метрик", "Индивидуальные показатели", "Выводы и следующие шаги"]
-        h = s.shapes.add_textbox(margin, Inches(3), prs.slide_width - 2*margin, Inches(1))
-        h.text_frame.text = titles[idx]
-        h.text_frame.paragraphs[0].font.name = "Roboto"
-        h.text_frame.paragraphs[0].font.size = Pt(28)
-        h.text_frame.paragraphs[0].font.bold = True
-        h.text_frame.paragraphs[0].font.color.rgb = hex_to_rgb(PRIMARY)
-        h.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+        # Карточка с цветом по эффективности
+        card = s7.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x, y, Inches(3.9), Inches(1.7))
+        eff = (mgr.calls_percentage + mgr.leads_volume_percentage) / 2
+        if eff >= 80:
+            card.fill.solid()
+            card.fill.fore_color.rgb = hex_to_rgb(PRIMARY)
+        elif eff >= 60:
+            card.fill.solid()
+            card.fill.fore_color.rgb = hex_to_rgb("#FF9800")
+        else:
+            card.fill.solid()
+            card.fill.fore_color.rgb = hex_to_rgb(ALERT)
+        card.line.fill.background()
+        
+        # Имя
+        name_box = s7.shapes.add_textbox(x + Inches(0.2), y + Inches(0.2), Inches(3.5), Inches(0.5))
+        name_box.text_frame.text = mgr.name
+        name_box.text_frame.paragraphs[0].font.name = "Roboto"
+        name_box.text_frame.paragraphs[0].font.size = Pt(14)
+        name_box.text_frame.paragraphs[0].font.bold = True
+        name_box.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+        name_box.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+        
+        # Показатели
+        stats = f"📞 {mgr.calls_fact} • 📝 {mgr.leads_units_fact} • 💰 {mgr.leads_volume_fact:.1f}".replace(".", ",")
+        stats_box = s7.shapes.add_textbox(x + Inches(0.2), y + Inches(0.8), Inches(3.5), Inches(0.7))
+        stats_box.text_frame.text = stats
+        stats_box.text_frame.paragraphs[0].font.name = "Roboto"
+        stats_box.text_frame.paragraphs[0].font.size = Pt(12)
+        stats_box.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+        stats_box.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+    
+    # === 8. ДИНАМИКА КЛЮЧЕВЫХ МЕТРИК ===
+    print("  Слайд 8/9: Динамика метрик...")
+    s8 = prs.slides.add_slide(prs.slide_layouts[6])
+    bg8 = s8.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, prs.slide_height)
+    bg8.fill.solid()
+    bg8.fill.fore_color.rgb = hex_to_rgb(SLIDE_BG)
+    bg8.line.fill.background()
+    add_logo(s8, prs, logo)
+    
+    h8 = s8.shapes.add_textbox(margin, Inches(0.5), prs.slide_width - 2*margin, Inches(0.6))
+    h8.text_frame.text = "Динамика ключевых метрик"
+    h8.text_frame.paragraphs[0].font.name = "Roboto"
+    h8.text_frame.paragraphs[0].font.size = Pt(28)
+    h8.text_frame.paragraphs[0].font.bold = True
+    h8.text_frame.paragraphs[0].font.color.rgb = hex_to_rgb(PRIMARY)
+    h8.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+    
+    # Линейный график динамики
+    if os.path.exists(line_path):
+        s8.shapes.add_picture(line_path, Inches(2), Inches(1.5), width=Inches(9), height=Inches(5))
+    
+    # === 9. ВЫВОДЫ И РЕКОМЕНДАЦИИ AI ===
+    print("  Слайд 9/9: Итоги и рекомендации...")
+    s9 = prs.slides.add_slide(prs.slide_layouts[6])
+    bg9 = s9.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, prs.slide_height)
+    bg9.fill.solid()
+    bg9.fill.fore_color.rgb = hex_to_rgb(SLIDE_BG)
+    bg9.line.fill.background()
+    add_logo(s9, prs, logo)
+    
+    h9 = s9.shapes.add_textbox(margin, Inches(0.5), prs.slide_width - 2*margin, Inches(0.6))
+    h9.text_frame.text = "Выводы и рекомендации"
+    h9.text_frame.paragraphs[0].font.name = "Roboto"
+    h9.text_frame.paragraphs[0].font.size = Pt(28)
+    h9.text_frame.paragraphs[0].font.bold = True
+    h9.text_frame.paragraphs[0].font.color.rgb = hex_to_rgb(PRIMARY)
+    h9.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+    
+    # AI итоговые рекомендации
+    final_ai = __import__("asyncio").get_event_loop().run_until_complete(
+        YandexGPTService(settings).generate_team_comment(totals, f"Итоги {period_name}")
+    )
+    final_box = s9.shapes.add_textbox(margin, Inches(1.5), prs.slide_width - 2*margin, Inches(5))
+    final_box.text_frame.text = f"🎯 КЛЮЧЕВЫЕ ВЫВОДЫ:\n\n{final_ai}\n\n📌 СЛЕДУЮЩИЕ ШАГИ:\n• Усилить работу с отстающими\n• Масштабировать успешные практики\n• Оптимизировать процессы"
+    final_box.text_frame.word_wrap = True
+    for p in final_box.text_frame.paragraphs:
+        p.font.name = "Roboto"
+        p.font.size = Pt(16)
+        p.font.color.rgb = hex_to_rgb(TEXT_MAIN)
+        p.line_spacing = 1.3
     
     # Сохранение
     out = f"brief_compliant_{start.strftime('%Y%m%d')}_{end.strftime('%Y%m%d')}.pptx"
