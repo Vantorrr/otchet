@@ -1,4 +1,5 @@
 """YandexGPT integration service."""
+import os
 import json
 import requests
 from typing import Dict, Any, Optional
@@ -6,12 +7,31 @@ from bot.config import Settings
 
 
 class YandexGPTService:
-    """Service for interacting with YandexGPT API."""
+    """Service for interacting with YandexGPT API.
+
+    Pro Core: if OPENAI_API_KEY is present, uses OpenAI (gpt-5-nano) provider for text.
+    """
     
     def __init__(self, settings: Settings):
         self.api_key = settings.yandex_api_key
         self.folder_id = settings.yandex_folder_id
         self.base_url = "https://llm.api.cloud.yandex.net/foundationModels/v1/completion"
+        # Optional OpenAI provider
+        self._openai = None
+        try:
+            if os.getenv("OPENAI_API_KEY"):
+                from bot.services.openai_provider import OpenAIProvider
+                self._openai = OpenAIProvider()
+        except Exception:
+            self._openai = None
+
+    def _maybe_openai(self, prompt: str, temperature: float = 0.2, max_tokens: int = 700) -> str | None:
+        if self._openai is None:
+            return None
+        try:
+            return self._openai.generate_text(prompt, temperature=temperature, max_tokens=max_tokens)
+        except Exception as e:
+            return f"❌ Ошибка OpenAI: {str(e)}"
     
     async def generate_analysis(self, data: Dict[str, Any]) -> str:
         """
@@ -23,8 +43,14 @@ class YandexGPTService:
         Returns:
             AI-generated analysis text
         """
+        if self._openai:
+            # Use a compact prompt for OpenAI
+            prompt = self._build_analysis_prompt(data)
+            maybe = self._maybe_openai(prompt, temperature=0.2, max_tokens=700)
+            if maybe is not None:
+                return maybe
         if not self.api_key or not self.folder_id:
-            return "❌ YandexGPT не настроен. Добавьте YANDEX_API_KEY и YANDEX_FOLDER_ID в .env"
+            return "❌ YandexGPT/OpenAI не настроены. Добавьте OPENAI_API_KEY или YANDEX_API_KEY и YANDEX_FOLDER_ID в .env"
         
         prompt = self._build_analysis_prompt(data)
         
@@ -39,6 +65,20 @@ class YandexGPTService:
 
         Returns dict: {"best": [names...], "worst": [names...], "reasons": {name: reason}}
         """
+        if self._openai:
+            # Local scoring when using OpenAI for comments only
+            try:
+                scored = []
+                for manager, stats in data.items():
+                    calls_pct = (stats.get('calls_fact', 0) / stats.get('calls_plan', 1) * 100) if stats.get('calls_plan', 0) else 0
+                    vol_pct = (stats.get('leads_volume_fact', 0.0) / stats.get('leads_volume_plan', 1.0) * 100) if stats.get('leads_volume_plan', 0.0) else 0
+                    scored.append((0.5 * calls_pct + 0.5 * vol_pct, manager))
+                scored.sort(reverse=True)
+                best = [n for _, n in scored[:3]]
+                worst = [n for _, n in list(reversed(scored[-3:]))]
+                return {"best": best, "worst": worst, "reasons": {}}
+            except Exception as e:
+                return {"best": [], "worst": [], "reasons": {}, "error": str(e)}
         if not self.api_key or not self.folder_id:
             return {"best": [], "worst": [], "reasons": {}, "error": "YANDEXGPT_NOT_CONFIGURED"}
 
@@ -99,8 +139,8 @@ class YandexGPTService:
         period_name: str,
     ) -> str:
         """Generate a brief per-manager comment (progress, risks, advice)."""
-        if not self.api_key or not self.folder_id:
-            return "❌ YandexGPT не настроен. Добавьте YANDEX_API_KEY и YANDEX_FOLDER_ID в .env"
+        if self._openai is None and (not self.api_key or not self.folder_id):
+            return "❌ YandexGPT/OpenAI не настроены. Добавьте OPENAI_API_KEY или YANDEX_API_KEY и YANDEX_FOLDER_ID в .env"
 
         def line(label: str, key_plan: str, key_fact: str, data: Dict[str, Any]) -> str:
             plan = data.get(key_plan, 0)
@@ -155,6 +195,10 @@ class YandexGPTService:
             "Ответь кратко, деловым стилем, по-русски. Не используй markdown, только простой текст."
         )
 
+        # Prefer OpenAI
+        maybe = self._maybe_openai(prompt, temperature=0.2, max_tokens=500)
+        if maybe is not None:
+            return maybe
         try:
             return await self._make_request(prompt)
         except Exception as e:
@@ -162,8 +206,8 @@ class YandexGPTService:
 
     async def generate_answer(self, question: str) -> str:
         """Generic Q&A generation for free-form questions."""
-        if not self.api_key or not self.folder_id:
-            return "❌ YandexGPT не настроен. Добавьте YANDEX_API_KEY и YANDEX_FOLDER_ID в .env"
+        if self._openai is None and (not self.api_key or not self.folder_id):
+            return "❌ YandexGPT/OpenAI не настроены. Добавьте OPENAI_API_KEY или YANDEX_API_KEY и YANDEX_FOLDER_ID в .env"
 
         prompt = (
             "Ты опытный бизнес-аналитик в сфере банковских гарантий. Отвечай кратко и по делу, на русском.\n"
@@ -173,6 +217,9 @@ class YandexGPTService:
             "Если спрашивают про наши отчёты/планы/сводки — учитывай, что данные приходят из Google Sheets, а цифры без ПДн.\n\n"
             f"Вопрос: {question}"
         )
+        maybe = self._maybe_openai(prompt, temperature=0.2, max_tokens=600)
+        if maybe is not None:
+            return maybe
         try:
             return await self._make_request(prompt)
         except Exception as e:
@@ -180,8 +227,8 @@ class YandexGPTService:
 
     async def generate_team_comment(self, totals: Dict[str, Any], period_name: str) -> str:
         """Generate a concise team-level comment for the summary slide."""
-        if not self.api_key or not self.folder_id:
-            return "❌ YandexGPT не настроен. Добавьте YANDEX_API_KEY и YANDEX_FOLDER_ID в .env"
+        if self._openai is None and (not self.api_key or not self.folder_id):
+            return "❌ YandexGPT/OpenAI не настроены. Добавьте OPENAI_API_KEY или YANDEX_API_KEY и YANDEX_FOLDER_ID в .env"
 
         def pct(num: float, den: float) -> float:
             try:
@@ -204,6 +251,9 @@ class YandexGPTService:
             "Дай вывод с приоритетами. Без markdown, только обычный текст."
         )
 
+        maybe = self._maybe_openai(prompt, temperature=0.2, max_tokens=600)
+        if maybe is not None:
+            return maybe
         try:
             return await self._make_request(prompt)
         except Exception as e:
@@ -211,8 +261,8 @@ class YandexGPTService:
 
     async def generate_comparison_comment(self, prev: Dict[str, Any], cur: Dict[str, Any], title: str) -> str:
         """Generate a concise comparison comment for 'Динамика: предыдущий vs текущий'."""
-        if not self.api_key or not self.folder_id:
-            return "❌ YandexGPT не настроен. Добавьте YANDEX_API_KEY и YANDEX_FOLDER_ID в .env"
+        if self._openai is None and (not self.api_key or not self.folder_id):
+            return "❌ YandexGPT/OpenAI не настроены. Добавьте OPENAI_API_KEY или YANDEX_API_KEY и YANDEX_FOLDER_ID в .env"
 
         def compare_facts(name: str, key_fact: str, is_float: bool = False) -> str:
             pv = prev.get(key_fact, 0)
@@ -238,6 +288,9 @@ class YandexGPTService:
             "Ответь обычным текстом, без markdown."
         )
 
+        maybe = self._maybe_openai(prompt, temperature=0.2, max_tokens=600)
+        if maybe is not None:
+            return maybe
         try:
             return await self._make_request(prompt)
         except Exception as e:

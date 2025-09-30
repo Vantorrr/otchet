@@ -211,6 +211,18 @@ class GoogleSlidesService:
             ("Выдано, млн", "-", _fmt_mln(totals.get("issued_volume", 0.0)), "-"),
             ("Новые звонки", "-", _fmt_int(totals.get("new_calls", 0)), "-")
         ]
+
+        # Traffic-light coloring for conversion column
+        def conv_color(value_str: str) -> str | None:
+            try:
+                v = float(value_str.replace('%', '').replace(',', '.'))
+            except Exception:
+                return None
+            if v >= 90:
+                return getattr(self._settings, 'slides_primary_color', '#2E7D32')  # green
+            if v >= 70:
+                return getattr(self._settings, 'slides_accent2_color', '#FF8A65')  # amber
+            return getattr(self._settings, 'slides_alert_color', '#C62828')  # red
         # Header row
         for c, text in enumerate(headers):
             self.add_textbox(
@@ -227,7 +239,9 @@ class GoogleSlidesService:
             self.add_textbox(presentation_id, page_id, f"n_{r}", name, x0 + 0 * col_w, y0 + r * row_h, col_w, row_h, 11, align="LEFT", fill_hex=bg)
             self.add_textbox(presentation_id, page_id, f"p_{r}", f"{plan}", x0 + 1 * col_w, y0 + r * row_h, col_w, row_h, 11, align="CENTER", fill_hex=bg)
             self.add_textbox(presentation_id, page_id, f"f_{r}", f"{fact}", x0 + 2 * col_w, y0 + r * row_h, col_w, row_h, 11, align="CENTER", fill_hex=bg)
-            self.add_textbox(presentation_id, page_id, f"c_{r}", f"{conv}", x0 + 3 * col_w, y0 + r * row_h, col_w, row_h, 11, align="CENTER", fill_hex=bg)
+            # Apply traffic light color to conversion
+            conv_color_hex = conv_color(conv) if conv not in ("-", None) else None
+            self.add_textbox(presentation_id, page_id, f"c_{r}", f"{conv}", x0 + 3 * col_w, y0 + r * row_h, col_w, row_h, 11, align="CENTER", fill_hex=bg, text_color_hex=conv_color_hex)
 
         # AI team comment under the table
         comment_title_id = "team_comment_title"

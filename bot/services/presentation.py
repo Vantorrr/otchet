@@ -292,6 +292,18 @@ class PresentationService:
         units_conv = f"{totals['leads_units_percentage']:.1f}%" if totals['leads_units_plan'] else "-"
         vol_conv = f"{totals['leads_volume_percentage']:.1f}%" if totals['leads_volume_plan'] else "-"
 
+        # Traffic-light fill helper
+        def conv_rgb(value_str: str) -> RGBColor | None:
+            try:
+                v = float(value_str.replace('%', ''))
+            except Exception:
+                return None
+            if v >= 90:
+                return RGBColor(46, 125, 50)  # green
+            if v >= 70:
+                return RGBColor(255, 138, 101)  # amber
+            return RGBColor(198, 40, 40)  # red
+
         # Fill rows
         set_row(1, "📲 Повторные звонки", f"{totals['calls_plan']:,}", f"{totals['calls_fact']:,}", calls_conv)
         set_row(2, "📝 Заявки, шт", f"{totals['leads_units_plan']:,}", f"{totals['leads_units_fact']:,}", units_conv)
@@ -299,6 +311,18 @@ class PresentationService:
         set_row(4, "✅ Одобрено, млн", "-", f"{totals['approved_volume']:.1f}", "-")
         set_row(5, "✅ Выдано, млн", "-", f"{totals['issued_volume']:.1f}", "-")
         set_row(6, "☎️ Новые звонки", "-", f"{totals['new_calls']:,}", "-")
+
+        # Apply traffic-light color to conversion column cells (rows 1..3, col=3)
+        try:
+            mapping = {1: calls_conv, 2: units_conv, 3: vol_conv}
+            for r in (1, 2, 3):
+                color = conv_rgb(mapping[r])
+                if color:
+                    cell = table.cell(r, 3)
+                    for p in cell.text_frame.paragraphs:
+                        p.font.color.rgb = color
+        except Exception:
+            pass
 
         # Add AI team comment below
         # Place AI team comment right under the table (increase height to avoid clipping)
