@@ -38,15 +38,17 @@ TEXT_MAIN = "#222222"
 TEXT_MUTED = "#6B6B6B"
 CARD_BG = "#F5F5F5"
 SLIDE_BG = "#FFFFFF"
+SLIDE_BG_LIGHT = "#F8F9FA"  # Subtle cream/beige for alternating slides
 
 def add_logo(slide, prs, logo_path):
     """Добавить логотип справа сверху."""
     # Check multiple possible paths
+    # Always use the logo from project root
+    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     possible_paths = [
+        os.path.join(base_dir, "Логотип.png"),
         logo_path,
-        os.path.join(os.path.dirname(__file__), "..", "Логотип.png"),
         "Логотип.png",
-        "assets/logo.png"
     ]
     
     for path in possible_paths:
@@ -184,8 +186,10 @@ def main():
     print("  Слайд 2/9: Сводка команды...")
     s2 = prs.slides.add_slide(prs.slide_layouts[6])
     bg2 = s2.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, prs.slide_height)
-    bg2.fill.solid()
-    bg2.fill.fore_color.rgb = hex_to_rgb(SLIDE_BG)
+    # Subtle gradient background like in reference
+    bg2.fill.gradient()
+    bg2.fill.gradient_stops[0].color.rgb = hex_to_rgb("#F8F9FA")
+    bg2.fill.gradient_stops[1].color.rgb = hex_to_rgb("#E8F5E8")
     bg2.line.fill.background()
     add_logo(s2, prs, logo)
     
