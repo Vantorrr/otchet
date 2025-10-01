@@ -568,11 +568,11 @@ class PremiumPresentationService:
         h.text_frame.paragraphs[0].font.color.rgb = hex_to_rgb(PRIMARY)
         h.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
         
-        card_w, card_h = Inches(5.7), Inches(3)
+        card_w, card_h = Inches(5.7), Inches(2.7)
         for i, (name, m) in enumerate(list(period_data.items())[:4]):
             col, row = i % 2, i // 2
             x = margin + col * (card_w + Inches(0.4))
-            y = Inches(1.5) + row * (card_h + Inches(0.2))
+            y = Inches(1.4) + row * (card_h + Inches(0.15))
             
             # Performance indicator
             vol_pct = (m.leads_volume_fact/m.leads_volume_plan*100) if m.leads_volume_plan else 0
@@ -601,20 +601,20 @@ class PremiumPresentationService:
             name_box.text_frame.paragraphs[0].font.color.rgb = hex_to_rgb(TEXT_MAIN)
             name_box.text_frame.paragraphs[0].alignment = PP_ALIGN.LEFT
             
-            # Metrics
+            # Metrics — compact
             details = (
                 f"📊 План: {m.leads_volume_plan:.1f} млн | Факт: {m.leads_volume_fact:.1f} млн\n"
                 f"✅ Выдано: {m.issued_volume:.1f} млн\n"
                 f"📞 Звонки: {m.calls_fact}/{m.calls_plan} ({(m.calls_fact/m.calls_plan*100) if m.calls_plan else 0:.0f}%)\n"
                 f"🎯 Выполнение: {vol_pct:.1f}%"
             )
-            details_box = slide.shapes.add_textbox(x + Inches(0.3), y + Inches(0.7), card_w - Inches(0.6), Inches(2.1))
+            details_box = slide.shapes.add_textbox(x + Inches(0.3), y + Inches(0.65), card_w - Inches(0.6), Inches(1.9))
             details_box.text_frame.text = details
             for p in details_box.text_frame.paragraphs:
                 p.font.name = "Roboto"
-                p.font.size = Pt(13)
+                p.font.size = Pt(12)
                 p.font.color.rgb = hex_to_rgb(TEXT_MAIN)
-                p.space_after = Pt(4)
+                p.space_after = Pt(3)
     
     async def _add_dynamics_slide(self, prs, daily_data, logo, margin):
         """Slide 8: Dynamics line chart."""
