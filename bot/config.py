@@ -37,6 +37,10 @@ class Settings:
     slides_muted_color: str
     slides_card_bg_color: str
     office_name: str
+    reminder_quiet_start: str
+    reminder_quiet_end: str
+    reminder_window_morning: str
+    reminder_window_evening: str
 
     @staticmethod
     def load() -> "Settings":
@@ -66,6 +70,10 @@ class Settings:
         slides_muted_color = get_env("SLIDES_MUTED_COLOR", "#6B6B6B")
         slides_card_bg_color = get_env("SLIDES_CARD_BG_COLOR", "#F5F5F5")
         office_name = get_env("OFFICE_NAME", "Банковские гарантии")
+        reminder_quiet_start = get_env("REMINDER_QUIET_START", "22:00")
+        reminder_quiet_end = get_env("REMINDER_QUIET_END", "08:00")
+        reminder_window_morning = get_env("REMINDER_WINDOW_MORNING", "09:00-12:00")
+        reminder_window_evening = get_env("REMINDER_WINDOW_EVENING", "17:00-20:00")
         return Settings(
             bot_token=bot_token,
             spreadsheet_name=spreadsheet_name,
@@ -92,4 +100,8 @@ class Settings:
             slides_muted_color=slides_muted_color,
             slides_card_bg_color=slides_card_bg_color,
             office_name=office_name,
+            reminder_quiet_start=reminder_quiet_start,
+            reminder_quiet_end=reminder_quiet_end,
+            reminder_window_morning=reminder_window_morning,
+            reminder_window_evening=reminder_window_evening,
         )

@@ -254,6 +254,9 @@ class PresentationService:
         except Exception:
             pass
 
+        # Calculate average manager baseline
+        avg = self._calculate_average_manager(period_data)
+
         # Summary table
         top = Inches(1.8)
         left = Inches(0.5)
@@ -324,9 +327,20 @@ class PresentationService:
         except Exception:
             pass
 
+        # Add baseline comparison row below table
+        # "Средний менеджер" as reference
+        if avg:
+            baseline_box = prs.slides[-1].shapes.add_textbox(left, top + height + Inches(0.1), width, Inches(0.5))
+            bf = baseline_box.text_frame
+            bf.text = f"📊 Средний менеджер: звонки {avg.get('calls_percentage', 0):.0f}%, заявки {avg.get('leads_volume_percentage', 0):.0f}%"
+            bf.paragraphs[0].font.size = Pt(11)
+            bf.paragraphs[0].font.name = self.settings.pptx_font_family
+            bf.paragraphs[0].font.italic = True
+            bf.paragraphs[0].font.color.rgb = RGBColor(102, 102, 102)
+
         # Add AI team comment below
         # Place AI team comment right under the table (increase height to avoid clipping)
-        comment_box = prs.slides[-1].shapes.add_textbox(left, top + height + Inches(0.25), width, Inches(3.0))
+        comment_box = prs.slides[-1].shapes.add_textbox(left, top + height + Inches(0.7), width, Inches(2.5))
         tf = comment_box.text_frame
         tf.text = "Комментарий ИИ — Команда"
         tf.paragraphs[0].font.size = Pt(16)
@@ -953,3 +967,36 @@ class PresentationService:
         totals['leads_volume_percentage'] = (totals['leads_volume_fact'] / totals['leads_volume_plan'] * 100) if totals['leads_volume_plan'] > 0 else 0
         
         return totals
+    
+    def _calculate_average_manager(self, period_data: Dict[str, ManagerData]) -> Dict[str, float]:
+        """Calculate average manager baseline for Pro Core comparison."""
+        if not period_data:
+            return {}
+        n = len(period_data)
+        avg = {
+            'calls_plan': 0,
+            'calls_fact': 0,
+            'leads_units_plan': 0,
+            'leads_units_fact': 0,
+            'leads_volume_plan': 0.0,
+            'leads_volume_fact': 0.0,
+            'approved_volume': 0.0,
+            'issued_volume': 0.0,
+            'new_calls': 0,
+        }
+        for m in period_data.values():
+            avg['calls_plan'] += m.calls_plan
+            avg['calls_fact'] += m.calls_fact
+            avg['leads_units_plan'] += m.leads_units_plan
+            avg['leads_units_fact'] += m.leads_units_fact
+            avg['leads_volume_plan'] += m.leads_volume_plan
+            avg['leads_volume_fact'] += m.leads_volume_fact
+            avg['approved_volume'] += m.approved_volume
+            avg['issued_volume'] += m.issued_volume
+            avg['new_calls'] += m.new_calls
+        for k in avg:
+            avg[k] = avg[k] / n
+        avg['calls_percentage'] = (avg['calls_fact'] / avg['calls_plan'] * 100) if avg['calls_plan'] > 0 else 0
+        avg['leads_units_percentage'] = (avg['leads_units_fact'] / avg['leads_units_plan'] * 100) if avg['leads_units_plan'] > 0 else 0
+        avg['leads_volume_percentage'] = (avg['leads_volume_fact'] / avg['leads_volume_plan'] * 100) if avg['leads_volume_plan'] > 0 else 0
+        return avg

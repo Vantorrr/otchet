@@ -1,7 +1,16 @@
-.venv/
 __pycache__/
 *.pyc
 .env
+.env.*
+.venv/
+venv/
+*.pptx
+*.pdf
+*.png
+*.jpg
+*.jpeg
 service_account.json
 scripts/credentials.json
 scripts/token.json
+PRO_CORE_ENV.txt
+.DS_Store

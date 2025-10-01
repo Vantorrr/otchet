@@ -10,6 +10,7 @@ from datetime import time
 from zoneinfo import ZoneInfo
 
 from bot.config import Settings
+from bot.utils.time_utils import now_in_tz
 
 
 def _configure_logging() -> None:
@@ -60,8 +61,28 @@ async def main() -> None:
             )
             return fallback
 
+    def _is_quiet_time() -> bool:
+        """Pro Core: check if current time is in quiet hours."""
+        try:
+            now_h = now_in_tz(settings).hour
+            now_m = now_in_tz(settings).minute
+            q_start = _parse_hhmm(settings.reminder_quiet_start, (22, 0))
+            q_end = _parse_hhmm(settings.reminder_quiet_end, (8, 0))
+            cur = now_h * 60 + now_m
+            start = q_start[0] * 60 + q_start[1]
+            end = q_end[0] * 60 + q_end[1]
+            if start < end:
+                return start <= cur < end
+            else:
+                return cur >= start or cur < end
+        except Exception:
+            return False
+
     async def send_morning_reminders():
         try:
+            if _is_quiet_time():
+                logging.getLogger(__name__).info("Morning reminder skipped: quiet hours")
+                return
             container = Container.get()
             chat_id = container.sheets.get_group_chat_id()
             if not chat_id:
@@ -96,6 +117,9 @@ async def main() -> None:
 
     async def send_evening_reminders():
         try:
+            if _is_quiet_time():
+                logging.getLogger(__name__).info("Evening reminder skipped: quiet hours")
+                return
             container = Container.get()
             chat_id = container.sheets.get_group_chat_id()
             if not chat_id:
