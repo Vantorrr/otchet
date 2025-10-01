@@ -306,7 +306,7 @@ async def cmd_presentation_range(message: types.Message, command: CommandObject)
 
 @admin_router.message(Command("slides_range"))
 async def cmd_slides_range(message: types.Message, command: CommandObject) -> None:
-    """Generate Google Slides deck for custom date range and export PDF to Drive folder.
+    """Generate premium presentation for custom date range (PPTX or Google Slides based on config).
     Usage: /slides_range YYYY-MM-DD YYYY-MM-DD
     """
     args = (command.args or "").split()
@@ -321,60 +321,43 @@ async def cmd_slides_range(message: types.Message, command: CommandObject) -> No
         await message.reply("Неверный формат дат. Пример: /slides_range 2025-08-01 2025-08-07")
         return
 
-    await message.reply("🔄 Генерирую Google Slides и PDF…")
+    container = Container.get()
+    
+    # Check if Google Slides is enabled
+    if container.settings.use_google_slides:
+        await message.reply("⚠️ Google Slides требует настройки Google Workspace с Общими дисками для снятия квот API.\n\n"
+                           "Пока генерирую премиум PPTX (9 слайдов, графики, AI, светофор) — это займёт ~15 сек…")
+    else:
+        await message.reply("🔄 Генерирую премиум презентацию (9 слайдов, графики, AI-анализ)…")
+    
     try:
-        container = Container.get()
         aggregator = DataAggregatorService(container.sheets)
+        presentation_service = PresentationService(container.settings)
+        
         period_data, prev_data, period_name, start_date, end_date, prev_start, prev_end = await aggregator.aggregate_custom_with_previous(start, end)
         if not period_data:
             await message.reply("❌ Нет данных за этот период.")
             return
-
-        slides = GoogleSlidesService(container.settings)
-        from bot.services.slides_builder import PremiumSlidesBuilder
-        builder = PremiumSlidesBuilder(container.settings, slides)
         
-        deck_id = slides.create_presentation(f"Отчет {period_name}")
+        # Generate PPTX with full 9-slide design
+        pptx_bytes = await presentation_service.generate_presentation(
+            period_data, period_name, start_date, end_date, prev_data, prev_start, prev_end
+        )
         
-        from bot.services.presentation import PresentationService
-        prs_service = PresentationService(container.settings)
-        totals = prs_service._calculate_totals(period_data)
+        document = types.BufferedInputFile(
+            pptx_bytes,
+            filename=f"Отчет_{container.settings.office_name}_Неделя_{period_name.replace(' ', '_')}.pptx"
+        )
         
-        period_full = f"{start.strftime('%d.%m.%Y')}—{end.strftime('%d.%m.%Y')}"
+        await message.reply_document(
+            document,
+            caption=f"✅ Премиум отчёт готов!\n📊 {period_name}\n🤖 AI-комментарии, графики, светофор KPI, рейтинг ТОП/АнтиТОП"
+        )
         
-        # Build all 9 slides in order
-        await builder.build_title_slide(deck_id, period_name, period_full)
-        await builder.build_team_summary_slide(deck_id, totals, period_name)
-        await builder.build_ai_team_comment_slide(deck_id, totals, period_name)
-        
-        # Comparison
-        prev_totals = prs_service._calculate_totals(prev_data) if prev_data else totals
-        await builder.build_comparison_slide(deck_id, prev_totals, totals)
-        
-        # Ranking
-        if period_data:
-            scored = []
-            for m in period_data.values():
-                calls_pct = (m.calls_fact/m.calls_plan*100) if m.calls_plan else 0
-                vol_pct = (m.leads_volume_fact/m.leads_volume_plan*100) if m.leads_volume_plan else 0
-                scored.append((0.5*calls_pct+0.5*vol_pct, m.name))
-            scored.sort(reverse=True)
-            best = [n for _, n in scored[:2]]
-            worst = [n for _, n in list(reversed(scored[-2:]))]
-            ranking = {"best": best, "worst": worst, "reasons": {}}
-            await builder.build_top_ranking_slide(deck_id, ranking)
-        
-        # Managers table, cards, dynamics, conclusions
-        await builder.build_managers_table_slide(deck_id, period_data)
-        await builder.build_manager_cards_slide(deck_id, period_data)
-        await builder.build_dynamics_slide(deck_id)
-        await builder.build_conclusions_slide(deck_id, totals, period_name)
-
-        # Export with premium naming
-        pdf_link = builder.export_to_drive_pdf(deck_id, period_name)
-        await message.reply(f"✅ Презентация готова!\n📊 Google Slides: в папке Drive\n📄 PDF: {pdf_link}")
     except Exception as e:
-        await message.reply(f"❌ Ошибка Slides: {str(e)}")
+        import html
+        safe_err = html.escape(str(e))
+        await message.reply(f"❌ Ошибка генерации: {safe_err}", parse_mode=None)
 
 
 @admin_router.message(Command("presentation_compare"))

@@ -34,6 +34,18 @@ class PremiumSlidesBuilder:
         self.margin = 42.5
         self.content_w = self.page_w - 2 * self.margin
         self.col_w = self.content_w / 12
+        # Batch accumulator for quota optimization
+        self._batch_requests = []
+        self._current_pres_id = None
+    
+    def _flush_batch(self) -> None:
+        """Send accumulated batch requests to avoid quota."""
+        if self._batch_requests and self._current_pres_id:
+            self.slides._resources.slides.presentations().batchUpdate(
+                presentationId=self._current_pres_id,
+                body={"requests": self._batch_requests}
+            ).execute()
+            self._batch_requests = []
         
     def _add_slide_bg(self, presentation_id: str, page_id: str) -> None:
         """Add premium gradient background."""
@@ -61,6 +73,7 @@ class PremiumSlidesBuilder:
 
     async def build_title_slide(self, presentation_id: str, period_name: str, dates: str) -> None:
         """Slide 1: Premium title slide with branding."""
+        self._current_pres_id = presentation_id
         self.slides._resources.slides.presentations().batchUpdate(
             presentationId=presentation_id,
             body={"requests": [{"createSlide": {"slideLayoutReference": {"predefinedLayout": "BLANK"}}}]}
@@ -69,6 +82,7 @@ class PremiumSlidesBuilder:
         page_id = pres["slides"][-1]["objectId"]
         
         self._add_slide_bg(presentation_id, page_id)
+        self._flush_batch()
         
         # Main title: office name + "Отчет по продажам"
         self.slides.add_textbox(
