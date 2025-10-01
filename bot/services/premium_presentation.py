@@ -352,28 +352,38 @@ class PremiumPresentationService:
             slide.shapes.add_picture(donut_path, Inches(2.2), Inches(4.7), width=Inches(9), height=Inches(2.7))
     
     async def _add_ai_comment_slide(self, prs, totals, period_name, logo, margin):
-        """Slide 3: AI analysis."""
+        """Slide 3: AI analysis with premium card."""
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         add_gradient_bg(slide, prs)
         add_logo(slide, prs, logo)
         
+        # Header with icon
         h = slide.shapes.add_textbox(margin, Inches(0.5), prs.slide_width - 2*margin, Inches(0.6))
-        h.text_frame.text = "Анализ и рекомендации"
+        h.text_frame.text = "🤖 Анализ и рекомендации"
         h.text_frame.paragraphs[0].font.name = "Roboto"
-        h.text_frame.paragraphs[0].font.size = Pt(28)
+        h.text_frame.paragraphs[0].font.size = Pt(32)
         h.text_frame.paragraphs[0].font.bold = True
         h.text_frame.paragraphs[0].font.color.rgb = hex_to_rgb(PRIMARY)
         h.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
         
+        # Premium card for AI text
+        card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(1.5), Inches(1.5), Inches(10.33), Inches(5.5))
+        card.fill.solid()
+        card.fill.fore_color.rgb = hex_to_rgb(CARD_BG)
+        card.line.color.rgb = hex_to_rgb(PRIMARY)
+        card.line.width = Pt(2)
+        add_shadow(card)
+        
+        # AI comment inside card
         ai_comment = await self.gpt_service.generate_team_comment(totals, period_name)
-        ai_box = slide.shapes.add_textbox(margin, Inches(1.5), prs.slide_width - 2*margin, Inches(5))
+        ai_box = slide.shapes.add_textbox(Inches(2), Inches(2), Inches(9.33), Inches(4.5))
         ai_box.text_frame.text = ai_comment
         ai_box.text_frame.word_wrap = True
         for p in ai_box.text_frame.paragraphs:
             p.font.name = "Roboto"
-            p.font.size = Pt(16)
+            p.font.size = Pt(18)
             p.font.color.rgb = hex_to_rgb(TEXT_MAIN)
-            p.line_spacing = 1.3
+            p.line_spacing = 1.4
             p.alignment = PP_ALIGN.LEFT
     
     async def _add_comparison_slide(self, prs, prev_totals, cur_totals, daily_data, logo, margin):
@@ -581,28 +591,37 @@ class PremiumPresentationService:
                 slide.shapes.add_picture(line_path, Inches(2), Inches(1.8), width=Inches(9.33), height=Inches(5))
     
     async def _add_conclusions_slide(self, prs, totals, period_name, logo, margin):
-        """Slide 9: AI conclusions."""
+        """Slide 9: AI conclusions with premium card."""
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         add_gradient_bg(slide, prs)
         add_logo(slide, prs, logo)
         
+        # Header
         h = slide.shapes.add_textbox(margin, Inches(0.5), prs.slide_width - 2*margin, Inches(0.6))
-        h.text_frame.text = "Выводы и рекомендации"
+        h.text_frame.text = "✅ Выводы и рекомендации"
         h.text_frame.paragraphs[0].font.name = "Roboto"
-        h.text_frame.paragraphs[0].font.size = Pt(28)
+        h.text_frame.paragraphs[0].font.size = Pt(32)
         h.text_frame.paragraphs[0].font.bold = True
         h.text_frame.paragraphs[0].font.color.rgb = hex_to_rgb(PRIMARY)
         h.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
         
+        # Premium card
+        card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(1.5), Inches(1.5), Inches(10.33), Inches(5.5))
+        card.fill.solid()
+        card.fill.fore_color.rgb = hex_to_rgb(CARD_BG)
+        card.line.color.rgb = hex_to_rgb(PRIMARY)
+        card.line.width = Pt(2)
+        add_shadow(card)
+        
         ai_conclusion = await self.gpt_service.generate_team_comment(totals, f"Итоги: {period_name}")
-        ai_box = slide.shapes.add_textbox(margin, Inches(1.5), prs.slide_width - 2*margin, Inches(5))
+        ai_box = slide.shapes.add_textbox(Inches(2), Inches(2), Inches(9.33), Inches(4.5))
         ai_box.text_frame.text = ai_conclusion
         ai_box.text_frame.word_wrap = True
         for p in ai_box.text_frame.paragraphs:
             p.font.name = "Roboto"
-            p.font.size = Pt(16)
+            p.font.size = Pt(18)
             p.font.color.rgb = hex_to_rgb(TEXT_MAIN)
-            p.line_spacing = 1.3
+            p.line_spacing = 1.4
             p.alignment = PP_ALIGN.LEFT
     
     def _calculate_totals(self, period_data: Dict[str, ManagerData]) -> Dict[str, float]:
