@@ -555,46 +555,66 @@ class PremiumPresentationService:
                     p.alignment = PP_ALIGN.CENTER if c > 0 else PP_ALIGN.LEFT
     
     async def _add_manager_cards(self, prs, period_data, logo, margin):
-        """Slide 7: Manager cards (2x2 grid)."""
+        """Slide 7: Premium manager cards with performance indicators."""
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         add_gradient_bg(slide, prs)
         add_logo(slide, prs, logo)
         
         h = slide.shapes.add_textbox(margin, Inches(0.5), prs.slide_width - 2*margin, Inches(0.6))
-        h.text_frame.text = "Карточки менеджеров"
+        h.text_frame.text = "👤 Карточки менеджеров"
         h.text_frame.paragraphs[0].font.name = "Roboto"
-        h.text_frame.paragraphs[0].font.size = Pt(28)
+        h.text_frame.paragraphs[0].font.size = Pt(32)
         h.text_frame.paragraphs[0].font.bold = True
         h.text_frame.paragraphs[0].font.color.rgb = hex_to_rgb(PRIMARY)
         h.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
         
-        card_w, card_h = Inches(5.5), Inches(2.8)
+        card_w, card_h = Inches(5.7), Inches(3)
         for i, (name, m) in enumerate(list(period_data.items())[:4]):
             col, row = i % 2, i // 2
-            x = margin + col * (card_w + Inches(0.5))
-            y = Inches(1.5) + row * (card_h + Inches(0.3))
+            x = margin + col * (card_w + Inches(0.4))
+            y = Inches(1.5) + row * (card_h + Inches(0.2))
             
+            # Performance indicator
+            vol_pct = (m.leads_volume_fact/m.leads_volume_plan*100) if m.leads_volume_plan else 0
+            border_color = PRIMARY if vol_pct >= 80 else ACCENT2 if vol_pct >= 60 else ALERT
+            
+            # Card with colored border
             card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x, y, card_w, card_h)
             card.fill.solid()
             card.fill.fore_color.rgb = hex_to_rgb(CARD_BG)
-            card.line.fill.background()
+            card.line.color.rgb = hex_to_rgb(border_color)
+            card.line.width = Pt(4)
             add_shadow(card)
             
-            name_box = slide.shapes.add_textbox(x + Inches(0.3), y + Inches(0.2), card_w - Inches(0.6), Inches(0.5))
+            # Status indicator dot
+            dot = slide.shapes.add_shape(MSO_SHAPE.OVAL, x + Inches(0.2), y + Inches(0.2), Inches(0.2), Inches(0.2))
+            dot.fill.solid()
+            dot.fill.fore_color.rgb = hex_to_rgb(border_color)
+            dot.line.fill.background()
+            
+            # Name
+            name_box = slide.shapes.add_textbox(x + Inches(0.5), y + Inches(0.15), card_w - Inches(0.7), Inches(0.4))
             name_box.text_frame.text = name
             name_box.text_frame.paragraphs[0].font.name = "Roboto"
-            name_box.text_frame.paragraphs[0].font.size = Pt(18)
+            name_box.text_frame.paragraphs[0].font.size = Pt(20)
             name_box.text_frame.paragraphs[0].font.bold = True
-            name_box.text_frame.paragraphs[0].font.color.rgb = hex_to_rgb(PRIMARY)
-            name_box.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+            name_box.text_frame.paragraphs[0].font.color.rgb = hex_to_rgb(TEXT_MAIN)
+            name_box.text_frame.paragraphs[0].alignment = PP_ALIGN.LEFT
             
-            details = f"План: {m.leads_volume_plan:.1f} млн\nФакт: {m.leads_volume_fact:.1f} млн\nВыдано: {m.issued_volume:.1f} млн"
-            details_box = slide.shapes.add_textbox(x + Inches(0.3), y + Inches(0.8), card_w - Inches(0.6), Inches(1.8))
+            # Metrics
+            details = (
+                f"📊 План: {m.leads_volume_plan:.1f} млн | Факт: {m.leads_volume_fact:.1f} млн\n"
+                f"✅ Выдано: {m.issued_volume:.1f} млн\n"
+                f"📞 Звонки: {m.calls_fact}/{m.calls_plan} ({(m.calls_fact/m.calls_plan*100) if m.calls_plan else 0:.0f}%)\n"
+                f"🎯 Выполнение: {vol_pct:.1f}%"
+            )
+            details_box = slide.shapes.add_textbox(x + Inches(0.3), y + Inches(0.7), card_w - Inches(0.6), Inches(2.1))
             details_box.text_frame.text = details
             for p in details_box.text_frame.paragraphs:
                 p.font.name = "Roboto"
-                p.font.size = Pt(14)
+                p.font.size = Pt(13)
                 p.font.color.rgb = hex_to_rgb(TEXT_MAIN)
+                p.space_after = Pt(4)
     
     async def _add_dynamics_slide(self, prs, daily_data, logo, margin):
         """Slide 8: Dynamics line chart."""
