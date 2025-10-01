@@ -661,19 +661,12 @@ class PremiumPresentationService:
             vol_pct = (m.leads_volume_fact/m.leads_volume_plan*100) if m.leads_volume_plan else 0
             border_color = PRIMARY if vol_pct >= 80 else ACCENT2 if vol_pct >= 60 else ALERT
             
-            # Card with colored border
+            # Card with colored border - NO shadow, NO dot to prevent bleed-through
             card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x, y, card_w, card_h)
             card.fill.solid()
             card.fill.fore_color.rgb = hex_to_rgb(CARD_BG)
             card.line.color.rgb = hex_to_rgb(border_color)
             card.line.width = Pt(4)
-            add_shadow(card)
-            
-            # Status indicator dot
-            dot = slide.shapes.add_shape(MSO_SHAPE.OVAL, x + Inches(0.2), y + Inches(0.2), Inches(0.2), Inches(0.2))
-            dot.fill.solid()
-            dot.fill.fore_color.rgb = hex_to_rgb(border_color)
-            dot.line.fill.background()
             
             # Name
             name_box = slide.shapes.add_textbox(x + Inches(0.5), y + Inches(0.15), card_w - Inches(0.7), Inches(0.4))
@@ -767,12 +760,12 @@ class PremiumPresentationService:
         h.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
         h.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
         
-        # Subtitle
+        # Subtitle - show manager name only once
         sub = slide.shapes.add_textbox(margin, Inches(1.5), prs.slide_width - 2*margin, Inches(0.4))
-        sub.text_frame.text = f"Сравнение — {manager.name}"
+        sub.text_frame.text = f"{manager.name} vs Средний менеджер"
         sub.text_frame.paragraphs[0].font.name = "Roboto"
         sub.text_frame.paragraphs[0].font.size = Pt(20)
-        sub.text_frame.paragraphs[0].font.color.rgb = hex_to_rgb(TEXT_MAIN)
+        sub.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
         sub.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
         
         # Spider chart
