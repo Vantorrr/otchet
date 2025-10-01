@@ -86,20 +86,26 @@ def create_donut_chart(totals, path="donut.png"):
     labels = ['Повторные звонки', 'Заявки шт', 'Заявки млн', 'Выдано']
     values = [totals['calls_fact'], totals['leads_units_fact'], totals['leads_volume_fact']*10, totals['issued_volume']*10]
     colors = [PRIMARY, ACCENT2, '#81C784', '#AED581']
-    fig = go.Figure(data=[go.Pie(labels=labels, values=values, hole=.5, marker_colors=colors, textinfo='label+percent')])
+    fig = go.Figure(data=[go.Pie(
+        labels=labels, 
+        values=values, 
+        hole=.4, 
+        marker_colors=colors, 
+        textposition='outside',
+        textinfo='label+percent',
+        textfont=dict(size=14, family="Roboto"),
+        pull=[0.05, 0.05, 0.05, 0.05]
+    )])
     fig.update_layout(
-        title="Распределение активности", 
-        title_font_size=16, 
-        title_font_family="Roboto",
-        font=dict(family="Roboto", size=12), 
-        showlegend=True,
-        legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.05),
-        width=500, 
-        height=400,
+        title=dict(text="Распределение активности", font=dict(size=18, family="Roboto", color=TEXT_MAIN)),
+        font=dict(family="Roboto", size=14, color=TEXT_MAIN), 
+        showlegend=False,
+        width=700, 
+        height=500,
         paper_bgcolor='rgba(0,0,0,0)',
-        margin=dict(l=20, r=150, t=60, b=20)
+        margin=dict(l=40, r=40, t=80, b=40)
     )
-    fig.write_image(path)
+    fig.write_image(path, scale=2)  # 2x DPI for sharp quality
     return path
 
 
@@ -108,11 +114,18 @@ def create_comparison_bars(prev, cur, path="compare_bars.png"):
     prev_vals = [prev['calls_fact'], prev['leads_units_fact'], prev['leads_volume_fact']]
     cur_vals = [cur['calls_fact'], cur['leads_units_fact'], cur['leads_volume_fact']]
     fig = go.Figure()
-    fig.add_trace(go.Bar(name='Предыдущий', x=categories, y=prev_vals, marker_color=ACCENT2))
-    fig.add_trace(go.Bar(name='Текущий', x=categories, y=cur_vals, marker_color=PRIMARY))
-    fig.update_layout(barmode='group', title="Сравнение периодов", title_font_family="Roboto",
-                      font=dict(family="Roboto", size=11), width=700, height=350, paper_bgcolor='rgba(0,0,0,0)')
-    fig.write_image(path)
+    fig.add_trace(go.Bar(name='Предыдущий', x=categories, y=prev_vals, marker_color=ACCENT2, text=prev_vals, textposition='outside'))
+    fig.add_trace(go.Bar(name='Текущий', x=categories, y=cur_vals, marker_color=PRIMARY, text=cur_vals, textposition='outside'))
+    fig.update_layout(
+        barmode='group', 
+        title=dict(text="Сравнение периодов", font=dict(size=18, family="Roboto")),
+        font=dict(family="Roboto", size=13), 
+        width=800, height=450, 
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        yaxis=dict(gridcolor='#E0E0E0')
+    )
+    fig.write_image(path, scale=2)
     return path
 
 
@@ -122,13 +135,23 @@ def create_line_dynamics(daily_data, path="line_dynamics.png"):
     fact = [d['leads_volume_fact'] for d in daily_data]
     issued = [d['issued_volume'] for d in daily_data]
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=dates, y=plan, mode='lines+markers', name='План', line=dict(color=PRIMARY, width=2)))
-    fig.add_trace(go.Scatter(x=dates, y=fact, mode='lines+markers', name='Факт', line=dict(color=ACCENT2, width=2)))
-    fig.add_trace(go.Scatter(x=dates, y=issued, mode='lines+markers', name='Выдано', line=dict(color='#81C784', width=2)))
-    fig.update_layout(title="Динамика по дням", title_font_family="Roboto",
-                      font=dict(family="Roboto", size=11), xaxis_title="Дата", yaxis_title="млн",
-                      width=800, height=400, paper_bgcolor='rgba(0,0,0,0)')
-    fig.write_image(path)
+    fig.add_trace(go.Scatter(x=dates, y=plan, mode='lines+markers', name='План', 
+                            line=dict(color=PRIMARY, width=3), marker=dict(size=8)))
+    fig.add_trace(go.Scatter(x=dates, y=fact, mode='lines+markers', name='Факт', 
+                            line=dict(color=ACCENT2, width=3), marker=dict(size=8)))
+    fig.add_trace(go.Scatter(x=dates, y=issued, mode='lines+markers', name='Выдано', 
+                            line=dict(color='#81C784', width=3), marker=dict(size=8)))
+    fig.update_layout(
+        title=dict(text="Динамика по дням", font=dict(size=18, family="Roboto")),
+        font=dict(family="Roboto", size=13), 
+        xaxis_title="Дата", yaxis_title="млн",
+        width=900, height=500, 
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        xaxis=dict(gridcolor='#E0E0E0'),
+        yaxis=dict(gridcolor='#E0E0E0')
+    )
+    fig.write_image(path, scale=2)
     return path
 
 
