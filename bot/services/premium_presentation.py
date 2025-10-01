@@ -416,15 +416,15 @@ class PremiumPresentationService:
                 slide.shapes.add_picture(line_path, Inches(7), Inches(1.5), width=Inches(5.5), height=Inches(3))
     
     async def _add_ranking_slide(self, prs, period_data, logo, margin):
-        """Slide 5: TOP-2 and AntiTOP-2."""
+        """Slide 5: Premium ranking with metrics."""
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         add_gradient_bg(slide, prs)
         add_logo(slide, prs, logo)
         
         h = slide.shapes.add_textbox(margin, Inches(0.5), prs.slide_width - 2*margin, Inches(0.6))
-        h.text_frame.text = "Рейтинг эффективности"
+        h.text_frame.text = "🏆 Рейтинг эффективности"
         h.text_frame.paragraphs[0].font.name = "Roboto"
-        h.text_frame.paragraphs[0].font.size = Pt(28)
+        h.text_frame.paragraphs[0].font.size = Pt(32)
         h.text_frame.paragraphs[0].font.bold = True
         h.text_frame.paragraphs[0].font.color.rgb = hex_to_rgb(PRIMARY)
         h.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
@@ -433,57 +433,77 @@ class PremiumPresentationService:
         for m in period_data.values():
             cp = (m.calls_fact/m.calls_plan*100) if m.calls_plan else 0
             vp = (m.leads_volume_fact/m.leads_volume_plan*100) if m.leads_volume_plan else 0
-            scored.append((0.5*cp+0.5*vp, m.name))
+            score = 0.5*cp+0.5*vp
+            scored.append((score, m.name, m))
         scored.sort(reverse=True)
-        best = [n for _, n in scored[:2]]
-        worst = [n for _, n in list(reversed(scored[-2:]))]
+        best = scored[:3]
+        worst = list(reversed(scored[-3:]))
         
-        # TOP card with shadow
-        top_card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, margin, Inches(1.5), Inches(6), Inches(5))
-        top_card.fill.solid()
-        top_card.fill.fore_color.rgb = hex_to_rgb(PRIMARY)
-        top_card.line.fill.background()
-        add_shadow(top_card)
-        
-        top_t = slide.shapes.add_textbox(margin + Inches(0.5), Inches(2), Inches(5), Inches(0.5))
-        top_t.text_frame.text = "🏆 ЛИДЕРЫ ПЕРИОДА"
-        top_t.text_frame.paragraphs[0].font.name = "Roboto"
-        top_t.text_frame.paragraphs[0].font.size = Pt(22)
-        top_t.text_frame.paragraphs[0].font.bold = True
-        top_t.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
-        top_t.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
-        
-        for i, name in enumerate(best):
-            nb = slide.shapes.add_textbox(margin + Inches(0.5), Inches(2.7 + i*0.8), Inches(5), Inches(0.6))
-            nb.text_frame.text = f"{i+1}. {name}"
-            for p in nb.text_frame.paragraphs:
+        # TOP-3 section
+        y_start = Inches(1.5)
+        for i, (score, name, m) in enumerate(best):
+            card_y = y_start + i * Inches(1.6)
+            
+            # Card background
+            card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, margin, card_y, Inches(5.8), Inches(1.4))
+            card.fill.solid()
+            card.fill.fore_color.rgb = hex_to_rgb(PRIMARY)
+            card.line.fill.background()
+            add_shadow(card)
+            
+            # Rank number
+            rank_box = slide.shapes.add_textbox(margin + Inches(0.2), card_y + Inches(0.1), Inches(0.8), Inches(1.2))
+            rank_box.text_frame.text = f"{i+1}"
+            rank_box.text_frame.paragraphs[0].font.name = "Roboto"
+            rank_box.text_frame.paragraphs[0].font.size = Pt(48)
+            rank_box.text_frame.paragraphs[0].font.bold = True
+            rank_box.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+            rank_box.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+            
+            # Name and metrics
+            info = slide.shapes.add_textbox(margin + Inches(1.2), card_y + Inches(0.2), Inches(4.4), Inches(1))
+            info.text_frame.text = f"{name}\nЗвонки: {cp:.0f}% | Заявки: {vp:.0f}% | Счёт: {score:.0f}"
+            info.text_frame.paragraphs[0].font.name = "Roboto"
+            info.text_frame.paragraphs[0].font.size = Pt(18)
+            info.text_frame.paragraphs[0].font.bold = True
+            info.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+            for p in info.text_frame.paragraphs[1:]:
                 p.font.name = "Roboto"
-                p.font.size = Pt(18)
-                p.font.bold = True
+                p.font.size = Pt(12)
                 p.font.color.rgb = RGBColor(255, 255, 255)
         
-        # AntiTOP card with shadow
-        anti_card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(7), Inches(1.5), Inches(6), Inches(5))
-        anti_card.fill.solid()
-        anti_card.fill.fore_color.rgb = hex_to_rgb(ALERT)
-        anti_card.line.fill.background()
-        add_shadow(anti_card)
-        
-        anti_t = slide.shapes.add_textbox(Inches(7.5), Inches(2), Inches(5), Inches(0.5))
-        anti_t.text_frame.text = "⚠️ ТРЕБУЮТ ВНИМАНИЯ"
-        anti_t.text_frame.paragraphs[0].font.name = "Roboto"
-        anti_t.text_frame.paragraphs[0].font.size = Pt(22)
-        anti_t.text_frame.paragraphs[0].font.bold = True
-        anti_t.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
-        anti_t.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
-        
-        for i, name in enumerate(worst):
-            nw = slide.shapes.add_textbox(Inches(7.5), Inches(2.7 + i*0.8), Inches(5), Inches(0.6))
-            nw.text_frame.text = f"{i+1}. {name}"
-            for p in nw.text_frame.paragraphs:
+        # AntiTOP-3 section
+        for i, (score, name, m) in enumerate(worst):
+            card_y = y_start + i * Inches(1.6)
+            
+            # Card background
+            card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(7.2), card_y, Inches(5.8), Inches(1.4))
+            card.fill.solid()
+            card.fill.fore_color.rgb = hex_to_rgb(ALERT)
+            card.line.fill.background()
+            add_shadow(card)
+            
+            # Rank number
+            rank_box = slide.shapes.add_textbox(Inches(7.4), card_y + Inches(0.1), Inches(0.8), Inches(1.2))
+            rank_box.text_frame.text = f"{i+1}"
+            rank_box.text_frame.paragraphs[0].font.name = "Roboto"
+            rank_box.text_frame.paragraphs[0].font.size = Pt(48)
+            rank_box.text_frame.paragraphs[0].font.bold = True
+            rank_box.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+            rank_box.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+            
+            # Name and metrics
+            cp = (m.calls_fact/m.calls_plan*100) if m.calls_plan else 0
+            vp = (m.leads_volume_fact/m.leads_volume_plan*100) if m.leads_volume_plan else 0
+            info = slide.shapes.add_textbox(Inches(8.4), card_y + Inches(0.2), Inches(4.4), Inches(1))
+            info.text_frame.text = f"{name}\nЗвонки: {cp:.0f}% | Заявки: {vp:.0f}% | Счёт: {score:.0f}"
+            info.text_frame.paragraphs[0].font.name = "Roboto"
+            info.text_frame.paragraphs[0].font.size = Pt(18)
+            info.text_frame.paragraphs[0].font.bold = True
+            info.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+            for p in info.text_frame.paragraphs[1:]:
                 p.font.name = "Roboto"
-                p.font.size = Pt(18)
-                p.font.bold = True
+                p.font.size = Pt(12)
                 p.font.color.rgb = RGBColor(255, 255, 255)
     
     async def _add_all_managers_table(self, prs, period_data, logo, margin):
