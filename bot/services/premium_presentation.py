@@ -57,10 +57,19 @@ def create_donut_chart(totals, path="donut.png"):
     labels = ['Повторные звонки', 'Заявки шт', 'Заявки млн', 'Выдано']
     values = [totals['calls_fact'], totals['leads_units_fact'], totals['leads_volume_fact']*10, totals['issued_volume']*10]
     colors = [PRIMARY, ACCENT2, '#81C784', '#AED581']
-    fig = go.Figure(data=[go.Pie(labels=labels, values=values, hole=.5, marker_colors=colors)])
-    fig.update_layout(title="Распределение активности", title_font_size=14, title_font_family="Roboto",
-                      font=dict(family="Roboto", size=11), showlegend=True, width=400, height=350,
-                      paper_bgcolor='rgba(0,0,0,0)')
+    fig = go.Figure(data=[go.Pie(labels=labels, values=values, hole=.5, marker_colors=colors, textinfo='label+percent')])
+    fig.update_layout(
+        title="Распределение активности", 
+        title_font_size=16, 
+        title_font_family="Roboto",
+        font=dict(family="Roboto", size=12), 
+        showlegend=True,
+        legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left", x=1.05),
+        width=500, 
+        height=400,
+        paper_bgcolor='rgba(0,0,0,0)',
+        margin=dict(l=20, r=150, t=60, b=20)
+    )
     fig.write_image(path)
     return path
 
@@ -260,10 +269,10 @@ class PremiumPresentationService:
                 p.font.italic = True
                 p.font.color.rgb = hex_to_rgb(TEXT_MUTED)
         
-        # Donut
+        # Donut — centered below avg manager line
         donut_path = create_donut_chart(totals, "donut_metrics.png")
         if os.path.exists(donut_path):
-            slide.shapes.add_picture(donut_path, Inches(4), Inches(6.2), width=Inches(5), height=Inches(1.2))
+            slide.shapes.add_picture(donut_path, Inches(3.5), Inches(6.5), width=Inches(6.5), height=Inches(0.9))
     
     async def _add_ai_comment_slide(self, prs, totals, period_name, logo, margin):
         """Slide 3: AI analysis."""
