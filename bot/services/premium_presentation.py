@@ -52,14 +52,14 @@ def add_gradient_bg(slide, prs):
     slide.element.insert(0, bg.element)
 
 
-def add_shadow(shape):
-    """Add subtle shadow to shape."""
+def add_shadow(shape, direction=2700000):
+    """Add subtle shadow to shape. Direction: 2700000=bottom, 1800000=right-bottom."""
     try:
         sp = shape.element
         spPr = sp.find('{http://schemas.openxmlformats.org/presentationml/2006/main}spPr', sp.nsmap) or sp.find('.//{http://schemas.openxmlformats.org/presentationml/2006/main}spPr')
         if spPr is None:
             return
-        effectLst = parse_xml(f'<a:effectLst xmlns:a="{nsdecls("a")}"><a:outerShdw blurRad="50800" dist="38100" dir="2700000" algn="ctr"><a:srgbClr val="000000"><a:alpha val="30000"/></a:srgbClr></a:outerShdw></a:effectLst>')
+        effectLst = parse_xml(f'<a:effectLst xmlns:a="{nsdecls("a")}"><a:outerShdw blurRad="50800" dist="30000" dir="{direction}" algn="ctr"><a:srgbClr val="000000"><a:alpha val="25000"/></a:srgbClr></a:outerShdw></a:effectLst>')
         spPr.append(effectLst)
     except Exception:
         pass
@@ -630,13 +630,13 @@ class PremiumPresentationService:
         h.text_frame.paragraphs[0].font.color.rgb = hex_to_rgb(PRIMARY)
         h.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
         
-        # Premium card — maximum size
-        card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.8), Inches(1.3), Inches(11.7), Inches(6))
+        # Premium card — maximum size, shadow to right-bottom to avoid overflow
+        card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.8), Inches(1.2), Inches(11.7), Inches(5.9))
         card.fill.solid()
         card.fill.fore_color.rgb = hex_to_rgb(CARD_BG)
         card.line.color.rgb = hex_to_rgb(PRIMARY)
         card.line.width = Pt(2)
-        add_shadow(card)
+        add_shadow(card, direction=1800000)
         
         ai_conclusion = await self.gpt_service.generate_team_comment(totals, f"Итоги: {period_name}")
         ai_box = slide.shapes.add_textbox(Inches(1.2), Inches(1.7), Inches(10.9), Inches(5.4))
