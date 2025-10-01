@@ -220,24 +220,54 @@ class PremiumPresentationService:
         return pptx_buffer.getvalue()
     
     async def _add_title_slide(self, prs, period_name, start_date, end_date, logo, margin):
-        """Slide 1: Title with gradient."""
+        """Slide 1: Premium title with decorative elements."""
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         add_gradient_bg(slide, prs)
         add_logo(slide, prs, logo)
         
-        title = slide.shapes.add_textbox(margin, Inches(2.5), prs.slide_width - 2*margin, Inches(1.5))
-        title.text_frame.text = f"{self.settings.office_name}\nОтчет по продажам"
+        # Decorative top accent bar
+        accent_bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, Inches(0.15))
+        accent_bar.fill.solid()
+        accent_bar.fill.fore_color.rgb = hex_to_rgb(PRIMARY)
+        accent_bar.line.fill.background()
+        
+        # Large decorative frame around center
+        frame = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(2), Inches(1.8), Inches(9.33), Inches(4))
+        frame.fill.background()
+        frame.line.color.rgb = hex_to_rgb(PRIMARY)
+        frame.line.width = Pt(3)
+        add_shadow(frame)
+        
+        # Office name - smaller, above main title
+        office_box = slide.shapes.add_textbox(Inches(2.5), Inches(2.2), Inches(8.33), Inches(0.6))
+        office_box.text_frame.text = self.settings.office_name.upper()
+        office_box.text_frame.paragraphs[0].font.name = "Roboto"
+        office_box.text_frame.paragraphs[0].font.size = Pt(20)
+        office_box.text_frame.paragraphs[0].font.bold = True
+        office_box.text_frame.paragraphs[0].font.color.rgb = hex_to_rgb(PRIMARY)
+        office_box.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+        
+        # Main title
+        title = slide.shapes.add_textbox(Inches(2.5), Inches(3), Inches(8.33), Inches(1.2))
+        title.text_frame.text = "Отчет по продажам"
         title.text_frame.paragraphs[0].font.name = "Roboto"
-        title.text_frame.paragraphs[0].font.size = Pt(48)
+        title.text_frame.paragraphs[0].font.size = Pt(54)
         title.text_frame.paragraphs[0].font.bold = True
-        title.text_frame.paragraphs[0].font.color.rgb = hex_to_rgb(PRIMARY)
+        title.text_frame.paragraphs[0].font.color.rgb = hex_to_rgb(TEXT_MAIN)
         title.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
         
-        subtitle = slide.shapes.add_textbox(margin, Inches(4.2), prs.slide_width - 2*margin, Inches(1))
+        # Divider line
+        divider = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(4.5), Inches(4.3), Inches(4.5), Pt(2))
+        divider.fill.solid()
+        divider.fill.fore_color.rgb = hex_to_rgb(ACCENT2)
+        divider.line.fill.background()
+        
+        # Period subtitle
+        subtitle = slide.shapes.add_textbox(Inches(2.5), Inches(4.6), Inches(8.33), Inches(0.9))
         subtitle.text_frame.text = f"{period_name}\n{start_date.strftime('%d.%m.%Y')} — {end_date.strftime('%d.%m.%Y')}"
         for p in subtitle.text_frame.paragraphs:
             p.font.name = "Roboto"
-            p.font.size = Pt(24)
+            p.font.size = Pt(22)
             p.font.color.rgb = hex_to_rgb(TEXT_MUTED)
             p.alignment = PP_ALIGN.CENTER
     
