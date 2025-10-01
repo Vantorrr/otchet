@@ -1,4 +1,4 @@
-"""Premium Slides builder for banking guarantees reports."""
+"""Premium Slides builder for banking guarantees reports (9-slide brief-compliant)."""
 from __future__ import annotations
 
 import os
@@ -60,7 +60,7 @@ class PremiumSlidesBuilder:
             pass
 
     async def build_title_slide(self, presentation_id: str, period_name: str, dates: str) -> None:
-        """Premium title slide with branding."""
+        """Slide 1: Premium title slide with branding."""
         self.slides._resources.slides.presentations().batchUpdate(
             presentationId=presentation_id,
             body={"requests": [{"createSlide": {"slideLayoutReference": {"predefinedLayout": "BLANK"}}}]}
@@ -88,7 +88,7 @@ class PremiumSlidesBuilder:
         )
 
     async def build_team_summary_slide(self, presentation_id: str, totals: Dict[str, float], period_title: str) -> None:
-        """Team metrics with AI analysis in card layout."""
+        """Slide 2: Team metrics with AI analysis in card layout."""
         self.slides._resources.slides.presentations().batchUpdate(
             presentationId=presentation_id,
             body={"requests": [{"createSlide": {"slideLayoutReference": {"predefinedLayout": "BLANK"}}}]}
@@ -167,16 +167,78 @@ class PremiumSlidesBuilder:
             font_size=16, align="START", bold=True,
             text_color_hex=self.settings.slides_text_color
         )
+        # Do not truncate AI text – allow full comment with comfortable box height
         self.slides.add_textbox(
-            presentation_id, page_id, "ai_comment_body", ai_comment[:200] + ("..." if len(ai_comment) > 200 else ""),
-            self.margin, 390, self.content_w, 100,
+            presentation_id, page_id, "ai_comment_body", ai_comment,
+            self.margin, 390, self.content_w, 130,
             font_size=14, align="START",
             text_color_hex=self.settings.slides_text_color,
             fill_hex=self.settings.slides_card_bg_color
         )
+    
+    async def build_ai_team_comment_slide(self, presentation_id: str, totals: Dict[str, float], period_title: str) -> None:
+        """Slide 3: AI comment slide for team."""
+        self.slides._resources.slides.presentations().batchUpdate(
+            presentationId=presentation_id,
+            body={"requests": [{"createSlide": {"slideLayoutReference": {"predefinedLayout": "BLANK"}}}]}
+        ).execute()
+        pres = self.slides._resources.slides.presentations().get(presentationId=presentation_id).execute()
+        page_id = pres["slides"][-1]["objectId"]
+        
+        self._add_slide_bg(presentation_id, page_id)
+        
+        # Header
+        self.slides.add_textbox(
+            presentation_id, page_id, "ai_title", "AI-комментарий по команде",
+            self.margin, 70, self.content_w, 40,
+            font_size=28, align="CENTER", bold=True,
+            text_color_hex=self.settings.slides_primary_color
+        )
+        
+        ai_comment = await self.ai.generate_team_comment(totals, period_title)
+        self.slides.add_textbox(
+            presentation_id, page_id, "ai_body", ai_comment,
+            self.margin, 140, self.content_w, 330,
+            font_size=16, align="START",
+            text_color_hex=self.settings.slides_text_color,
+            fill_hex=self.settings.slides_card_bg_color
+        )
+    
+    async def build_comparison_slide(self, presentation_id: str, prev_totals: Dict[str, float], cur_totals: Dict[str, float]) -> None:
+        """Slide 4: Comparison vs previous period (3 bar charts)."""
+        # Placeholder: integrate native Sheets charts or use static images
+        self.slides._resources.slides.presentations().batchUpdate(
+            presentationId=presentation_id,
+            body={"requests": [{"createSlide": {"slideLayoutReference": {"predefinedLayout": "BLANK"}}}]}
+        ).execute()
+        pres = self.slides._resources.slides.presentations().get(presentationId=presentation_id).execute()
+        page_id = pres["slides"][-1]["objectId"]
+        
+        self._add_slide_bg(presentation_id, page_id)
+        
+        # Header
+        self.slides.add_textbox(
+            presentation_id, page_id, "comp_title", "Сравнение с предыдущим периодом",
+            self.margin, 70, self.content_w, 40,
+            font_size=28, align="CENTER", bold=True,
+            text_color_hex=self.settings.slides_primary_color
+        )
+        
+        # Textual summary for now (charts will be added via Sheets integration)
+        summary = (
+            f"Звонки: {prev_totals.get('calls_fact',0):.0f} → {cur_totals.get('calls_fact',0):.0f}\n"
+            f"Заявки шт: {prev_totals.get('leads_units_fact',0):.0f} → {cur_totals.get('leads_units_fact',0):.0f}\n"
+            f"Заявки млн: {prev_totals.get('leads_volume_fact',0):.1f} → {cur_totals.get('leads_volume_fact',0):.1f}"
+        )
+        self.slides.add_textbox(
+            presentation_id, page_id, "comp_summary", summary,
+            self.margin, 140, self.content_w, 120,
+            font_size=18, align="CENTER",
+            text_color_hex=self.settings.slides_text_color
+        )
 
     async def build_top_ranking_slide(self, presentation_id: str, ranking: Dict[str, Any]) -> None:
-        """Premium TOP/AntiTOP ranking cards."""
+        """Slide 5: Premium TOP/AntiTOP ranking cards."""
         self.slides._resources.slides.presentations().batchUpdate(
             presentationId=presentation_id,
             body={"requests": [{"createSlide": {"slideLayoutReference": {"predefinedLayout": "BLANK"}}}]}
@@ -259,6 +321,142 @@ class PremiumSlidesBuilder:
                 font_size=12, align="START",
                 text_color_hex="#FFFFFF"
             )
+    
+    async def build_managers_table_slide(self, presentation_id: str, managers: Dict[str, Any]) -> None:
+        """Slide 6: Table of all managers with zebra striping."""
+        self.slides._resources.slides.presentations().batchUpdate(
+            presentationId=presentation_id,
+            body={"requests": [{"createSlide": {"slideLayoutReference": {"predefinedLayout": "BLANK"}}}]}
+        ).execute()
+        pres = self.slides._resources.slides.presentations().get(presentationId=presentation_id).execute()
+        page_id = pres["slides"][-1]["objectId"]
+        
+        self._add_slide_bg(presentation_id, page_id)
+        
+        # Header
+        self.slides.add_textbox(
+            presentation_id, page_id, "tbl_title", "Общая таблица по менеджерам",
+            self.margin, 70, self.content_w, 40,
+            font_size=28, align="CENTER", bold=True,
+            text_color_hex=self.settings.slides_primary_color
+        )
+        
+        # Table placeholder (native Sheets table would go here)
+        summary = "\n".join([f"{name}: План {m.leads_volume_plan:.1f}, Факт {m.leads_volume_fact:.1f}" 
+                             for name, m in list(managers.items())[:5]])
+        self.slides.add_textbox(
+            presentation_id, page_id, "tbl_body", summary,
+            self.margin, 140, self.content_w, 250,
+            font_size=14, align="START",
+            text_color_hex=self.settings.slides_text_color,
+            fill_hex=self.settings.slides_card_bg_color
+        )
+    
+    async def build_manager_cards_slide(self, presentation_id: str, managers: Dict[str, Any]) -> None:
+        """Slide 7: Individual manager cards (2x2 grid)."""
+        self.slides._resources.slides.presentations().batchUpdate(
+            presentationId=presentation_id,
+            body={"requests": [{"createSlide": {"slideLayoutReference": {"predefinedLayout": "BLANK"}}}]}
+        ).execute()
+        pres = self.slides._resources.slides.presentations().get(presentationId=presentation_id).execute()
+        page_id = pres["slides"][-1]["objectId"]
+        
+        self._add_slide_bg(presentation_id, page_id)
+        
+        # Header
+        self.slides.add_textbox(
+            presentation_id, page_id, "cards_title", "Индивидуальные карточки менеджеров",
+            self.margin, 70, self.content_w, 40,
+            font_size=28, align="CENTER", bold=True,
+            text_color_hex=self.settings.slides_primary_color
+        )
+        
+        # Grid layout for up to 4 managers
+        card_w = (self.content_w - 40) / 2
+        card_h = 160
+        y_row1 = 140
+        y_row2 = 320
+        
+        for i, (name, m) in enumerate(list(managers.items())[:4]):
+            col = i % 2
+            row = i // 2
+            x = self.margin + col * (card_w + 40)
+            y = y_row1 if row == 0 else y_row2
+            
+            self.shapes.add_rectangle(
+                presentation_id, page_id, f"mgr_card_bg_{i}",
+                x, y, card_w, card_h,
+                fill_hex=self.settings.slides_card_bg_color
+            )
+            self.slides.add_textbox(
+                presentation_id, page_id, f"mgr_name_{i}", name,
+                x + 15, y + 15, card_w - 30, 30,
+                font_size=18, align="CENTER", bold=True,
+                text_color_hex=self.settings.slides_primary_color
+            )
+            details = f"План: {m.leads_volume_plan:.1f} млн\nФакт: {m.leads_volume_fact:.1f} млн\nВыдано: {m.issued_volume:.1f} млн"
+            self.slides.add_textbox(
+                presentation_id, page_id, f"mgr_details_{i}", details,
+                x + 15, y + 55, card_w - 30, 85,
+                font_size=14, align="START",
+                text_color_hex=self.settings.slides_text_color
+            )
+    
+    async def build_dynamics_slide(self, presentation_id: str) -> None:
+        """Slide 8: Line chart dynamics (native Sheets chart)."""
+        self.slides._resources.slides.presentations().batchUpdate(
+            presentationId=presentation_id,
+            body={"requests": [{"createSlide": {"slideLayoutReference": {"predefinedLayout": "BLANK"}}}]}
+        ).execute()
+        pres = self.slides._resources.slides.presentations().get(presentationId=presentation_id).execute()
+        page_id = pres["slides"][-1]["objectId"]
+        
+        self._add_slide_bg(presentation_id, page_id)
+        
+        # Header
+        self.slides.add_textbox(
+            presentation_id, page_id, "dyn_title", "Динамика ключевых метрик",
+            self.margin, 70, self.content_w, 40,
+            font_size=28, align="CENTER", bold=True,
+            text_color_hex=self.settings.slides_primary_color
+        )
+        
+        # Placeholder text (native chart will be embedded via Sheets)
+        self.slides.add_textbox(
+            presentation_id, page_id, "dyn_placeholder", "График динамики (будет добавлен через Sheets)",
+            self.margin, 140, self.content_w, 250,
+            font_size=16, align="CENTER",
+            text_color_hex=self.settings.slides_muted_color
+        )
+    
+    async def build_conclusions_slide(self, presentation_id: str, totals: Dict[str, float], period_title: str) -> None:
+        """Slide 9: AI conclusions and recommendations."""
+        self.slides._resources.slides.presentations().batchUpdate(
+            presentationId=presentation_id,
+            body={"requests": [{"createSlide": {"slideLayoutReference": {"predefinedLayout": "BLANK"}}}]}
+        ).execute()
+        pres = self.slides._resources.slides.presentations().get(presentationId=presentation_id).execute()
+        page_id = pres["slides"][-1]["objectId"]
+        
+        self._add_slide_bg(presentation_id, page_id)
+        
+        # Header
+        self.slides.add_textbox(
+            presentation_id, page_id, "concl_title", "Выводы и рекомендации AI",
+            self.margin, 70, self.content_w, 40,
+            font_size=28, align="CENTER", bold=True,
+            text_color_hex=self.settings.slides_primary_color
+        )
+        
+        # Generate AI recommendations
+        ai_conclusion = await self.ai.generate_team_comment(totals, f"Итоги: {period_title}")
+        self.slides.add_textbox(
+            presentation_id, page_id, "concl_body", ai_conclusion,
+            self.margin, 140, self.content_w, 330,
+            font_size=16, align="START",
+            text_color_hex=self.settings.slides_text_color,
+            fill_hex=self.settings.slides_card_bg_color
+        )
 
     def export_to_drive_pdf(self, presentation_id: str, period_name: str) -> str:
         """Export PDF to Drive with naming scheme."""

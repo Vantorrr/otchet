@@ -341,10 +341,17 @@ async def cmd_slides_range(message: types.Message, command: CommandObject) -> No
         totals = prs_service._calculate_totals(period_data)
         
         period_full = f"{start.strftime('%d.%m.%Y')}—{end.strftime('%d.%m.%Y')}"
+        
+        # Build all 9 slides in order
         await builder.build_title_slide(deck_id, period_name, period_full)
         await builder.build_team_summary_slide(deck_id, totals, period_name)
-
-        # TOP/AntiTOP ranking
+        await builder.build_ai_team_comment_slide(deck_id, totals, period_name)
+        
+        # Comparison
+        prev_totals = prs_service._calculate_totals(prev_data) if prev_data else totals
+        await builder.build_comparison_slide(deck_id, prev_totals, totals)
+        
+        # Ranking
         if period_data:
             scored = []
             for m in period_data.values():
@@ -356,6 +363,12 @@ async def cmd_slides_range(message: types.Message, command: CommandObject) -> No
             worst = [n for _, n in list(reversed(scored[-2:]))]
             ranking = {"best": best, "worst": worst, "reasons": {}}
             await builder.build_top_ranking_slide(deck_id, ranking)
+        
+        # Managers table, cards, dynamics, conclusions
+        await builder.build_managers_table_slide(deck_id, period_data)
+        await builder.build_manager_cards_slide(deck_id, period_data)
+        await builder.build_dynamics_slide(deck_id)
+        await builder.build_conclusions_slide(deck_id, totals, period_name)
 
         # Export with premium naming
         pdf_link = builder.export_to_drive_pdf(deck_id, period_name)
