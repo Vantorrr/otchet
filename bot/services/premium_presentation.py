@@ -39,14 +39,37 @@ def hex_to_rgb(hex_color: str) -> RGBColor:
     return RGBColor(r, g, b)
 
 
-def add_gradient_bg(slide, prs):
-    """Add gradient background white → light gray."""
+def add_gradient_bg(slide, prs, color_theme="default"):
+    """Add gradient background - default white, or themed (green/purple/blue)."""
     bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, prs.slide_height)
     fill = bg.fill
-    fill.gradient()
-    fill.gradient_angle = 90.0
-    fill.gradient_stops[0].color.rgb = RGBColor(255, 255, 255)
-    fill.gradient_stops[1].color.rgb = RGBColor(248, 249, 250)
+    
+    if color_theme == "green":
+        fill.gradient()
+        fill.gradient_angle = 90.0
+        fill.gradient_stops[0].color.rgb = hex_to_rgb(PRIMARY)
+        fill.gradient_stops[1].color.rgb = hex_to_rgb("#1B5E20")
+    elif color_theme == "purple":
+        fill.gradient()
+        fill.gradient_angle = 90.0
+        fill.gradient_stops[0].color.rgb = RGBColor(156, 39, 176)
+        fill.gradient_stops[1].color.rgb = RGBColor(106, 27, 154)
+    elif color_theme == "blue":
+        fill.gradient()
+        fill.gradient_angle = 90.0
+        fill.gradient_stops[0].color.rgb = RGBColor(33, 150, 243)
+        fill.gradient_stops[1].color.rgb = RGBColor(21, 101, 192)
+    elif color_theme == "lightgreen":
+        fill.gradient()
+        fill.gradient_angle = 90.0
+        fill.gradient_stops[0].color.rgb = RGBColor(232, 245, 233)
+        fill.gradient_stops[1].color.rgb = RGBColor(200, 230, 201)
+    else:
+        fill.gradient()
+        fill.gradient_angle = 90.0
+        fill.gradient_stops[0].color.rgb = RGBColor(255, 255, 255)
+        fill.gradient_stops[1].color.rgb = RGBColor(248, 249, 250)
+    
     bg.line.fill.background()
     bg.element.getparent().remove(bg.element)
     slide.element.insert(0, bg.element)
@@ -729,9 +752,9 @@ class PremiumPresentationService:
                 slide.shapes.add_picture(line_path, Inches(2), Inches(1.8), width=Inches(9.33), height=Inches(5))
     
     async def _add_calls_dynamics_slide(self, prs, daily_data, totals, logo, margin):
-        """Slide 9: Calls dynamics with summary card."""
+        """Slide 9: Calls dynamics with summary card - GREEN theme."""
         slide = prs.slides.add_slide(prs.slide_layouts[6])
-        add_gradient_bg(slide, prs)
+        add_gradient_bg(slide, prs, color_theme="lightgreen")
         add_logo(slide, prs, logo)
         
         # Green header bar (full width)
@@ -778,10 +801,9 @@ class PremiumPresentationService:
             p.space_after = Pt(6)
     
     async def _add_spider_slide(self, prs, manager, avg, logo, margin):
-        """Slide 10: Spider/Radar chart comparing manager vs average."""
+        """Slide 10: Spider/Radar chart - PURPLE theme."""
         slide = prs.slides.add_slide(prs.slide_layouts[6])
-        add_gradient_bg(slide, prs)
-        add_logo(slide, prs, logo)
+        add_gradient_bg(slide, prs, color_theme="purple")
         
         # Purple header bar
         header_bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, Inches(1.2))
@@ -811,10 +833,9 @@ class PremiumPresentationService:
             slide.shapes.add_picture(spider_path, Inches(3.5), Inches(2.2), width=Inches(6.5), height=Inches(5))
     
     async def _add_managers_bar_slide(self, prs, period_data, logo, margin):
-        """Slide 11: Bar chart comparing all managers."""
+        """Slide 11: Bar chart - BLUE theme."""
         slide = prs.slides.add_slide(prs.slide_layouts[6])
-        add_gradient_bg(slide, prs)
-        add_logo(slide, prs, logo)
+        add_gradient_bg(slide, prs, color_theme="blue")
         
         # Blue header bar
         header_bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, Inches(1.2))
