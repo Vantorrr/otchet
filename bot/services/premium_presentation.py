@@ -156,6 +156,88 @@ def create_line_dynamics(daily_data, path="line_dynamics.png"):
     return path
 
 
+def create_calls_line(daily_data, path="calls_line.png"):
+    """Line chart for calls plan vs fact."""
+    dates = [d['date'] for d in daily_data]
+    plan = [d.get('calls_plan', 0) for d in daily_data]
+    fact = [d.get('calls_fact', 0) for d in daily_data]
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=dates, y=plan, mode='lines+markers', name='План',
+                            line=dict(color=PRIMARY, width=3), marker=dict(size=8)))
+    fig.add_trace(go.Scatter(x=dates, y=fact, mode='lines+markers', name='Факт',
+                            line=dict(color='#2196F3', width=3), marker=dict(size=8)))
+    fig.update_layout(
+        title=dict(text="Звонки: план vs факт", font=dict(size=18, family="Roboto")),
+        font=dict(family="Roboto", size=13),
+        xaxis_title="Дни", yaxis_title="Количество звонков",
+        width=600, height=400,
+        paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+        xaxis=dict(gridcolor='#E0E0E0'), yaxis=dict(gridcolor='#E0E0E0')
+    )
+    fig.write_image(path, scale=2)
+    return path
+
+
+def create_spider_chart(manager_data, avg_data, manager_name, path="spider.png"):
+    """Radar chart: manager vs average."""
+    categories = ['Повторные\nзвонки', 'Новые\nзвонки', 'Заявки\nшт', 'Заявки\nмлн', 'Одобрено', 'Выдано']
+    manager_vals = [
+        manager_data.calls_fact, manager_data.new_calls, manager_data.leads_units_fact,
+        manager_data.leads_volume_fact, manager_data.approved_volume, manager_data.issued_volume
+    ]
+    avg_vals = [
+        avg_data.get('calls_fact', 0), avg_data.get('new_calls', 0), avg_data.get('leads_units_fact', 0),
+        avg_data.get('leads_volume_fact', 0), avg_data.get('approved_volume', 0), avg_data.get('issued_volume', 0)
+    ]
+    fig = go.Figure()
+    fig.add_trace(go.Scatterpolar(
+        r=avg_vals + [avg_vals[0]],
+        theta=categories + [categories[0]],
+        fill='toself',
+        name='Среднее по отделу',
+        fillcolor='rgba(255, 138, 101, 0.3)',
+        line=dict(color=ACCENT2, width=2)
+    ))
+    fig.add_trace(go.Scatterpolar(
+        r=manager_vals + [manager_vals[0]],
+        theta=categories + [categories[0]],
+        fill='toself',
+        name=manager_name,
+        fillcolor='rgba(156, 39, 176, 0.4)',
+        line=dict(color='#9C27B0', width=3)
+    ))
+    fig.update_layout(
+        polar=dict(radialaxis=dict(visible=True, range=[0, max(max(manager_vals), max(avg_vals)) * 1.1])),
+        title=dict(text=f"Сравнение — {manager_name}", font=dict(size=16, family="Roboto")),
+        font=dict(family="Roboto", size=11),
+        width=550, height=450,
+        paper_bgcolor='rgba(0,0,0,0)'
+    )
+    fig.write_image(path, scale=2)
+    return path
+
+
+def create_managers_bar(managers_data, path="managers_bar.png"):
+    """Bar chart comparing all managers."""
+    names = [m.name for m in managers_data]
+    calls = [m.calls_fact for m in managers_data]
+    leads = [m.leads_units_fact for m in managers_data]
+    fig = go.Figure()
+    fig.add_trace(go.Bar(name='Звонки', x=names, y=calls, marker_color=PRIMARY))
+    fig.add_trace(go.Bar(name='Заявки', x=names, y=leads, marker_color='#2196F3'))
+    fig.update_layout(
+        barmode='group',
+        title=dict(text="Результаты по менеджерам", font=dict(size=18, family="Roboto")),
+        font=dict(family="Roboto", size=13),
+        xaxis_title="Менеджеры", yaxis_title="Количество",
+        width=900, height=500,
+        paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+        yaxis=dict(gridcolor='#E0E0E0')
+    )
+    fig.write_image(path, scale=2)
+    return path
+
+
 class PremiumPresentationService:
     """Service for generating premium 9-slide PPTX presentations with charts."""
     
@@ -211,7 +293,18 @@ class PremiumPresentationService:
         # 8. Dynamics charts
         await self._add_dynamics_slide(prs, daily_series or [], logo, margin)
         
-        # 9. Conclusions and recommendations
+        # 9. Calls dynamics (weekly line chart)
+        await self._add_calls_dynamics_slide(prs, daily_series or [], totals, logo, margin)
+        
+        # 10. Spider/Radar chart (manager vs average)
+        if period_data:
+            top_manager = max(period_data.values(), key=lambda m: (m.leads_volume_fact/m.leads_volume_plan*100) if m.leads_volume_plan else 0)
+            await self._add_spider_slide(prs, top_manager, avg, logo, margin)
+        
+        # 11. Bar chart comparison (all managers)
+        await self._add_managers_bar_slide(prs, period_data, logo, margin)
+        
+        # 12. Conclusions and recommendations
         await self._add_conclusions_slide(prs, totals, period_name, logo, margin)
         
         # Save
@@ -623,9 +716,9 @@ class PremiumPresentationService:
         add_logo(slide, prs, logo)
         
         h = slide.shapes.add_textbox(margin, Inches(0.5), prs.slide_width - 2*margin, Inches(0.6))
-        h.text_frame.text = "Динамика ключевых метрик"
+        h.text_frame.text = "📈 Динамика ключевых метрик"
         h.text_frame.paragraphs[0].font.name = "Roboto"
-        h.text_frame.paragraphs[0].font.size = Pt(28)
+        h.text_frame.paragraphs[0].font.size = Pt(32)
         h.text_frame.paragraphs[0].font.bold = True
         h.text_frame.paragraphs[0].font.color.rgb = hex_to_rgb(PRIMARY)
         h.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
@@ -634,6 +727,115 @@ class PremiumPresentationService:
             line_path = create_line_dynamics(daily_data, "dynamics_full.png")
             if os.path.exists(line_path):
                 slide.shapes.add_picture(line_path, Inches(2), Inches(1.8), width=Inches(9.33), height=Inches(5))
+    
+    async def _add_calls_dynamics_slide(self, prs, daily_data, totals, logo, margin):
+        """Slide 9: Calls dynamics with summary card."""
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+        add_gradient_bg(slide, prs)
+        add_logo(slide, prs, logo)
+        
+        # Green header bar (full width)
+        header_bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, Inches(1.2))
+        header_bar.fill.solid()
+        header_bar.fill.fore_color.rgb = hex_to_rgb(PRIMARY)
+        header_bar.line.fill.background()
+        
+        h = slide.shapes.add_textbox(margin, Inches(0.3), prs.slide_width - 2*margin, Inches(0.6))
+        h.text_frame.text = "📞 ДИНАМИКА ЗВОНКОВ (НЕДЕЛЯ)"
+        h.text_frame.paragraphs[0].font.name = "Roboto"
+        h.text_frame.paragraphs[0].font.size = Pt(32)
+        h.text_frame.paragraphs[0].font.bold = True
+        h.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+        h.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+        
+        # Line chart
+        if daily_data:
+            calls_path = create_calls_line(daily_data, "calls_weekly.png")
+            if os.path.exists(calls_path):
+                slide.shapes.add_picture(calls_path, Inches(1.5), Inches(1.8), width=Inches(6.5), height=Inches(4.5))
+        
+        # Summary card
+        summary_card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(8.5), Inches(2), Inches(4), Inches(4.5))
+        summary_card.fill.solid()
+        summary_card.fill.fore_color.rgb = RGBColor(255, 255, 255)
+        summary_card.line.color.rgb = hex_to_rgb(PRIMARY)
+        summary_card.line.width = Pt(2)
+        add_shadow(summary_card)
+        
+        summary_text = (
+            f"📊 ИТОГИ НЕДЕЛИ\n\n"
+            f"🎯 План звонков: {int(totals.get('calls_plan', 0)):,}\n"
+            f"✅ Выполнено: {int(totals.get('calls_fact', 0)):,}\n"
+            f"📊 Процент: {totals.get('calls_percentage', 0):.1f}%\n\n"
+            f"💡 Новые контакты: {int(totals.get('new_calls', 0)):,}"
+        )
+        summary_box = slide.shapes.add_textbox(Inches(8.8), Inches(2.3), Inches(3.4), Inches(4))
+        summary_box.text_frame.text = summary_text
+        for p in summary_box.text_frame.paragraphs:
+            p.font.name = "Roboto"
+            p.font.size = Pt(13)
+            p.font.color.rgb = hex_to_rgb(TEXT_MAIN)
+            p.space_after = Pt(6)
+    
+    async def _add_spider_slide(self, prs, manager, avg, logo, margin):
+        """Slide 10: Spider/Radar chart comparing manager vs average."""
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+        add_gradient_bg(slide, prs)
+        add_logo(slide, prs, logo)
+        
+        # Purple header bar
+        header_bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, Inches(1.2))
+        header_bar.fill.solid()
+        header_bar.fill.fore_color.rgb = RGBColor(156, 39, 176)
+        header_bar.line.fill.background()
+        
+        h = slide.shapes.add_textbox(margin, Inches(0.3), prs.slide_width - 2*margin, Inches(0.6))
+        h.text_frame.text = f"📡 ПРОФИЛЬ ЭФФЕКТИВНОСТИ"
+        h.text_frame.paragraphs[0].font.name = "Roboto"
+        h.text_frame.paragraphs[0].font.size = Pt(32)
+        h.text_frame.paragraphs[0].font.bold = True
+        h.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+        h.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+        
+        # Subtitle
+        sub = slide.shapes.add_textbox(margin, Inches(1.5), prs.slide_width - 2*margin, Inches(0.4))
+        sub.text_frame.text = f"Сравнение — {manager.name}"
+        sub.text_frame.paragraphs[0].font.name = "Roboto"
+        sub.text_frame.paragraphs[0].font.size = Pt(20)
+        sub.text_frame.paragraphs[0].font.color.rgb = hex_to_rgb(TEXT_MAIN)
+        sub.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+        
+        # Spider chart
+        spider_path = create_spider_chart(manager, avg, manager.name, "spider_chart.png")
+        if os.path.exists(spider_path):
+            slide.shapes.add_picture(spider_path, Inches(3.5), Inches(2.2), width=Inches(6.5), height=Inches(5))
+    
+    async def _add_managers_bar_slide(self, prs, period_data, logo, margin):
+        """Slide 11: Bar chart comparing all managers."""
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+        add_gradient_bg(slide, prs)
+        add_logo(slide, prs, logo)
+        
+        # Blue header bar
+        header_bar = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, Inches(1.2))
+        header_bar.fill.solid()
+        header_bar.fill.fore_color.rgb = RGBColor(33, 150, 243)
+        header_bar.line.fill.background()
+        
+        h = slide.shapes.add_textbox(margin, Inches(0.3), prs.slide_width - 2*margin, Inches(0.6))
+        h.text_frame.text = "📊 СРАВНЕНИЕ КОМАНДЫ"
+        h.text_frame.paragraphs[0].font.name = "Roboto"
+        h.text_frame.paragraphs[0].font.size = Pt(32)
+        h.text_frame.paragraphs[0].font.bold = True
+        h.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+        h.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
+        
+        # Bar chart
+        managers_list = list(period_data.values())
+        if managers_list:
+            bar_path = create_managers_bar(managers_list, "managers_comparison.png")
+            if os.path.exists(bar_path):
+                slide.shapes.add_picture(bar_path, Inches(2), Inches(1.8), width=Inches(9.33), height=Inches(5))
     
     async def _add_conclusions_slide(self, prs, totals, period_name, logo, margin):
         """Slide 9: AI conclusions with premium card."""
