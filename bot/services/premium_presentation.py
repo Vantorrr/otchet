@@ -83,29 +83,30 @@ def add_logo(slide, prs, logo_path):
 
 
 def create_donut_chart(totals, path="donut.png"):
-    labels = ['Повторные звонки', 'Заявки шт', 'Заявки млн', 'Выдано']
+    labels = ['Повторные\nзвонки', 'Заявки\nшт', 'Заявки\nмлн', 'Выдано\nмлн']
     values = [totals['calls_fact'], totals['leads_units_fact'], totals['leads_volume_fact']*10, totals['issued_volume']*10]
     colors = [PRIMARY, ACCENT2, '#81C784', '#AED581']
     fig = go.Figure(data=[go.Pie(
         labels=labels, 
         values=values, 
-        hole=.4, 
+        hole=.35, 
         marker_colors=colors, 
         textposition='outside',
         textinfo='label+percent',
-        textfont=dict(size=14, family="Roboto"),
-        pull=[0.05, 0.05, 0.05, 0.05]
+        textfont=dict(size=16, family="Roboto", color=TEXT_MAIN),
+        pull=[0.08, 0.08, 0.08, 0.08],
+        marker=dict(line=dict(color='white', width=3))
     )])
     fig.update_layout(
-        title=dict(text="Распределение активности", font=dict(size=18, family="Roboto", color=TEXT_MAIN)),
-        font=dict(family="Roboto", size=14, color=TEXT_MAIN), 
+        title=dict(text="Распределение активности", font=dict(size=20, family="Roboto", color=TEXT_MAIN)),
+        font=dict(family="Roboto", size=16, color=TEXT_MAIN), 
         showlegend=False,
-        width=700, 
-        height=500,
+        width=900, 
+        height=550,
         paper_bgcolor='rgba(0,0,0,0)',
-        margin=dict(l=40, r=40, t=80, b=40)
+        margin=dict(l=60, r=60, t=90, b=50)
     )
-    fig.write_image(path, scale=2)  # 2x DPI for sharp quality
+    fig.write_image(path, scale=3)  # 3x DPI for ultra-sharp quality
     return path
 
 
@@ -285,9 +286,9 @@ class PremiumPresentationService:
         h.text_frame.paragraphs[0].font.color.rgb = hex_to_rgb(PRIMARY)
         h.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
         
-        # Table — compact height
+        # Table — more compact
         rows, cols = 7, 4
-        tbl = slide.shapes.add_table(rows, cols, margin, Inches(1.3), Inches(11.33), Inches(3.2)).table
+        tbl = slide.shapes.add_table(rows, cols, margin, Inches(1.3), Inches(11.33), Inches(2.7)).table
         headers = ["Показатель", "План", "Факт", "Конв (%)"]
         for c, hdr in enumerate(headers):
             cell = tbl.cell(0, c)
@@ -337,7 +338,7 @@ class PremiumPresentationService:
         
         # Avg manager — right below table
         if avg:
-            avg_box = slide.shapes.add_textbox(margin, Inches(4.6), Inches(11.33), Inches(0.4))
+            avg_box = slide.shapes.add_textbox(margin, Inches(4.1), Inches(11.33), Inches(0.35))
             avg_box.text_frame.text = f"📊 Средний менеджер: звонки {avg.get('calls_percentage', 0):.0f}%, заявки {avg.get('leads_volume_percentage', 0):.0f}%"
             for p in avg_box.text_frame.paragraphs:
                 p.font.name = "Roboto"
@@ -345,10 +346,10 @@ class PremiumPresentationService:
                 p.font.italic = True
                 p.font.color.rgb = hex_to_rgb(TEXT_MUTED)
         
-        # Donut — centered below avg, larger size
+        # Donut — full width, crisp and large
         donut_path = create_donut_chart(totals, "donut_metrics.png")
         if os.path.exists(donut_path):
-            slide.shapes.add_picture(donut_path, Inches(3), Inches(5.2), width=Inches(7.5), height=Inches(2.2))
+            slide.shapes.add_picture(donut_path, Inches(2.2), Inches(4.7), width=Inches(9), height=Inches(2.7))
     
     async def _add_ai_comment_slide(self, prs, totals, period_name, logo, margin):
         """Slide 3: AI analysis."""
