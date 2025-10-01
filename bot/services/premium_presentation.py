@@ -638,59 +638,52 @@ class PremiumPresentationService:
                     p.alignment = PP_ALIGN.CENTER if c > 0 else PP_ALIGN.LEFT
     
     async def _add_manager_cards(self, prs, period_data, logo, margin):
-        """Slide 7: Premium manager cards with performance indicators."""
+        """Slide 7: Manager table (simple table to avoid shape bleed)."""
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         add_gradient_bg(slide, prs)
         add_logo(slide, prs, logo)
         
         h = slide.shapes.add_textbox(margin, Inches(0.5), prs.slide_width - 2*margin, Inches(0.6))
-        h.text_frame.text = "👤 Карточки менеджеров"
+        h.text_frame.text = "👤 Показатели менеджеров"
         h.text_frame.paragraphs[0].font.name = "Roboto"
         h.text_frame.paragraphs[0].font.size = Pt(32)
         h.text_frame.paragraphs[0].font.bold = True
         h.text_frame.paragraphs[0].font.color.rgb = hex_to_rgb(PRIMARY)
         h.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
         
-        card_w, card_h = Inches(5.7), Inches(2.7)
-        for i, (name, m) in enumerate(list(period_data.items())[:4]):
-            col, row = i % 2, i // 2
-            x = margin + col * (card_w + Inches(0.4))
-            y = Inches(1.4) + row * (card_h + Inches(0.15))
-            
-            # Performance indicator
-            vol_pct = (m.leads_volume_fact/m.leads_volume_plan*100) if m.leads_volume_plan else 0
-            border_color = PRIMARY if vol_pct >= 80 else ACCENT2 if vol_pct >= 60 else ALERT
-            
-            # Card with colored border - NO shadow, NO dot to prevent bleed-through
-            card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, x, y, card_w, card_h)
-            card.fill.solid()
-            card.fill.fore_color.rgb = hex_to_rgb(CARD_BG)
-            card.line.color.rgb = hex_to_rgb(border_color)
-            card.line.width = Pt(4)
-            
-            # Name
-            name_box = slide.shapes.add_textbox(x + Inches(0.5), y + Inches(0.15), card_w - Inches(0.7), Inches(0.4))
-            name_box.text_frame.text = name
-            name_box.text_frame.paragraphs[0].font.name = "Roboto"
-            name_box.text_frame.paragraphs[0].font.size = Pt(20)
-            name_box.text_frame.paragraphs[0].font.bold = True
-            name_box.text_frame.paragraphs[0].font.color.rgb = hex_to_rgb(TEXT_MAIN)
-            name_box.text_frame.paragraphs[0].alignment = PP_ALIGN.LEFT
-            
-            # Metrics — compact
-            details = (
-                f"📊 План: {m.leads_volume_plan:.1f} млн | Факт: {m.leads_volume_fact:.1f} млн\n"
-                f"✅ Выдано: {m.issued_volume:.1f} млн\n"
-                f"📞 Звонки: {m.calls_fact}/{m.calls_plan} ({(m.calls_fact/m.calls_plan*100) if m.calls_plan else 0:.0f}%)\n"
-                f"🎯 Выполнение: {vol_pct:.1f}%"
-            )
-            details_box = slide.shapes.add_textbox(x + Inches(0.3), y + Inches(0.65), card_w - Inches(0.6), Inches(1.9))
-            details_box.text_frame.text = details
-            for p in details_box.text_frame.paragraphs:
+        # Simple table instead of cards
+        rows = min(len(period_data) + 1, 7)
+        cols = 5
+        tbl = slide.shapes.add_table(rows, cols, margin, Inches(1.5), Inches(11.33), Inches(5.5)).table
+        
+        headers = ["Менеджер", "План млн", "Факт млн", "Выдано млн", "Выполнение %"]
+        for c, hdr in enumerate(headers):
+            cell = tbl.cell(0, c)
+            cell.text = hdr
+            cell.fill.solid()
+            cell.fill.fore_color.rgb = hex_to_rgb(PRIMARY)
+            for p in cell.text_frame.paragraphs:
                 p.font.name = "Roboto"
-                p.font.size = Pt(12)
-                p.font.color.rgb = hex_to_rgb(TEXT_MAIN)
-                p.space_after = Pt(3)
+                p.font.size = Pt(13)
+                p.font.bold = True
+                p.font.color.rgb = RGBColor(255, 255, 255)
+                p.alignment = PP_ALIGN.CENTER
+        
+        for r, (name, m) in enumerate(list(period_data.items())[:rows-1], start=1):
+            vol_pct = (m.leads_volume_fact/m.leads_volume_plan*100) if m.leads_volume_plan else 0
+            row_data = [name, f"{m.leads_volume_plan:.1f}", f"{m.leads_volume_fact:.1f}", 
+                       f"{m.issued_volume:.1f}", f"{vol_pct:.1f}%"]
+            for c, val in enumerate(row_data):
+                cell = tbl.cell(r, c)
+                cell.text = val
+                if r % 2 == 0:
+                    cell.fill.solid()
+                    cell.fill.fore_color.rgb = hex_to_rgb(CARD_BG)
+                for p in cell.text_frame.paragraphs:
+                    p.font.name = "Roboto"
+                    p.font.size = Pt(12)
+                    p.font.color.rgb = hex_to_rgb(TEXT_MAIN)
+                    p.alignment = PP_ALIGN.CENTER if c > 0 else PP_ALIGN.LEFT
     
     async def _add_calls_dynamics_slide(self, prs, daily_data, totals, logo, margin):
         """Slide 9: Calls dynamics with summary card - GREEN theme."""
