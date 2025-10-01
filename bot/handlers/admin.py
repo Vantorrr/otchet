@@ -341,10 +341,11 @@ async def cmd_slides_range(message: types.Message, command: CommandObject) -> No
         # Get daily series for charts
         daily_series = await aggregator.get_daily_series(start_date, end_date)
         
-        # Generate PPTX using old working presentation service
-        presentation_service = PresentationService(container.settings)
+        # Generate premium PPTX
+        from bot.services.premium_presentation import PremiumPresentationService
+        presentation_service = PremiumPresentationService(container.settings)
         pptx_bytes = await presentation_service.generate_presentation(
-            period_data, period_name, start_date, end_date, prev_data, prev_start, prev_end
+            period_data, period_name, start_date, end_date, prev_data, prev_start, prev_end, daily_series
         )
         
         document = types.BufferedInputFile(
