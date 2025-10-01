@@ -332,16 +332,20 @@ async def cmd_slides_range(message: types.Message, command: CommandObject) -> No
     
     try:
         aggregator = DataAggregatorService(container.sheets)
-        presentation_service = PresentationService(container.settings)
+        from bot.services.premium_presentation import PremiumPresentationService
+        presentation_service = PremiumPresentationService(container.settings)
         
         period_data, prev_data, period_name, start_date, end_date, prev_start, prev_end = await aggregator.aggregate_custom_with_previous(start, end)
         if not period_data:
             await message.reply("❌ Нет данных за этот период.")
             return
         
-        # Generate PPTX with full 9-slide design
+        # Get daily series for charts
+        daily_series = await aggregator.get_daily_series(start_date, end_date)
+        
+        # Generate premium 9-slide PPTX with charts
         pptx_bytes = await presentation_service.generate_presentation(
-            period_data, period_name, start_date, end_date, prev_data, prev_start, prev_end
+            period_data, period_name, start_date, end_date, prev_data, prev_start, prev_end, daily_series
         )
         
         document = types.BufferedInputFile(
