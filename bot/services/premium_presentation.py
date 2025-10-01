@@ -209,9 +209,9 @@ class PremiumPresentationService:
         h.text_frame.paragraphs[0].font.color.rgb = hex_to_rgb(PRIMARY)
         h.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
         
-        # Table
+        # Table — compact height
         rows, cols = 7, 4
-        tbl = slide.shapes.add_table(rows, cols, margin, Inches(1.3), Inches(11.33), Inches(4.5)).table
+        tbl = slide.shapes.add_table(rows, cols, margin, Inches(1.3), Inches(11.33), Inches(3.2)).table
         headers = ["Показатель", "План", "Факт", "Конв (%)"]
         for c, hdr in enumerate(headers):
             cell = tbl.cell(0, c)
@@ -259,9 +259,9 @@ class PremiumPresentationService:
                         except Exception:
                             pass
         
-        # Avg manager
+        # Avg manager — right below table
         if avg:
-            avg_box = slide.shapes.add_textbox(margin, Inches(6), Inches(11.33), Inches(0.4))
+            avg_box = slide.shapes.add_textbox(margin, Inches(4.6), Inches(11.33), Inches(0.4))
             avg_box.text_frame.text = f"📊 Средний менеджер: звонки {avg.get('calls_percentage', 0):.0f}%, заявки {avg.get('leads_volume_percentage', 0):.0f}%"
             for p in avg_box.text_frame.paragraphs:
                 p.font.name = "Roboto"
@@ -269,10 +269,10 @@ class PremiumPresentationService:
                 p.font.italic = True
                 p.font.color.rgb = hex_to_rgb(TEXT_MUTED)
         
-        # Donut — centered below avg manager line
+        # Donut — centered below avg, larger size
         donut_path = create_donut_chart(totals, "donut_metrics.png")
         if os.path.exists(donut_path):
-            slide.shapes.add_picture(donut_path, Inches(3.5), Inches(6.5), width=Inches(6.5), height=Inches(0.9))
+            slide.shapes.add_picture(donut_path, Inches(3), Inches(5.2), width=Inches(7.5), height=Inches(2.2))
     
     async def _add_ai_comment_slide(self, prs, totals, period_name, logo, margin):
         """Slide 3: AI analysis."""
