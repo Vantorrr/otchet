@@ -366,29 +366,30 @@ class PremiumPresentationService:
         h.text_frame.paragraphs[0].font.color.rgb = hex_to_rgb(PRIMARY)
         h.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
         
-        # Premium card for AI text — larger and taller
-        card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(1.2), Inches(1.4), Inches(11), Inches(5.8))
+        # Premium card for AI text — maximum size
+        card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.8), Inches(1.3), Inches(11.7), Inches(6))
         card.fill.solid()
         card.fill.fore_color.rgb = hex_to_rgb(CARD_BG)
         card.line.color.rgb = hex_to_rgb(PRIMARY)
         card.line.width = Pt(2)
         add_shadow(card)
         
-        # AI comment inside card — comfortable padding and smaller font
+        # AI comment inside card — comfortable padding
         ai_comment = await self.gpt_service.generate_team_comment(totals, period_name)
-        ai_box = slide.shapes.add_textbox(Inches(1.6), Inches(1.8), Inches(10.2), Inches(5.2))
+        ai_box = slide.shapes.add_textbox(Inches(1.2), Inches(1.7), Inches(10.9), Inches(5.4))
         ai_box.text_frame.text = ai_comment
         ai_box.text_frame.word_wrap = True
-        ai_box.text_frame.margin_left = Pt(10)
-        ai_box.text_frame.margin_right = Pt(10)
-        ai_box.text_frame.margin_top = Pt(10)
-        ai_box.text_frame.margin_bottom = Pt(10)
+        ai_box.text_frame.margin_left = Pt(12)
+        ai_box.text_frame.margin_right = Pt(12)
+        ai_box.text_frame.margin_top = Pt(12)
+        ai_box.text_frame.margin_bottom = Pt(12)
         for p in ai_box.text_frame.paragraphs:
             p.font.name = "Roboto"
-            p.font.size = Pt(15)
+            p.font.size = Pt(14)
             p.font.color.rgb = hex_to_rgb(TEXT_MAIN)
-            p.line_spacing = 1.3
+            p.line_spacing = 1.25
             p.alignment = PP_ALIGN.LEFT
+            p.space_after = Pt(8)
     
     async def _add_comparison_slide(self, prs, prev_totals, cur_totals, daily_data, logo, margin):
         """Slide 4: Comparison with charts."""
@@ -609,8 +610,8 @@ class PremiumPresentationService:
         h.text_frame.paragraphs[0].font.color.rgb = hex_to_rgb(PRIMARY)
         h.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
         
-        # Premium card — larger
-        card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(1.2), Inches(1.4), Inches(11), Inches(5.8))
+        # Premium card — maximum size
+        card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.8), Inches(1.3), Inches(11.7), Inches(6))
         card.fill.solid()
         card.fill.fore_color.rgb = hex_to_rgb(CARD_BG)
         card.line.color.rgb = hex_to_rgb(PRIMARY)
@@ -618,19 +619,20 @@ class PremiumPresentationService:
         add_shadow(card)
         
         ai_conclusion = await self.gpt_service.generate_team_comment(totals, f"Итоги: {period_name}")
-        ai_box = slide.shapes.add_textbox(Inches(1.6), Inches(1.8), Inches(10.2), Inches(5.2))
+        ai_box = slide.shapes.add_textbox(Inches(1.2), Inches(1.7), Inches(10.9), Inches(5.4))
         ai_box.text_frame.text = ai_conclusion
         ai_box.text_frame.word_wrap = True
-        ai_box.text_frame.margin_left = Pt(10)
-        ai_box.text_frame.margin_right = Pt(10)
-        ai_box.text_frame.margin_top = Pt(10)
-        ai_box.text_frame.margin_bottom = Pt(10)
+        ai_box.text_frame.margin_left = Pt(12)
+        ai_box.text_frame.margin_right = Pt(12)
+        ai_box.text_frame.margin_top = Pt(12)
+        ai_box.text_frame.margin_bottom = Pt(12)
         for p in ai_box.text_frame.paragraphs:
             p.font.name = "Roboto"
-            p.font.size = Pt(15)
+            p.font.size = Pt(14)
             p.font.color.rgb = hex_to_rgb(TEXT_MAIN)
-            p.line_spacing = 1.3
+            p.line_spacing = 1.25
             p.alignment = PP_ALIGN.LEFT
+            p.space_after = Pt(8)
     
     def _calculate_totals(self, period_data: Dict[str, ManagerData]) -> Dict[str, float]:
         """Calculate team totals."""
