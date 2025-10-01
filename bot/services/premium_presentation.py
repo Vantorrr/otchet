@@ -13,6 +13,9 @@ from pptx.util import Inches, Pt
 from pptx.enum.text import PP_ALIGN
 from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_SHAPE
+from pptx.oxml.xmlchemy import OxmlElement
+from pptx.oxml import parse_xml
+from pptx.oxml.ns import nsdecls
 import plotly.graph_objects as go
 
 from bot.services.yandex_gpt import YandexGPTService
@@ -34,6 +37,32 @@ def hex_to_rgb(hex_color: str) -> RGBColor:
     hex_color = hex_color.lstrip('#')
     r, g, b = int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
     return RGBColor(r, g, b)
+
+
+def add_gradient_bg(slide, prs):
+    """Add gradient background white → light gray."""
+    bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, prs.slide_height)
+    fill = bg.fill
+    fill.gradient()
+    fill.gradient_angle = 90.0
+    fill.gradient_stops[0].color.rgb = RGBColor(255, 255, 255)
+    fill.gradient_stops[1].color.rgb = RGBColor(248, 249, 250)
+    bg.line.fill.background()
+    bg.element.getparent().remove(bg.element)
+    slide.element.insert(0, bg.element)
+
+
+def add_shadow(shape):
+    """Add subtle shadow to shape."""
+    try:
+        sp = shape.element
+        spPr = sp.find('{http://schemas.openxmlformats.org/presentationml/2006/main}spPr', sp.nsmap) or sp.find('.//{http://schemas.openxmlformats.org/presentationml/2006/main}spPr')
+        if spPr is None:
+            return
+        effectLst = parse_xml(f'<a:effectLst xmlns:a="{nsdecls("a")}"><a:outerShdw blurRad="50800" dist="38100" dir="2700000" algn="ctr"><a:srgbClr val="000000"><a:alpha val="30000"/></a:srgbClr></a:outerShdw></a:effectLst>')
+        spPr.append(effectLst)
+    except Exception:
+        pass
 
 
 def add_logo(slide, prs, logo_path):
@@ -168,12 +197,9 @@ class PremiumPresentationService:
         return pptx_buffer.getvalue()
     
     async def _add_title_slide(self, prs, period_name, start_date, end_date, logo, margin):
-        """Slide 1: Title."""
+        """Slide 1: Title with gradient."""
         slide = prs.slides.add_slide(prs.slide_layouts[6])
-        bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, prs.slide_height)
-        bg.fill.solid()
-        bg.fill.fore_color.rgb = hex_to_rgb(SLIDE_BG)
-        bg.line.fill.background()
+        add_gradient_bg(slide, prs)
         add_logo(slide, prs, logo)
         
         title = slide.shapes.add_textbox(margin, Inches(2.5), prs.slide_width - 2*margin, Inches(1.5))
@@ -195,10 +221,7 @@ class PremiumPresentationService:
     async def _add_team_summary_slide(self, prs, totals, avg, period_name, logo, margin):
         """Slide 2: Team summary table with zebra and traffic light."""
         slide = prs.slides.add_slide(prs.slide_layouts[6])
-        bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, prs.slide_height)
-        bg.fill.solid()
-        bg.fill.fore_color.rgb = hex_to_rgb(SLIDE_BG)
-        bg.line.fill.background()
+        add_gradient_bg(slide, prs)
         add_logo(slide, prs, logo)
         
         h = slide.shapes.add_textbox(margin, Inches(0.5), prs.slide_width - 2*margin, Inches(0.6))
@@ -277,10 +300,7 @@ class PremiumPresentationService:
     async def _add_ai_comment_slide(self, prs, totals, period_name, logo, margin):
         """Slide 3: AI analysis."""
         slide = prs.slides.add_slide(prs.slide_layouts[6])
-        bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, prs.slide_height)
-        bg.fill.solid()
-        bg.fill.fore_color.rgb = hex_to_rgb(SLIDE_BG)
-        bg.line.fill.background()
+        add_gradient_bg(slide, prs)
         add_logo(slide, prs, logo)
         
         h = slide.shapes.add_textbox(margin, Inches(0.5), prs.slide_width - 2*margin, Inches(0.6))
@@ -305,10 +325,7 @@ class PremiumPresentationService:
     async def _add_comparison_slide(self, prs, prev_totals, cur_totals, daily_data, logo, margin):
         """Slide 4: Comparison with charts."""
         slide = prs.slides.add_slide(prs.slide_layouts[6])
-        bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, prs.slide_height)
-        bg.fill.solid()
-        bg.fill.fore_color.rgb = hex_to_rgb(SLIDE_BG)
-        bg.line.fill.background()
+        add_gradient_bg(slide, prs)
         add_logo(slide, prs, logo)
         
         h = slide.shapes.add_textbox(margin, Inches(0.5), prs.slide_width - 2*margin, Inches(0.6))
@@ -332,10 +349,7 @@ class PremiumPresentationService:
     async def _add_ranking_slide(self, prs, period_data, logo, margin):
         """Slide 5: TOP-2 and AntiTOP-2."""
         slide = prs.slides.add_slide(prs.slide_layouts[6])
-        bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, prs.slide_height)
-        bg.fill.solid()
-        bg.fill.fore_color.rgb = hex_to_rgb(SLIDE_BG)
-        bg.line.fill.background()
+        add_gradient_bg(slide, prs)
         add_logo(slide, prs, logo)
         
         h = slide.shapes.add_textbox(margin, Inches(0.5), prs.slide_width - 2*margin, Inches(0.6))
@@ -355,11 +369,12 @@ class PremiumPresentationService:
         best = [n for _, n in scored[:2]]
         worst = [n for _, n in list(reversed(scored[-2:]))]
         
-        # TOP card
+        # TOP card with shadow
         top_card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, margin, Inches(1.5), Inches(6), Inches(5))
         top_card.fill.solid()
         top_card.fill.fore_color.rgb = hex_to_rgb(PRIMARY)
         top_card.line.fill.background()
+        add_shadow(top_card)
         
         top_t = slide.shapes.add_textbox(margin + Inches(0.5), Inches(2), Inches(5), Inches(0.5))
         top_t.text_frame.text = "🏆 ЛИДЕРЫ ПЕРИОДА"
@@ -378,11 +393,12 @@ class PremiumPresentationService:
                 p.font.bold = True
                 p.font.color.rgb = RGBColor(255, 255, 255)
         
-        # AntiTOP card
+        # AntiTOP card with shadow
         anti_card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(7), Inches(1.5), Inches(6), Inches(5))
         anti_card.fill.solid()
         anti_card.fill.fore_color.rgb = hex_to_rgb(ALERT)
         anti_card.line.fill.background()
+        add_shadow(anti_card)
         
         anti_t = slide.shapes.add_textbox(Inches(7.5), Inches(2), Inches(5), Inches(0.5))
         anti_t.text_frame.text = "⚠️ ТРЕБУЮТ ВНИМАНИЯ"
@@ -404,10 +420,7 @@ class PremiumPresentationService:
     async def _add_all_managers_table(self, prs, period_data, logo, margin):
         """Slide 6: Table of all managers."""
         slide = prs.slides.add_slide(prs.slide_layouts[6])
-        bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, prs.slide_height)
-        bg.fill.solid()
-        bg.fill.fore_color.rgb = hex_to_rgb(SLIDE_BG)
-        bg.line.fill.background()
+        add_gradient_bg(slide, prs)
         add_logo(slide, prs, logo)
         
         h = slide.shapes.add_textbox(margin, Inches(0.5), prs.slide_width - 2*margin, Inches(0.6))
@@ -455,10 +468,7 @@ class PremiumPresentationService:
     async def _add_manager_cards(self, prs, period_data, logo, margin):
         """Slide 7: Manager cards (2x2 grid)."""
         slide = prs.slides.add_slide(prs.slide_layouts[6])
-        bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, prs.slide_height)
-        bg.fill.solid()
-        bg.fill.fore_color.rgb = hex_to_rgb(SLIDE_BG)
-        bg.line.fill.background()
+        add_gradient_bg(slide, prs)
         add_logo(slide, prs, logo)
         
         h = slide.shapes.add_textbox(margin, Inches(0.5), prs.slide_width - 2*margin, Inches(0.6))
@@ -479,6 +489,7 @@ class PremiumPresentationService:
             card.fill.solid()
             card.fill.fore_color.rgb = hex_to_rgb(CARD_BG)
             card.line.fill.background()
+            add_shadow(card)
             
             name_box = slide.shapes.add_textbox(x + Inches(0.3), y + Inches(0.2), card_w - Inches(0.6), Inches(0.5))
             name_box.text_frame.text = name
@@ -499,10 +510,7 @@ class PremiumPresentationService:
     async def _add_dynamics_slide(self, prs, daily_data, logo, margin):
         """Slide 8: Dynamics line chart."""
         slide = prs.slides.add_slide(prs.slide_layouts[6])
-        bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, prs.slide_height)
-        bg.fill.solid()
-        bg.fill.fore_color.rgb = hex_to_rgb(SLIDE_BG)
-        bg.line.fill.background()
+        add_gradient_bg(slide, prs)
         add_logo(slide, prs, logo)
         
         h = slide.shapes.add_textbox(margin, Inches(0.5), prs.slide_width - 2*margin, Inches(0.6))
@@ -521,10 +529,7 @@ class PremiumPresentationService:
     async def _add_conclusions_slide(self, prs, totals, period_name, logo, margin):
         """Slide 9: AI conclusions."""
         slide = prs.slides.add_slide(prs.slide_layouts[6])
-        bg = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, prs.slide_height)
-        bg.fill.solid()
-        bg.fill.fore_color.rgb = hex_to_rgb(SLIDE_BG)
-        bg.line.fill.background()
+        add_gradient_bg(slide, prs)
         add_logo(slide, prs, logo)
         
         h = slide.shapes.add_textbox(margin, Inches(0.5), prs.slide_width - 2*margin, Inches(0.6))
