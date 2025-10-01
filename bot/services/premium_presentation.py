@@ -313,21 +313,18 @@ class PremiumPresentationService:
         # 7. Manager cards (2x2 grid)
         await self._add_manager_cards(prs, period_data, logo, margin)
         
-        # 8. Dynamics charts
-        await self._add_dynamics_slide(prs, daily_series or [], logo, margin)
-        
-        # 9. Calls dynamics (weekly line chart)
+        # 8. Calls dynamics (weekly line chart) - GREEN theme
         await self._add_calls_dynamics_slide(prs, daily_series or [], totals, logo, margin)
         
-        # 10. Spider/Radar chart (manager vs average)
+        # 10. Spider/Radar chart - PURPLE theme
         if period_data:
             top_manager = max(period_data.values(), key=lambda m: (m.leads_volume_fact/m.leads_volume_plan*100) if m.leads_volume_plan else 0)
             await self._add_spider_slide(prs, top_manager, avg, logo, margin)
         
-        # 11. Bar chart comparison (all managers)
+        # 11. Bar chart comparison - BLUE theme
         await self._add_managers_bar_slide(prs, period_data, logo, margin)
         
-        # 12. Conclusions and recommendations
+        # 12. Conclusions
         await self._add_conclusions_slide(prs, totals, period_name, logo, margin)
         
         # Save
@@ -731,25 +728,6 @@ class PremiumPresentationService:
                 p.font.size = Pt(12)
                 p.font.color.rgb = hex_to_rgb(TEXT_MAIN)
                 p.space_after = Pt(3)
-    
-    async def _add_dynamics_slide(self, prs, daily_data, logo, margin):
-        """Slide 8: Dynamics line chart."""
-        slide = prs.slides.add_slide(prs.slide_layouts[6])
-        add_gradient_bg(slide, prs)
-        add_logo(slide, prs, logo)
-        
-        h = slide.shapes.add_textbox(margin, Inches(0.5), prs.slide_width - 2*margin, Inches(0.6))
-        h.text_frame.text = "📈 Динамика ключевых метрик"
-        h.text_frame.paragraphs[0].font.name = "Roboto"
-        h.text_frame.paragraphs[0].font.size = Pt(32)
-        h.text_frame.paragraphs[0].font.bold = True
-        h.text_frame.paragraphs[0].font.color.rgb = hex_to_rgb(PRIMARY)
-        h.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
-        
-        if daily_data:
-            line_path = create_line_dynamics(daily_data, "dynamics_full.png")
-            if os.path.exists(line_path):
-                slide.shapes.add_picture(line_path, Inches(2), Inches(1.8), width=Inches(9.33), height=Inches(5))
     
     async def _add_calls_dynamics_slide(self, prs, daily_data, totals, logo, margin):
         """Slide 9: Calls dynamics with summary card - GREEN theme."""
