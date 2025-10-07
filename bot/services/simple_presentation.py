@@ -121,10 +121,12 @@ class SimplePresentationService:
         # Table with 2 rows + header, columns: Показатель, План, Факт, Конверсия, % к факту, % конверсии, Средний факт
         rows, cols = 3, 7
         tbl = slide.shapes.add_table(rows, cols, margin, Inches(0.9), prs.slide_width - 2*margin, Inches(2.2)).table
-        headers = ["Показатель", "План", "Факт", "Конверсия", "% к факту", "Δ конверсии, п.п.", "Средний факт"]
+        headers = ["Показатель", "План", "Факт", "Конверсия", "% к факту (ПП)", "Δ конверсии, п.п. (ПП)", "Средний факт (ПП)"]
         for c, h in enumerate(headers):
             cell = tbl.cell(0, c); cell.text = h
-            cell.fill.solid(); cell.fill.fore_color.rgb = hex_to_rgb("#E3F2FD")
+            cell.fill.solid();
+            # Подсветка правого блока колонок, относящихся к ПП
+            cell.fill.fore_color.rgb = hex_to_rgb("#E3F2FD" if c < 4 else "#BBDEFB")
             for par in cell.text_frame.paragraphs:
                 par.font.name = "Roboto"; par.font.size = Pt(11); par.font.bold = True; par.alignment = PP_ALIGN.CENTER; par.font.color.rgb = hex_to_rgb(TEXT_MAIN)
 
@@ -156,9 +158,17 @@ class SimplePresentationService:
                     cell.fill.solid(); cell.fill.fore_color.rgb = hex_to_rgb("#F7F9FC")
                 for par in cell.text_frame.paragraphs:
                     par.font.name = "Roboto"; par.font.size = Pt(10); par.alignment = PP_ALIGN.CENTER if c>0 else PP_ALIGN.LEFT
+                    if c >= 4:  # колонки, относящиеся к ПП
+                        par.font.color.rgb = hex_to_rgb(PRIMARY)
+
+        # Примечание про ПП
+        note = slide.shapes.add_textbox(margin, Inches(3.15), prs.slide_width - 2*margin, Inches(0.3))
+        nt = note.text_frame; nt.clear()
+        pnt = nt.paragraphs[0]; pnt.text = "Колонки справа (% к факту, Δ конверсии, Средний факт) — сравнение с ПП (предыдущим периодом той же длины)."
+        pnt.font.name = "Roboto"; pnt.font.size = Pt(9); pnt.font.color.rgb = hex_to_rgb(TEXT_MUTED)
 
         # Comment block
-        box = slide.shapes.add_textbox(margin, Inches(3.3), prs.slide_width - 2*margin, Inches(2.4))
+        box = slide.shapes.add_textbox(margin, Inches(3.45), prs.slide_width - 2*margin, Inches(2.25))
         prompt = (
             "Сформируй краткий комментарий по звонкам за период '" + period_name + "'. "
             f"Повторные: факт {cur_calls_fact} из {cur_calls_plan} ({calls_conv}%). Новые: факт {cur_new_fact} из {cur_new_plan} ({new_conv}%). "
@@ -201,10 +211,10 @@ class SimplePresentationService:
         # Table
         rows, cols = 5, 7
         tbl = slide.shapes.add_table(rows, cols, margin, Inches(0.9), prs.slide_width - 2*margin, Inches(2.4)).table
-        headers = ["Показатель", "План", "Факт", "Конверсия", "% к факту", "% конверсии", "Среднее за квартал, факт"]
+        headers = ["Показатель", "План", "Факт", "Конверсия", "% к факту (ПП)", "Δ конверсии, п.п. (ПП)", "Средний факт (ПП)"]
         for c, h in enumerate(headers):
             cell = tbl.cell(0, c); cell.text = h
-            cell.fill.solid(); cell.fill.fore_color.rgb = hex_to_rgb("#E3F2FD")
+            cell.fill.solid(); cell.fill.fore_color.rgb = hex_to_rgb("#E3F2FD" if c < 4 else "#BBDEFB")
             for par in cell.text_frame.paragraphs:
                 par.font.name = "Roboto"; par.font.size = Pt(11); par.font.bold = True; par.alignment = PP_ALIGN.CENTER; par.font.color.rgb = hex_to_rgb(TEXT_MAIN)
 
@@ -232,6 +242,8 @@ class SimplePresentationService:
                     cell.fill.solid(); cell.fill.fore_color.rgb = hex_to_rgb("#F7F9FC")
                 for par in cell.text_frame.paragraphs:
                     par.font.name = "Roboto"; par.font.size = Pt(10); par.alignment = PP_ALIGN.CENTER if c>0 else PP_ALIGN.LEFT
+                    if c >= 4:
+                        par.font.color.rgb = hex_to_rgb(PRIMARY)
 
         # Comment
         box = slide.shapes.add_textbox(margin, Inches(3.4), prs.slide_width - 2*margin, Inches(2.3))
