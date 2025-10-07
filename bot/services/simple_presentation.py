@@ -69,13 +69,13 @@ class SimplePresentationService:
         # Compute previous quarter references (weekly):
         prev_q_team_weekly, prev_q_per_manager_weekly = await self._compute_prev_quarter_refs(end_date)
         # Calls overview slide (second slide)
-        await self._add_calls_overview_slide(prs, period_data, prev_data, prev_q_team_weekly, margin, period_name)
+        await self._add_calls_overview_slide(prs, period_data, prev_data, prev_q_team_weekly, margin, period_name, start_date, end_date)
         # Leads overview slide (third slide)
-        await self._add_leads_overview_slide(prs, period_data, prev_data, prev_q_team_weekly, margin, period_name)
+        await self._add_leads_overview_slide(prs, period_data, prev_data, prev_q_team_weekly, margin, period_name, start_date, end_date)
         
         # One slide per manager
         for manager_name, manager_data in period_data.items():
-            await self._add_manager_stats_slide(prs, manager_name, manager_data, avg, prev_avg, prev_q_per_manager_weekly, margin)
+            await self._add_manager_stats_slide(prs, manager_name, manager_data, avg, prev_avg, prev_q_per_manager_weekly, margin, start_date, end_date)
         # Team summary slide
         await self._add_team_summary_slide(prs, period_data, avg, period_name, margin)
         
@@ -186,7 +186,7 @@ class SimplePresentationService:
         except Exception:
             return None, None
 
-    async def _add_calls_overview_slide(self, prs, period_data, prev_data, prev_q_team_weekly, margin, period_name):
+    async def _add_calls_overview_slide(self, prs, period_data, prev_data, prev_q_team_weekly, margin, period_name, start_date, end_date):
         """Add 'Общие показатели звонков' slide as per reference."""
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         self._add_logo(slide, prs)
@@ -237,9 +237,22 @@ class SimplePresentationService:
         vs_calls_conv = calls_conv - prev_calls_conv
         vs_new_conv = new_conv - prev_new_conv
 
-        # Средний факт (ПП) по команде
-        sf_calls = (prev_q_team_weekly or {}).get('calls_fact', 0.0)
-        sf_new = (prev_q_team_weekly or {}).get('new_calls_fact', 0.0)
+        # Средний факт предыдущего квартала, масштабированный под длительность текущего периода (рабочие дни)
+        def workdays_between(a, b):
+            cur = a
+            days = 0
+            from datetime import timedelta
+            while cur <= b:
+                if cur.weekday() < 5:
+                    days += 1
+                cur = cur + timedelta(days=1)
+            return days
+        wd = workdays_between(start_date, end_date)
+        scale = (wd / 5) if wd else 0
+        base_calls_week = (prev_q_team_weekly or {}).get('calls_fact', 0.0)
+        base_new_week = (prev_q_team_weekly or {}).get('new_calls_fact', 0.0)
+        sf_calls = base_calls_week * scale
+        sf_new = base_new_week * scale
         data_rows = [
             ["Повторные звонки", cur_calls_plan, cur_calls_fact, f"{calls_conv}%", f"{vs_calls:+d}%", f"{vs_calls_conv:+d}", f"{sf_calls:.1f}"],
             ["Новые звонки", cur_new_plan, cur_new_fact, f"{new_conv}%", f"{vs_new:+d}%", f"{vs_new_conv:+d}", f"{sf_new:.1f}"],
@@ -275,7 +288,7 @@ class SimplePresentationService:
         h = t.paragraphs[0]; h.text = "Комментарии нейросети"; h.font.name = "Roboto"; h.font.size = Pt(14); h.font.bold = True
         p1 = t.add_paragraph(); p1.text = text; p1.font.name = "Roboto"; p1.font.size = Pt(10)
 
-    async def _add_leads_overview_slide(self, prs, period_data, prev_data, prev_q_team_weekly, margin, period_name):
+    async def _add_leads_overview_slide(self, prs, period_data, prev_data, prev_q_team_weekly, margin, period_name, start_date, end_date):
         """Add 'Общие показатели по заявкам' slide (units, volume, approved, issued)."""
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         self._add_logo(slide, prs)
@@ -319,10 +332,22 @@ class SimplePresentationService:
 
         # Колонки конверсии убраны
 
-        sf_units = (prev_q_team_weekly or {}).get('leads_units_fact', 0.0)
-        sf_vol = (prev_q_team_weekly or {}).get('leads_volume_fact', 0.0)
-        sf_appr = (prev_q_team_weekly or {}).get('approved_units', 0.0)
-        sf_iss = (prev_q_team_weekly or {}).get('issued_volume', 0.0)
+        # Масштабируем средние недельные значения прошлого квартала под рабочие дни текущего периода
+        def workdays_between(a, b):
+            cur = a
+            days = 0
+            from datetime import timedelta
+            while cur <= b:
+                if cur.weekday() < 5:
+                    days += 1
+                cur = cur + timedelta(days=1)
+            return days
+        wd = workdays_between(start_date, end_date)
+        scale = (wd / 5) if wd else 0
+        sf_units = ((prev_q_team_weekly or {}).get('leads_units_fact', 0.0)) * scale
+        sf_vol = ((prev_q_team_weekly or {}).get('leads_volume_fact', 0.0)) * scale
+        sf_appr = ((prev_q_team_weekly or {}).get('approved_units', 0.0)) * scale
+        sf_iss = ((prev_q_team_weekly or {}).get('issued_volume', 0.0)) * scale
         data_rows = [
             ["Заявки, штук", units_fact, f"{pct(units_fact - prev_units_fact, prev_units_fact) if prev_units_fact else 0:+d}%", f"{sf_units:.1f}"],
             ["Заявки, млн", f"{vol_fact:.1f}", f"{pct(vol_fact - prev_vol_fact, prev_vol_fact) if prev_vol_fact else 0:+d}%", f"{sf_vol:.1f}"],
@@ -436,7 +461,7 @@ class SimplePresentationService:
             p.font.color.rgb = hex_to_rgb(PRIMARY)
             p.alignment = PP_ALIGN.CENTER
     
-    async def _add_manager_stats_slide(self, prs, manager_name, manager_data, avg, prev_avg, prev_q_per_manager_weekly, margin):
+    async def _add_manager_stats_slide(self, prs, manager_name, manager_data, avg, prev_avg, prev_q_per_manager_weekly, margin, start_date, end_date):
         """Manager statistics table + AI commentary (exactly as in reference)."""
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         self._add_logo(slide, prs)
@@ -489,7 +514,23 @@ class SimplePresentationService:
         # Manager data vs averages
         m = manager_data
         # baseline for "средний менеджер": из прошлого квартала (недельный), если доступно; иначе текущая средняя
-        ref = (prev_q_per_manager_weekly or prev_avg or avg) or {
+        # Базовый "средний менеджер" — недельный из прошлого квартала; масштабируем под рабочие дни текущего периода
+        def workdays_between(a, b):
+            cur = a
+            days = 0
+            from datetime import timedelta
+            while cur <= b:
+                if cur.weekday() < 5:
+                    days += 1
+                cur = cur + timedelta(days=1)
+            return days
+        wd = workdays_between(start_date, end_date)
+        scale = (wd / 5) if wd else 0
+        scaled_ref = None
+        if prev_q_per_manager_weekly:
+            scaled_ref = {k: (v * scale if isinstance(v, (int, float)) else v) for k, v in prev_q_per_manager_weekly.items()}
+
+        ref = (scaled_ref or prev_avg or avg) or {
             'calls_fact':0,'new_calls_fact':0,'leads_units_fact':0,'leads_volume_fact':0.0,
             'approved_units':0,'issued_volume':0.0,'calls_plan':0,'new_calls_plan':0,'leads_units_plan':0,'leads_volume_plan':0.0
         }
