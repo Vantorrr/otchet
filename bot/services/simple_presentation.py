@@ -135,6 +135,20 @@ class SimplePresentationService:
                 for k in week_buckets[key]:
                     week_buckets[key][k] += float(item.get(k, 0) or 0)
             weeks_with_data = [w for w in week_buckets.values() if any(v>0 for v in w.values())]
+            # Fallback: если в прошлом квартале нет данных, берём последние 4 недели до текущего периода
+            if not weeks_with_data:
+                alt_end = end_date - timedelta(days=1)
+                alt_start = alt_end - timedelta(days=27)
+                series = await aggregator.get_daily_series(alt_start, alt_end)
+                week_buckets = defaultdict(lambda: {'calls_fact':0,'new_calls':0,'leads_units_fact':0,'leads_volume_fact':0.0,'approved_volume':0.0,'issued_volume':0.0})
+                for item in series:
+                    from datetime import datetime as _dt
+                    d = _dt.strptime(item['date'], '%Y-%m-%d').date()
+                    iso_year, iso_week, _ = d.isocalendar()
+                    key = f"{iso_year}-W{iso_week:02d}"
+                    for k in week_buckets[key]:
+                        week_buckets[key][k] += float(item.get(k, 0) or 0)
+                weeks_with_data = [w for w in week_buckets.values() if any(v>0 for v in w.values())]
             def avg_of_key(key: str) -> float:
                 if not weeks_with_data:
                     return 0.0
