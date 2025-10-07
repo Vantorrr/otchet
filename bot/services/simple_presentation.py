@@ -69,13 +69,13 @@ class SimplePresentationService:
         # Compute previous quarter references (weekly):
         prev_q_team_weekly, prev_q_per_manager_weekly = await self._compute_prev_quarter_refs(end_date)
         # Calls overview slide (second slide)
-        await self._add_calls_overview_slide(prs, period_data, prev_data, prev_q_per_manager_weekly, margin, period_name)
+        await self._add_calls_overview_slide(prs, period_data, prev_data, prev_q_team_weekly, margin, period_name)
         # Leads overview slide (third slide)
-        await self._add_leads_overview_slide(prs, period_data, prev_data, prev_q_per_manager_weekly, margin, period_name)
+        await self._add_leads_overview_slide(prs, period_data, prev_data, prev_q_team_weekly, margin, period_name)
         
         # One slide per manager
         for manager_name, manager_data in period_data.items():
-            await self._add_manager_stats_slide(prs, manager_name, manager_data, avg, prev_avg, margin)
+            await self._add_manager_stats_slide(prs, manager_name, manager_data, avg, prev_avg, prev_q_per_manager_weekly, margin)
         # Team summary slide
         await self._add_team_summary_slide(prs, period_data, avg, period_name, margin)
         
@@ -164,7 +164,7 @@ class SimplePresentationService:
         except Exception:
             return None, None
 
-    async def _add_calls_overview_slide(self, prs, period_data, prev_data, avg, margin, period_name):
+    async def _add_calls_overview_slide(self, prs, period_data, prev_data, prev_q_team_weekly, margin, period_name):
         """Add 'Общие показатели звонков' slide as per reference."""
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         self._add_logo(slide, prs)
@@ -215,9 +215,12 @@ class SimplePresentationService:
         vs_calls_conv = calls_conv - prev_calls_conv
         vs_new_conv = new_conv - prev_new_conv
 
+        # Средний факт (ПП) по команде
+        sf_calls = (prev_q_team_weekly or {}).get('calls_fact', 0.0)
+        sf_new = (prev_q_team_weekly or {}).get('new_calls_fact', 0.0)
         data_rows = [
-            ["Повторные звонки", cur_calls_plan, cur_calls_fact, f"{calls_conv}%", f"{vs_calls:+d}%", f"{vs_calls_conv:+d}", f"{avg['calls_fact']:.1f}"],
-            ["Новые звонки", cur_new_plan, cur_new_fact, f"{new_conv}%", f"{vs_new:+d}%", f"{vs_new_conv:+d}", f"{avg['new_calls_fact']:.1f}"],
+            ["Повторные звонки", cur_calls_plan, cur_calls_fact, f"{calls_conv}%", f"{vs_calls:+d}%", f"{vs_calls_conv:+d}", f"{sf_calls:.1f}"],
+            ["Новые звонки", cur_new_plan, cur_new_fact, f"{new_conv}%", f"{vs_new:+d}%", f"{vs_new_conv:+d}", f"{sf_new:.1f}"],
         ]
         for r, row in enumerate(data_rows, start=1):
             for c, v in enumerate(row):
@@ -250,7 +253,7 @@ class SimplePresentationService:
         h = t.paragraphs[0]; h.text = "Комментарии нейросети"; h.font.name = "Roboto"; h.font.size = Pt(14); h.font.bold = True
         p1 = t.add_paragraph(); p1.text = text; p1.font.name = "Roboto"; p1.font.size = Pt(10)
 
-    async def _add_leads_overview_slide(self, prs, period_data, prev_data, avg, margin, period_name):
+    async def _add_leads_overview_slide(self, prs, period_data, prev_data, prev_q_team_weekly, margin, period_name):
         """Add 'Общие показатели по заявкам' slide (units, volume, approved, issued)."""
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         self._add_logo(slide, prs)
@@ -297,11 +300,15 @@ class SimplePresentationService:
         approved_conv = pct(approved_fact, approved_plan) if approved_plan else 0
         issued_conv = pct(issued_fact, issued_plan) if issued_plan else 0
 
+        sf_units = (prev_q_team_weekly or {}).get('leads_units_fact', 0.0)
+        sf_vol = (prev_q_team_weekly or {}).get('leads_volume_fact', 0.0)
+        sf_appr = (prev_q_team_weekly or {}).get('approved_units', 0.0)
+        sf_iss = (prev_q_team_weekly or {}).get('issued_volume', 0.0)
         data_rows = [
-            ["Заявки, штук", "—", units_fact, "—", f"{pct(units_fact - prev_units_fact, prev_units_fact) if prev_units_fact else 0:+d}%", "—", f"{avg['leads_units_fact']:.1f}"],
-            ["Заявки, млн", "—", f"{vol_fact:.1f}", "—", f"{pct(vol_fact - prev_vol_fact, prev_vol_fact) if prev_vol_fact else 0:+d}%", "—", f"{avg['leads_volume_fact']:.1f}"],
-            ["Одобрено, млн", f"{approved_plan:.1f}" if approved_plan else "-", f"{approved_fact:.1f}", f"{approved_conv}%" if approved_plan else "—", f"{pct(approved_fact - prev_approved_fact, prev_approved_fact) if prev_approved_fact else 0:+d}%", "—", f"{avg['approved_units']:.1f}"],
-            ["Выдано, млн", f"{issued_plan:.1f}" if issued_plan else "-", f"{issued_fact:.1f}", f"{issued_conv}%" if issued_plan else "—", f"{pct(issued_fact - prev_issued_fact, prev_issued_fact) if prev_issued_fact else 0:+d}%", "—", f"{avg['issued_volume']:.1f}"],
+            ["Заявки, штук", "—", units_fact, "—", f"{pct(units_fact - prev_units_fact, prev_units_fact) if prev_units_fact else 0:+d}%", "—", f"{sf_units:.1f}"],
+            ["Заявки, млн", "—", f"{vol_fact:.1f}", "—", f"{pct(vol_fact - prev_vol_fact, prev_vol_fact) if prev_vol_fact else 0:+d}%", "—", f"{sf_vol:.1f}"],
+            ["Одобрено, млн", f"{approved_plan:.1f}" if approved_plan else "-", f"{approved_fact:.1f}", f"{approved_conv}%" if approved_plan else "—", f"{pct(approved_fact - prev_approved_fact, prev_approved_fact) if prev_approved_fact else 0:+d}%", "—", f"{sf_appr:.1f}"],
+            ["Выдано, млн", f"{issued_plan:.1f}" if issued_plan else "-", f"{issued_fact:.1f}", f"{issued_conv}%" if issued_plan else "—", f"{pct(issued_fact - prev_issued_fact, prev_issued_fact) if prev_issued_fact else 0:+d}%", "—", f"{sf_iss:.1f}"],
         ]
         for r, row in enumerate(data_rows, start=1):
             for c, v in enumerate(row):
@@ -410,7 +417,7 @@ class SimplePresentationService:
             p.font.color.rgb = hex_to_rgb(PRIMARY)
             p.alignment = PP_ALIGN.CENTER
     
-    async def _add_manager_stats_slide(self, prs, manager_name, manager_data, avg, prev_avg, margin):
+    async def _add_manager_stats_slide(self, prs, manager_name, manager_data, avg, prev_avg, prev_q_per_manager_weekly, margin):
         """Manager statistics table + AI commentary (exactly as in reference)."""
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         self._add_logo(slide, prs)
@@ -463,8 +470,10 @@ class SimplePresentationService:
         # Manager data vs averages
         m = manager_data
         # baseline for "средний менеджер": из прошлого квартала (недельный), если доступно; иначе текущая средняя
-        _, prev_q_per_manager_weekly = await self._compute_prev_quarter_refs(Container.get().settings and None)  # settings ignored
-        ref = prev_q_per_manager_weekly or prev_avg or avg
+        ref = (prev_q_per_manager_weekly or prev_avg or avg) or {
+            'calls_fact':0,'new_calls_fact':0,'leads_units_fact':0,'leads_volume_fact':0.0,
+            'approved_units':0,'issued_volume':0.0,'calls_plan':0,'new_calls_plan':0,'leads_units_plan':0,'leads_volume_plan':0.0
+        }
         row_data = [
             ["Повторные звонки", m.calls_plan, m.calls_fact, 
              f"{(m.calls_fact/m.calls_plan*100) if m.calls_plan else 0:.0f}%",
