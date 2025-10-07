@@ -62,6 +62,8 @@ class SimplePresentationService:
         # Calculate team averages for comparison
         total_managers = len(period_data)
         avg = self._calculate_averages(period_data, total_managers)
+        # Calls overview slide (second slide)
+        await self._add_calls_overview_slide(prs, period_data, prev_data, avg, margin, period_name)
         
         # One slide per manager
         for manager_name, manager_data in period_data.items():
@@ -90,6 +92,77 @@ class SimplePresentationService:
             'issued_volume': sum(m.issued_volume for m in period_data.values()),
         }
         return {k: v / total_managers if total_managers > 0 else 0 for k, v in totals.items()}
+
+    async def _add_calls_overview_slide(self, prs, period_data, prev_data, avg, margin, period_name):
+        """Add 'Общие показатели звонков' slide as per reference."""
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+        self._add_logo(slide, prs)
+        # Title
+        title = slide.shapes.add_textbox(margin, Inches(0.3), prs.slide_width - 2*margin, Inches(0.5))
+        tf = title.text_frame
+        tf.text = "Общие показатели звонков"
+        p = tf.paragraphs[0]; p.font.name = "Roboto"; p.font.size = Pt(22); p.font.bold = True; p.font.color.rgb = hex_to_rgb(PRIMARY); p.alignment = PP_ALIGN.CENTER
+
+        # Aggregate current totals
+        cur_calls_plan = sum(m.calls_plan for m in period_data.values())
+        cur_calls_fact = sum(m.calls_fact for m in period_data.values())
+        cur_new_plan = sum(m.new_calls_plan for m in period_data.values())
+        cur_new_fact = sum(m.new_calls for m in period_data.values())
+
+        # Previous totals (fallback 0)
+        prev_calls_fact = sum((getattr(m, 'calls_fact', 0) for m in (prev_data or {}).values())) if prev_data else 0
+        prev_new_fact = sum((getattr(m, 'new_calls', 0) for m in (prev_data or {}).values())) if prev_data else 0
+
+        # Table with 2 rows + header, columns: Показатель, План, Факт, Конверсия, % к факту, % конверсии, Средний факт
+        rows, cols = 3, 7
+        tbl = slide.shapes.add_table(rows, cols, margin, Inches(0.9), prs.slide_width - 2*margin, Inches(2.2)).table
+        headers = ["Показатель", "План", "Факт", "Конверсия", "% к факту", "% конверсии", "Средний факт"]
+        for c, h in enumerate(headers):
+            cell = tbl.cell(0, c); cell.text = h
+            cell.fill.solid(); cell.fill.fore_color.rgb = hex_to_rgb("#E3F2FD")
+            for par in cell.text_frame.paragraphs:
+                par.font.name = "Roboto"; par.font.size = Pt(11); par.font.bold = True; par.alignment = PP_ALIGN.CENTER
+
+        # Data rows
+        def pct(a, b):
+            try:
+                return round(a / b * 100) if b else 0
+            except Exception:
+                return 0
+
+        calls_conv = pct(cur_calls_fact, cur_calls_plan)
+        new_conv = pct(cur_new_fact, cur_new_plan)
+        vs_calls = pct(cur_calls_fact - prev_calls_fact, prev_calls_fact) if prev_calls_fact else 0
+        vs_new = pct(cur_new_fact - prev_new_fact, prev_new_fact) if prev_new_fact else 0
+        vs_calls_conv = 0  # нет прошлой конверсии надёжно, оставим 0
+        vs_new_conv = 0
+
+        data_rows = [
+            ["Повторные звонки", cur_calls_plan, cur_calls_fact, f"{calls_conv}%", f"{vs_calls:+d}%", f"{vs_calls_conv:+d}%", f"{avg['calls_fact']:.1f}"],
+            ["Новые звонки", cur_new_plan, cur_new_fact, f"{new_conv}%", f"{vs_new:+d}%", f"{vs_new_conv:+d}%", f"{avg['new_calls_fact']:.1f}"],
+        ]
+        for r, row in enumerate(data_rows, start=1):
+            for c, v in enumerate(row):
+                cell = tbl.cell(r, c); cell.text = str(v)
+                if r % 2 == 0:
+                    cell.fill.solid(); cell.fill.fore_color.rgb = hex_to_rgb("#F7F9FC")
+                for par in cell.text_frame.paragraphs:
+                    par.font.name = "Roboto"; par.font.size = Pt(10); par.alignment = PP_ALIGN.CENTER if c>0 else PP_ALIGN.LEFT
+
+        # Comment block
+        box = slide.shapes.add_textbox(margin, Inches(3.3), prs.slide_width - 2*margin, Inches(2.4))
+        prompt = (
+            "Сформируй краткий комментарий по звонкам за период '" + period_name + "'. "
+            f"Повторные: факт {cur_calls_fact} из {cur_calls_plan} ({calls_conv}%). Новые: факт {cur_new_fact} из {cur_new_plan} ({new_conv}%). "
+            "Сравни с прошлым периодом, укажи изменения в %, сделай 2–3 тезиса и 1 рекомендацию."
+        )
+        try:
+            text = await self.ai.generate_answer(prompt)
+        except Exception:
+            text = "Количество звонков выросло/снизилось относительно прошлого периода. Рекомендация: скорректировать темп и довести план."
+        t = box.text_frame; t.clear();
+        h = t.paragraphs[0]; h.text = "Комментарии нейросети"; h.font.name = "Roboto"; h.font.size = Pt(14); h.font.bold = True
+        p1 = t.add_paragraph(); p1.text = text; p1.font.name = "Roboto"; p1.font.size = Pt(10)
 
     async def _add_team_summary_slide(self, prs, period_data, avg, period_name, margin):
         """Add team totals and concise AI comment."""
