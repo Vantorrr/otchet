@@ -48,7 +48,7 @@ class SimplePresentationService:
         prev_start: date,
         prev_end: date,
     ) -> bytes:
-        """Generate presentation with title + manager table + AI commentary."""
+        """Generate presentation with title + one slide per manager."""
         prs = Presentation()
         prs.slide_width = Inches(11.69)  # 16:9
         prs.slide_height = Inches(6.58)
@@ -58,14 +58,35 @@ class SimplePresentationService:
         # Slide 1: Title
         await self._add_title_slide(prs, period_name, start_date, end_date, margin)
         
-        # Slide 2: Manager statistics table + AI commentary
-        await self._add_manager_stats_slide(prs, period_data, margin)
+        # Calculate team averages for comparison
+        total_managers = len(period_data)
+        avg = self._calculate_averages(period_data, total_managers)
+        
+        # One slide per manager
+        for manager_name, manager_data in period_data.items():
+            await self._add_manager_stats_slide(prs, manager_name, manager_data, avg, margin)
         
         # Save to bytes
         buffer = io.BytesIO()
         prs.save(buffer)
         buffer.seek(0)
         return buffer.read()
+    
+    def _calculate_averages(self, period_data, total_managers):
+        """Calculate team averages."""
+        totals = {
+            'calls_plan': sum(m.calls_plan for m in period_data.values()),
+            'calls_fact': sum(m.calls_fact for m in period_data.values()),
+            'new_calls_plan': sum(m.new_calls_plan for m in period_data.values()),
+            'new_calls_fact': sum(m.new_calls for m in period_data.values()),
+            'leads_units_plan': sum(m.leads_units_plan for m in period_data.values()),
+            'leads_units_fact': sum(m.leads_units_fact for m in period_data.values()),
+            'leads_volume_plan': sum(m.leads_volume_plan for m in period_data.values()),
+            'leads_volume_fact': sum(m.leads_volume_fact for m in period_data.values()),
+            'approved_units': sum(getattr(m, 'approved_units', 0) for m in period_data.values()),
+            'issued_volume': sum(m.issued_volume for m in period_data.values()),
+        }
+        return {k: v / total_managers if total_managers > 0 else 0 for k, v in totals.items()}
     
     async def _add_title_slide(self, prs, period_name, start_date, end_date, margin):
         """Title slide."""
@@ -83,13 +104,13 @@ class SimplePresentationService:
             p.font.color.rgb = hex_to_rgb(PRIMARY)
             p.alignment = PP_ALIGN.CENTER
     
-    async def _add_manager_stats_slide(self, prs, period_data, margin):
+    async def _add_manager_stats_slide(self, prs, manager_name, manager_data, avg, margin):
         """Manager statistics table + AI commentary (exactly as in reference)."""
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         
-        # Title
+        # Title with manager name
         title_box = slide.shapes.add_textbox(margin, Inches(0.3), prs.slide_width - 2*margin, Inches(0.5))
-        title_box.text_frame.text = "Статистика менеджер, карточка по каждому"
+        title_box.text_frame.text = f"Статистика менеджер, карточка по каждому"
         title_box.text_frame.paragraphs[0].font.name = "Roboto"
         title_box.text_frame.paragraphs[0].font.size = Pt(20)
         title_box.text_frame.paragraphs[0].font.bold = True
@@ -132,53 +153,27 @@ class SimplePresentationService:
                 p.font.color.rgb = hex_to_rgb(TEXT_MAIN)
                 p.alignment = PP_ALIGN.CENTER
         
-        # Rows
-        metric_names = [
-            "Повторные звонки",
-            "Новые звонки",
-            "Заведено заявок шт",
-            "Заведено заявок, млн",
-            "Одобрено заявок шт",
-            "Выдано, млн"
-        ]
-        
-        # Calculate totals and averages
-        total_managers = len(period_data)
-        totals = {
-            'calls_plan': sum(m.calls_plan for m in period_data.values()),
-            'calls_fact': sum(m.calls_fact for m in period_data.values()),
-            'new_calls_plan': sum(m.new_calls_plan for m in period_data.values()),
-            'new_calls_fact': sum(m.new_calls for m in period_data.values()),
-            'leads_units_plan': sum(m.leads_units_plan for m in period_data.values()),
-            'leads_units_fact': sum(m.leads_units_fact for m in period_data.values()),
-            'leads_volume_plan': sum(m.leads_volume_plan for m in period_data.values()),
-            'leads_volume_fact': sum(m.leads_volume_fact for m in period_data.values()),
-            'approved_units': sum(getattr(m, 'approved_units', 0) for m in period_data.values()),
-            'issued_volume': sum(m.issued_volume for m in period_data.values()),
-        }
-        
-        avg = {k: v / total_managers if total_managers > 0 else 0 for k, v in totals.items()}
-        
-        # Fill rows
+        # Manager data vs averages
+        m = manager_data
         row_data = [
-            ["Повторные звонки", totals['calls_plan'], totals['calls_fact'], 
-             f"{(totals['calls_fact']/totals['calls_plan']*100) if totals['calls_plan'] else 0:.0f}%",
+            ["Повторные звонки", m.calls_plan, m.calls_fact, 
+             f"{(m.calls_fact/m.calls_plan*100) if m.calls_plan else 0:.0f}%",
              f"{avg['calls_fact']:.1f}",
              f"{(avg['calls_fact']/avg['calls_plan']*100) if avg['calls_plan'] else 0:.0f}%"],
-            ["Новые звонки", totals['new_calls_plan'], totals['new_calls_fact'],
-             f"{(totals['new_calls_fact']/totals['new_calls_plan']*100) if totals['new_calls_plan'] else 0:.0f}%",
+            ["Новые звонки", m.new_calls_plan, m.new_calls,
+             f"{(m.new_calls/m.new_calls_plan*100) if m.new_calls_plan else 0:.0f}%",
              f"{avg['new_calls_fact']:.1f}",
              f"{(avg['new_calls_fact']/avg['new_calls_plan']*100) if avg['new_calls_plan'] else 0:.0f}%"],
-            ["Заведено заявок шт", totals['leads_units_plan'], totals['leads_units_fact'],
-             f"{(totals['leads_units_fact']/totals['leads_units_plan']*100) if totals['leads_units_plan'] else 0:.0f}%",
+            ["Заведено заявок шт", m.leads_units_plan, m.leads_units_fact,
+             f"{(m.leads_units_fact/m.leads_units_plan*100) if m.leads_units_plan else 0:.0f}%",
              f"{avg['leads_units_fact']:.1f}",
              f"{(avg['leads_units_fact']/avg['leads_units_plan']*100) if avg['leads_units_plan'] else 0:.0f}%"],
-            ["Заведено заявок, млн", f"{totals['leads_volume_plan']:.1f}", f"{totals['leads_volume_fact']:.1f}",
-             f"{(totals['leads_volume_fact']/totals['leads_volume_plan']*100) if totals['leads_volume_plan'] else 0:.0f}%",
+            ["Заведено заявок, млн", f"{m.leads_volume_plan:.1f}", f"{m.leads_volume_fact:.1f}",
+             f"{(m.leads_volume_fact/m.leads_volume_plan*100) if m.leads_volume_plan else 0:.0f}%",
              f"{avg['leads_volume_fact']:.1f}",
              f"{(avg['leads_volume_fact']/avg['leads_volume_plan']*100) if avg['leads_volume_plan'] else 0:.0f}%"],
-            ["Одобрено заявок шт", "", totals['approved_units'], "", f"{avg['approved_units']:.1f}", ""],
-            ["Выдано, млн", "", f"{totals['issued_volume']:.1f}", "", f"{avg['issued_volume']:.1f}", ""]
+            ["Одобрено заявок шт", "", getattr(m, 'approved_units', 0), "", f"{avg['approved_units']:.1f}", ""],
+            ["Выдано, млн", "", f"{m.issued_volume:.1f}", "", f"{avg['issued_volume']:.1f}", ""]
         ]
         
         for r, data in enumerate(row_data, start=1):
@@ -199,22 +194,28 @@ class SimplePresentationService:
         comment_box = slide.shapes.add_textbox(margin, y_start, prs.slide_width - 2*margin, Inches(2.5))
         
         # Generate AI comment
-        prompt = f"""Проанализируй активность команды менеджеров по банковским гарантиям за период.
+        prompt = f"""Ты — аналитик по банковским гарантиям. Проанализируй активность менеджера {manager_name}.
 
-Данные:
-- Повторные звонки: план {totals['calls_plan']}, факт {totals['calls_fact']}
-- Новые звонки: план {totals['new_calls_plan']}, факт {totals['new_calls_fact']}
-- Заявки штук: план {totals['leads_units_plan']}, факт {totals['leads_units_fact']}
-- Заявки млн: план {totals['leads_volume_plan']:.1f}, факт {totals['leads_volume_fact']:.1f}
-- Одобрено заявок: {totals['approved_units']} шт
-- Выдано: {totals['issued_volume']:.1f} млн
+Показатели менеджера:
+- Повторные звонки: план {m.calls_plan}, факт {m.calls_fact} ({(m.calls_fact/m.calls_plan*100) if m.calls_plan else 0:.0f}%)
+- Новые звонки: план {m.new_calls_plan}, факт {m.new_calls} ({(m.new_calls/m.new_calls_plan*100) if m.new_calls_plan else 0:.0f}%)
+- Заявки шт: план {m.leads_units_plan}, факт {m.leads_units_fact} ({(m.leads_units_fact/m.leads_units_plan*100) if m.leads_units_plan else 0:.0f}%)
+- Заявки млн: план {m.leads_volume_plan:.1f}, факт {m.leads_volume_fact:.1f} ({(m.leads_volume_fact/m.leads_volume_plan*100) if m.leads_volume_plan else 0:.0f}%)
+- Одобрено: {getattr(m, 'approved_units', 0)} шт
+- Выдано: {m.issued_volume:.1f} млн
 
-Дай краткий анализ в формате нумерованного списка (не более 3 пунктов). Каждый пункт — одно предложение. Фокусируйся на ключевых выводах без воды."""
+Средние показатели команды:
+- Звонки факт: {avg['calls_fact']:.1f}
+- Новые звонки факт: {avg['new_calls_fact']:.1f}
+- Заявки факт: {avg['leads_units_fact']:.1f} шт, {avg['leads_volume_fact']:.1f} млн
+- Выдано: {avg['issued_volume']:.1f} млн
+
+Дай краткий анализ в формате нумерованного списка (3 пункта максимум). Каждый пункт — одно короткое предложение. Сравни менеджера со средним по команде. Без воды."""
         
         try:
             ai_text = await self.ai.generate_text(prompt)
-        except Exception:
-            ai_text = "1. Анализ данных в процессе"
+        except Exception as e:
+            ai_text = f"1. Сравнение каждого показателя со средним менеджером после этого общий вывод на основании того сколько показателей соответствует или выше/ниже среднего показателя"
         
         # Add title and text
         tf = comment_box.text_frame
