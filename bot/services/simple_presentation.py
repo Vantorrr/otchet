@@ -64,6 +64,8 @@ class SimplePresentationService:
         avg = self._calculate_averages(period_data, total_managers)
         # Calls overview slide (second slide)
         await self._add_calls_overview_slide(prs, period_data, prev_data, avg, margin, period_name)
+        # Leads overview slide (third slide)
+        await self._add_leads_overview_slide(prs, period_data, prev_data, avg, margin, period_name)
         
         # One slide per manager
         for manager_name, manager_data in period_data.items():
@@ -160,6 +162,82 @@ class SimplePresentationService:
             text = await self.ai.generate_answer(prompt)
         except Exception:
             text = "Количество звонков выросло/снизилось относительно прошлого периода. Рекомендация: скорректировать темп и довести план."
+        t = box.text_frame; t.clear();
+        h = t.paragraphs[0]; h.text = "Комментарии нейросети"; h.font.name = "Roboto"; h.font.size = Pt(14); h.font.bold = True
+        p1 = t.add_paragraph(); p1.text = text; p1.font.name = "Roboto"; p1.font.size = Pt(10)
+
+    async def _add_leads_overview_slide(self, prs, period_data, prev_data, avg, margin, period_name):
+        """Add 'Общие показатели по заявкам' slide (units, volume, approved, issued)."""
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+        self._add_logo(slide, prs)
+        # Title
+        title = slide.shapes.add_textbox(margin, Inches(0.3), prs.slide_width - 2*margin, Inches(0.5))
+        tf = title.text_frame
+        tf.text = "Общие показатели по заявкам"
+        p = tf.paragraphs[0]; p.font.name = "Roboto"; p.font.size = Pt(22); p.font.bold = True; p.font.color.rgb = hex_to_rgb(PRIMARY); p.alignment = PP_ALIGN.CENTER
+
+        # Current totals
+        units_plan = sum(m.leads_units_plan for m in period_data.values())
+        units_fact = sum(m.leads_units_fact for m in period_data.values())
+        vol_plan = sum(m.leads_volume_plan for m in period_data.values())
+        vol_fact = sum(m.leads_volume_fact for m in period_data.values())
+        approved_plan = sum(getattr(m, 'approved_plan', 0) for m in period_data.values())
+        approved_fact = sum(getattr(m, 'approved_volume', 0) for m in period_data.values())
+        issued_plan = sum(getattr(m, 'issued_plan', 0) for m in period_data.values())
+        issued_fact = sum(m.issued_volume for m in period_data.values())
+
+        # Previous totals
+        prev_units_fact = sum((getattr(m, 'leads_units_fact', 0) for m in (prev_data or {}).values())) if prev_data else 0
+        prev_vol_fact = sum((getattr(m, 'leads_volume_fact', 0.0) for m in (prev_data or {}).values())) if prev_data else 0
+        prev_approved_fact = sum((getattr(m, 'approved_volume', 0.0) for m in (prev_data or {}).values())) if prev_data else 0
+        prev_issued_fact = sum((getattr(m, 'issued_volume', 0.0) for m in (prev_data or {}).values())) if prev_data else 0
+
+        # Table
+        rows, cols = 5, 7
+        tbl = slide.shapes.add_table(rows, cols, margin, Inches(0.9), prs.slide_width - 2*margin, Inches(2.4)).table
+        headers = ["Показатель", "План", "Факт", "Конверсия", "% к факту", "% конверсии", "Среднее за квартал, факт"]
+        for c, h in enumerate(headers):
+            cell = tbl.cell(0, c); cell.text = h
+            cell.fill.solid(); cell.fill.fore_color.rgb = hex_to_rgb("#E3F2FD")
+            for par in cell.text_frame.paragraphs:
+                par.font.name = "Roboto"; par.font.size = Pt(11); par.font.bold = True; par.alignment = PP_ALIGN.CENTER
+
+        def pct(a, b):
+            try:
+                return round(a / b * 100) if b else 0
+            except Exception:
+                return 0
+
+        units_conv = pct(units_fact, units_plan)
+        vol_conv = pct(vol_fact, vol_plan)
+        approved_conv = pct(approved_fact, approved_plan) if approved_plan else 0
+        issued_conv = pct(issued_fact, issued_plan) if issued_plan else 0
+
+        data_rows = [
+            ["Заявки, штук", units_plan or "-", units_fact, f"{units_conv}%", f"{pct(units_fact - prev_units_fact, prev_units_fact) if prev_units_fact else 0:+d}%", "0%", f"{avg['leads_units_fact']:.1f}"],
+            ["Заявки, млн", f"{vol_plan:.1f}" if vol_plan else "-", f"{vol_fact:.1f}", f"{vol_conv}%", f"{pct(vol_fact - prev_vol_fact, prev_vol_fact) if prev_vol_fact else 0:+d}%", "0%", f"{avg['leads_volume_fact']:.1f}"],
+            ["Одобрено, млн", f"{approved_plan:.1f}" if approved_plan else "-", f"{approved_fact:.1f}", f"{approved_conv}%" if approved_plan else "—", f"{pct(approved_fact - prev_approved_fact, prev_approved_fact) if prev_approved_fact else 0:+d}%", "—", f"{avg['approved_units']:.1f}"],
+            ["Выдано, млн", f"{issued_plan:.1f}" if issued_plan else "-", f"{issued_fact:.1f}", f"{issued_conv}%" if issued_plan else "—", f"{pct(issued_fact - prev_issued_fact, prev_issued_fact) if prev_issued_fact else 0:+d}%", "—", f"{avg['issued_volume']:.1f}"],
+        ]
+        for r, row in enumerate(data_rows, start=1):
+            for c, v in enumerate(row):
+                cell = tbl.cell(r, c); cell.text = str(v)
+                if r % 2 == 0:
+                    cell.fill.solid(); cell.fill.fore_color.rgb = hex_to_rgb("#F7F9FC")
+                for par in cell.text_frame.paragraphs:
+                    par.font.name = "Roboto"; par.font.size = Pt(10); par.alignment = PP_ALIGN.CENTER if c>0 else PP_ALIGN.LEFT
+
+        # Comment
+        box = slide.shapes.add_textbox(margin, Inches(3.4), prs.slide_width - 2*margin, Inches(2.3))
+        prompt = (
+            "Сформируй комментарий по заявкам (шт и млн), одобрениям и выдачам за период '" + period_name + "'. "
+            f"Факт: units {units_fact}/{units_plan}, volume {vol_fact:.1f}/{vol_plan:.1f}, approved {approved_fact:.1f}, issued {issued_fact:.1f}. "
+            "Сравни с прошлым периодом, отметь сильные/слабые места, дай 2–3 рекомендации."
+        )
+        try:
+            text = await self.ai.generate_answer(prompt)
+        except Exception:
+            text = "Факт заявок и объёмов оценён. Рекомендуется сфокусироваться на стабильности одобрений и доведении выдач."
         t = box.text_frame; t.clear();
         h = t.paragraphs[0]; h.text = "Комментарии нейросети"; h.font.name = "Roboto"; h.font.size = Pt(14); h.font.bold = True
         p1 = t.add_paragraph(); p1.text = text; p1.font.name = "Roboto"; p1.font.size = Pt(10)
