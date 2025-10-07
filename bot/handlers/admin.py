@@ -13,6 +13,7 @@ from bot.services.presentation import PresentationService
 from bot.services.google_slides import GoogleSlidesService
 from bot.services.tempo_analytics import TempoAnalyticsService
 from bot.keyboards.main import get_main_menu_keyboard, get_admin_menu_keyboard
+from aiogram.types import CallbackQuery
 from aiogram.filters.command import CommandObject
 from bot.utils.time_utils import parse_date_or_today
 
@@ -87,6 +88,57 @@ async def cmd_menu(message: types.Message) -> None:
             "• /bind_manager ФИО - для привязки к менеджеру\n"
             "• /set_summary_topic - для темы сводки"
         )
+
+
+# ====== Inline flow: Отчёт по дате ======
+
+@admin_router.callback_query(F.data == "admin_report_by_date")
+async def cb_report_by_date(query: CallbackQuery) -> None:
+    await query.message.answer("📅 Введите дату начала в формате YYYY-MM-DD")
+    await query.answer()
+
+
+@admin_router.message(F.reply_to_message, F.text.regexp(r"^\d{4}-\d{2}-\d{2}$"))
+async def msg_date_step_two(message: types.Message) -> None:
+    try:
+        # detect that previous bot message asked for start date
+        if not message.reply_to_message or "Введите дату начала" not in (message.reply_to_message.text or ""):
+            return
+        start_text = message.text.strip()
+        await message.reply("Ок. Теперь введите дату окончания в формате YYYY-MM-DD", reply_markup=None)
+        # Store start in message context via hidden echo
+        message.bot['report_start_date'] = start_text
+    except Exception:
+        pass
+
+
+@admin_router.message(F.reply_to_message, F.text.regexp(r"^\d{4}-\d{2}-\d{2}$"))
+async def msg_date_step_three(message: types.Message) -> None:
+    try:
+        prev = message.reply_to_message.text or ""
+        if "Введите дату окончания" not in prev:
+            return
+        from datetime import datetime as _dt
+        start_raw = message.bot.get('report_start_date')
+        if not start_raw:
+            await message.reply("Не вижу дату начала. Нажмите снова: Меню → Отчёт по дате")
+            return
+        start = _dt.strptime(start_raw, "%Y-%m-%d").date()
+        end = _dt.strptime(message.text.strip(), "%Y-%m-%d").date()
+        # Generate simple PPTX using SimplePresentationService
+        container = Container.get()
+        aggregator = DataAggregatorService(container.sheets)
+        from bot.services.simple_presentation import SimplePresentationService
+        presentation_service = SimplePresentationService(container.settings)
+        period_data, prev_data, period_name, start_date, end_date, prev_start, prev_end = await aggregator.aggregate_custom_with_previous(start, end)
+        if not period_data:
+            await message.reply("❌ Нет данных за этот период.")
+            return
+        pptx_bytes = await presentation_service.generate_presentation(period_data, period_name, start_date, end_date, prev_data, prev_start, prev_end)
+        document = types.BufferedInputFile(pptx_bytes, filename=f"Отчет_По_Активности_{start.strftime('%Y%m%d')}_{end.strftime('%Y%m%d')}.pptx")
+        await message.reply_document(document, caption=f"📊 {period_name}\n🤖 Простой отчёт готов!")
+    except Exception as e:
+        await message.reply(f"❌ Ошибка: {str(e)}")
 
 
 @admin_router.message(Command("purge_manager"))
