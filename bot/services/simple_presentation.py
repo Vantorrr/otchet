@@ -102,10 +102,9 @@ class SimplePresentationService:
         return {k: v / total_managers if total_managers > 0 else 0 for k, v in totals.items()}
 
     async def _compute_prev_quarter_refs(self, end_date):
-        """Compute previous quarter weekly averages: team and per-manager.
+        """Compute previous quarter DAILY averages over working days (exclude zero days).
 
-        Team weekly avg: sum facts across existing weeks / weeks_with_data.
-        Per-manager weekly avg: average of manager weekly avgs among managers with data.
+        Returns team_daily_avg and per_manager_daily_avg dicts.
         """
         try:
             container = Container.get()
@@ -124,36 +123,44 @@ class SimplePresentationService:
                 prev_q_start_month = (q - 2) * 3 + 1
             prev_start = _date(prev_q_year, prev_q_start_month, 1)
             series = await aggregator.get_daily_series(prev_start, prev_end)
-            # Build week buckets
-            from collections import defaultdict
-            week_buckets = defaultdict(lambda: {'calls_fact':0,'new_calls':0,'leads_units_fact':0,'leads_volume_fact':0.0,'approved_volume':0.0,'issued_volume':0.0})
+            # Build daily lists (working days only), exclude zeros
+            from datetime import datetime as _dt
+            daily_values = {
+                'calls_fact': [],
+                'new_calls': [],
+                'leads_units_fact': [],
+                'leads_volume_fact': [],
+                'approved_volume': [],
+                'issued_volume': [],
+            }
             for item in series:
-                from datetime import datetime as _dt
                 d = _dt.strptime(item['date'], '%Y-%m-%d').date()
-                iso_year, iso_week, _ = d.isocalendar()
-                key = f"{iso_year}-W{iso_week:02d}"
-                for k in week_buckets[key]:
-                    week_buckets[key][k] += float(item.get(k, 0) or 0)
-            weeks_with_data = [w for w in week_buckets.values() if any(v>0 for v in w.values())]
-            # Fallback: если в прошлом квартале нет данных, берём последние 4 недели до текущего периода
-            if not weeks_with_data:
+                if d.weekday() >= 5:
+                    continue
+                for key in list(daily_values.keys()):
+                    val = float(item.get(key, 0) or 0)
+                    if val > 0:
+                        daily_values[key].append(val)
+            # Fallback: последние 20 рабочих дней до текущего периода
+            if not any(daily_values.values()):
                 alt_end = end_date - timedelta(days=1)
                 alt_start = alt_end - timedelta(days=27)
                 series = await aggregator.get_daily_series(alt_start, alt_end)
-                week_buckets = defaultdict(lambda: {'calls_fact':0,'new_calls':0,'leads_units_fact':0,'leads_volume_fact':0.0,'approved_volume':0.0,'issued_volume':0.0})
+                daily_values = {k: [] for k in daily_values}
                 for item in series:
-                    from datetime import datetime as _dt
                     d = _dt.strptime(item['date'], '%Y-%m-%d').date()
-                    iso_year, iso_week, _ = d.isocalendar()
-                    key = f"{iso_year}-W{iso_week:02d}"
-                    for k in week_buckets[key]:
-                        week_buckets[key][k] += float(item.get(k, 0) or 0)
-                weeks_with_data = [w for w in week_buckets.values() if any(v>0 for v in w.values())]
+                    if d.weekday() >= 5:
+                        continue
+                    for key in list(daily_values.keys()):
+                        val = float(item.get(key, 0) or 0)
+                        if val > 0:
+                            daily_values[key].append(val)
             def avg_of_key(key: str) -> float:
-                if not weeks_with_data:
+                arr = daily_values.get(key, [])
+                if not arr:
                     return 0.0
-                return sum(w[key] for w in weeks_with_data) / len(weeks_with_data)
-            team_weekly = {
+                return sum(arr) / len(arr)
+            team_daily = {
                 'calls_fact': avg_of_key('calls_fact'),
                 'new_calls_fact': avg_of_key('new_calls'),
                 'leads_units_fact': avg_of_key('leads_units_fact'),
@@ -165,24 +172,24 @@ class SimplePresentationService:
                 'leads_units_plan': 0,
                 'leads_volume_plan': 0.0,
             }
-            # Per-manager weekly average: approximate using per-team divided by count of active managers last quarter
+            # Per-manager daily average: approximate via team_daily / active managers
             prev_data = await aggregator._aggregate_data_for_period(prev_start, prev_end)
             active_managers = len(prev_data) if prev_data else 0
             per_manager_weekly = None
             if active_managers > 0:
                 per_manager_weekly = {
-                    'calls_fact': team_weekly['calls_fact'] / active_managers,
-                    'new_calls_fact': team_weekly['new_calls_fact'] / active_managers,
-                    'leads_units_fact': team_weekly['leads_units_fact'] / active_managers,
-                    'leads_volume_fact': team_weekly['leads_volume_fact'] / active_managers,
-                    'approved_units': team_weekly['approved_units'] / active_managers,
-                    'issued_volume': team_weekly['issued_volume'] / active_managers,
+                    'calls_fact': team_daily['calls_fact'] / active_managers,
+                    'new_calls_fact': team_daily['new_calls_fact'] / active_managers,
+                    'leads_units_fact': team_daily['leads_units_fact'] / active_managers,
+                    'leads_volume_fact': team_daily['leads_volume_fact'] / active_managers,
+                    'approved_units': team_daily['approved_units'] / active_managers,
+                    'issued_volume': team_daily['issued_volume'] / active_managers,
                     'calls_plan': 0,
                     'new_calls_plan': 0,
                     'leads_units_plan': 0,
                     'leads_volume_plan': 0.0,
                 }
-            return team_weekly, per_manager_weekly
+            return team_daily, per_manager_weekly
         except Exception:
             return None, None
 
