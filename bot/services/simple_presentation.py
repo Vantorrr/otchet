@@ -148,12 +148,12 @@ class SimplePresentationService:
             'calls_plan': sum(m.calls_plan for m in period_data.values()),
             'calls_fact': sum(m.calls_fact for m in period_data.values()),
             'new_calls_plan': sum(m.new_calls_plan for m in period_data.values()),
-            'new_calls_fact': sum(m.new_calls_fact for m in period_data.values()),
+            'new_calls_fact': sum(m.new_calls for m in period_data.values()),
             'leads_units_plan': sum(m.leads_units_plan for m in period_data.values()),
             'leads_units_fact': sum(m.leads_units_fact for m in period_data.values()),
             'leads_volume_plan': sum(m.leads_volume_plan for m in period_data.values()),
             'leads_volume_fact': sum(m.leads_volume_fact for m in period_data.values()),
-            'approved_units': sum(m.approved_units for m in period_data.values()),
+            'approved_units': sum(getattr(m, 'approved_units', 0) for m in period_data.values()),
             'issued_volume': sum(m.issued_volume for m in period_data.values()),
         }
         
