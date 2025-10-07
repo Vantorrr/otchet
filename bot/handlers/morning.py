@@ -14,8 +14,6 @@ from bot.keyboards.main import get_main_menu_keyboard
 
 class MorningStates(StatesGroup):
     waiting_calls_planned = State()
-    waiting_leads_units_planned = State()
-    waiting_leads_volume_planned = State()
     waiting_new_calls_planned = State()
 
 
@@ -40,25 +38,6 @@ async def cmd_morning(message: types.Message, state: FSMContext) -> None:
 @morning_router.message(MorningStates.waiting_calls_planned, F.text.regexp(r"^\d+$"))
 async def morning_calls_planned(message: types.Message, state: FSMContext) -> None:
     await state.update_data(calls_planned=int(message.text))
-    await state.set_state(MorningStates.waiting_leads_units_planned)
-    await message.reply("Сколько должны прислать заявок, штуки (план):")
-
-
-@morning_router.message(MorningStates.waiting_leads_units_planned, F.text.regexp(r"^\d+$"))
-async def morning_leads_units(message: types.Message, state: FSMContext) -> None:
-    await state.update_data(leads_units_planned=int(message.text))
-    await state.set_state(MorningStates.waiting_leads_volume_planned)
-    await message.reply("Сколько должны прислать заявок, объем (план, млн):")
-
-
-@morning_router.message(MorningStates.waiting_leads_volume_planned, F.text.regexp(r"^\d+$"))
-async def morning_leads_volume(message: types.Message, state: FSMContext) -> None:
-    data = await state.get_data()
-    calls_planned = int(data["calls_planned"])  # type: ignore[index]
-    leads_units = int(data["leads_units_planned"])  # type: ignore[index]
-    leads_volume = int(message.text)
-
-    await state.update_data(leads_volume_planned=leads_volume)
     await state.set_state(MorningStates.waiting_new_calls_planned)
     await message.reply("Количество новых звонков (план):")
 
@@ -66,8 +45,6 @@ async def morning_leads_volume(message: types.Message, state: FSMContext) -> Non
 async def morning_new_calls_planned(message: types.Message, state: FSMContext) -> None:
     data = await state.get_data()
     calls_planned = int(data["calls_planned"])  # type: ignore[index]
-    leads_units = int(data["leads_units_planned"])  # type: ignore[index]
-    leads_volume = int(data["leads_volume_planned"])  # type: ignore[index]
     new_calls_planned = int(message.text)
 
     container = Container.get()
@@ -79,8 +56,8 @@ async def morning_new_calls_planned(message: types.Message, state: FSMContext) -
         manager,
         morning=MorningData(
             calls_planned=calls_planned,
-            leads_units_planned=leads_units,
-            leads_volume_planned=leads_volume,
+            leads_units_planned=0,
+            leads_volume_planned=0,
             new_calls_planned=new_calls_planned,
         ),
     )
@@ -90,8 +67,6 @@ async def morning_new_calls_planned(message: types.Message, state: FSMContext) -
 
 
 @morning_router.message(MorningStates.waiting_calls_planned)
-@morning_router.message(MorningStates.waiting_leads_units_planned)
-@morning_router.message(MorningStates.waiting_leads_volume_planned)
 @morning_router.message(MorningStates.waiting_new_calls_planned)
 async def morning_invalid(message: types.Message) -> None:
     await message.reply("Введите число.")

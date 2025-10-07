@@ -78,8 +78,15 @@ async def main() -> None:
         except Exception:
             return False
 
+    def _is_weekend() -> bool:
+        """Check if today is Saturday or Sunday."""
+        return now_in_tz(settings).weekday() in (5, 6)
+
     async def send_morning_reminders():
         try:
+            if _is_weekend():
+                logging.getLogger(__name__).info("Morning reminder skipped: weekend")
+                return
             if _is_quiet_time():
                 logging.getLogger(__name__).info("Morning reminder skipped: quiet hours")
                 return
@@ -117,6 +124,9 @@ async def main() -> None:
 
     async def send_evening_reminders():
         try:
+            if _is_weekend():
+                logging.getLogger(__name__).info("Evening reminder skipped: weekend")
+                return
             if _is_quiet_time():
                 logging.getLogger(__name__).info("Evening reminder skipped: quiet hours")
                 return
