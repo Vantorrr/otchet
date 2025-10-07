@@ -208,15 +208,15 @@ class SimplePresentationService:
         prev_calls_plan = sum((getattr(m, 'calls_plan', 0) for m in (prev_data or {}).values())) if prev_data else 0
         prev_new_plan = sum((getattr(m, 'new_calls_plan', 0) for m in (prev_data or {}).values())) if prev_data else 0
 
-        # Table with 2 rows + header, columns: Показатель, План, Факт, Конверсия, % к факту, % конверсии, Средний факт
-        rows, cols = 3, 7
-        tbl = slide.shapes.add_table(rows, cols, margin, Inches(0.9), prs.slide_width - 2*margin, Inches(2.2)).table
-        headers = ["Показатель", "План", "Факт", "Конверсия", "% к факту (ПП)", "Δ конверсии, п.п. (ПП)", "Средний факт (ПП)"]
+        # Table with 2 rows + header (compact): Показатель, Факт, % к факту (ПП), на средний факт предыдущего квартала
+        rows, cols = 3, 4
+        tbl = slide.shapes.add_table(rows, cols, margin, Inches(0.9), prs.slide_width - 2*margin, Inches(1.8)).table
+        headers = ["Показатель", "Факт", "% к факту (ПП)", "на средний факт предыдущего квартала"]
         for c, h in enumerate(headers):
             cell = tbl.cell(0, c); cell.text = h
             cell.fill.solid();
-            # Подсветка правого блока колонок, относящихся к ПП
-            cell.fill.fore_color.rgb = hex_to_rgb("#E3F2FD" if c < 4 else "#BBDEFB")
+            # Подсветка правого блока колонок, относящихся к ПП (начиная с колонки 2)
+            cell.fill.fore_color.rgb = hex_to_rgb("#E3F2FD" if c < 2 else "#BBDEFB")
             for par in cell.text_frame.paragraphs:
                 par.font.name = "Roboto"; par.font.size = Pt(11); par.font.bold = True; par.alignment = PP_ALIGN.CENTER; par.font.color.rgb = hex_to_rgb(TEXT_MAIN)
 
@@ -227,22 +227,16 @@ class SimplePresentationService:
             except Exception:
                 return 0
 
-        calls_conv = pct(cur_calls_fact, cur_calls_plan)
-        new_conv = pct(cur_new_fact, cur_new_plan)
-        prev_calls_conv = pct(prev_calls_fact, prev_calls_plan) if prev_calls_plan else 0
-        prev_new_conv = pct(prev_new_fact, prev_new_plan) if prev_new_plan else 0
+        # Доля к плану и дельта конверсии убраны из таблицы; оставляем только сравнение с фактом ПП
         vs_calls = pct(cur_calls_fact - prev_calls_fact, prev_calls_fact) if prev_calls_fact else 0
         vs_new = pct(cur_new_fact - prev_new_fact, prev_new_fact) if prev_new_fact else 0
-        # conversion deltas in percentage points
-        vs_calls_conv = calls_conv - prev_calls_conv
-        vs_new_conv = new_conv - prev_new_conv
 
         # Средний факт (ПП) по команде
         sf_calls = (prev_q_team_weekly or {}).get('calls_fact', 0.0)
         sf_new = (prev_q_team_weekly or {}).get('new_calls_fact', 0.0)
         data_rows = [
-            ["Повторные звонки", cur_calls_plan, cur_calls_fact, f"{calls_conv}%", f"{vs_calls:+d}%", f"{vs_calls_conv:+d}", f"{sf_calls:.1f}"],
-            ["Новые звонки", cur_new_plan, cur_new_fact, f"{new_conv}%", f"{vs_new:+d}%", f"{vs_new_conv:+d}", f"{sf_new:.1f}"],
+            ["Повторные звонки", cur_calls_fact, f"{vs_calls:+d}%", f"{sf_calls:.1f}"],
+            ["Новые звонки", cur_new_fact, f"{vs_new:+d}%", f"{sf_new:.1f}"],
         ]
         for r, row in enumerate(data_rows, start=1):
             for c, v in enumerate(row):
@@ -251,13 +245,13 @@ class SimplePresentationService:
                     cell.fill.solid(); cell.fill.fore_color.rgb = hex_to_rgb("#F7F9FC")
                 for par in cell.text_frame.paragraphs:
                     par.font.name = "Roboto"; par.font.size = Pt(10); par.alignment = PP_ALIGN.CENTER if c>0 else PP_ALIGN.LEFT
-                    if c >= 4:  # колонки, относящиеся к ПП
+                    if c >= 2:  # колонки, относящиеся к ПП
                         par.font.color.rgb = hex_to_rgb(PRIMARY)
 
         # Примечание про ПП
         note = slide.shapes.add_textbox(margin, Inches(3.15), prs.slide_width - 2*margin, Inches(0.3))
         nt = note.text_frame; nt.clear()
-        pnt = nt.paragraphs[0]; pnt.text = "Колонки справа (% к факту, Δ конверсии, Средний факт) — сравнение с ПП (предыдущим периодом той же длины)."
+        pnt = nt.paragraphs[0]; pnt.text = "Колонки справа (% к факту (ПП), на средний факт предыдущего квартала) — сравнение с ПП."
         pnt.font.name = "Roboto"; pnt.font.size = Pt(9); pnt.font.color.rgb = hex_to_rgb(TEXT_MUTED)
 
         # Comment block
@@ -301,13 +295,13 @@ class SimplePresentationService:
         prev_approved_fact = sum((getattr(m, 'approved_volume', 0.0) for m in (prev_data or {}).values())) if prev_data else 0
         prev_issued_fact = sum((getattr(m, 'issued_volume', 0.0) for m in (prev_data or {}).values())) if prev_data else 0
 
-        # Table
-        rows, cols = 5, 7
-        tbl = slide.shapes.add_table(rows, cols, margin, Inches(0.9), prs.slide_width - 2*margin, Inches(2.4)).table
-        headers = ["Показатель", "План", "Факт", "Конверсия", "% к факту (ПП)", "Δ конверсии, п.п. (ПП)", "Средний факт (ПП)"]
+        # Table (compact): Показатель, Факт, % к факту (ПП), на средний факт предыдущего квартала
+        rows, cols = 5, 4
+        tbl = slide.shapes.add_table(rows, cols, margin, Inches(0.9), prs.slide_width - 2*margin, Inches(2.2)).table
+        headers = ["Показатель", "Факт", "% к факту (ПП)", "на средний факт предыдущего квартала"]
         for c, h in enumerate(headers):
             cell = tbl.cell(0, c); cell.text = h
-            cell.fill.solid(); cell.fill.fore_color.rgb = hex_to_rgb("#E3F2FD" if c < 4 else "#BBDEFB")
+            cell.fill.solid(); cell.fill.fore_color.rgb = hex_to_rgb("#E3F2FD" if c < 2 else "#BBDEFB")
             for par in cell.text_frame.paragraphs:
                 par.font.name = "Roboto"; par.font.size = Pt(11); par.font.bold = True; par.alignment = PP_ALIGN.CENTER; par.font.color.rgb = hex_to_rgb(TEXT_MAIN)
 
@@ -317,20 +311,17 @@ class SimplePresentationService:
             except Exception:
                 return 0
 
-        units_conv = 0
-        vol_conv = 0
-        approved_conv = pct(approved_fact, approved_plan) if approved_plan else 0
-        issued_conv = pct(issued_fact, issued_plan) if issued_plan else 0
+        # Колонки конверсии убраны
 
         sf_units = (prev_q_team_weekly or {}).get('leads_units_fact', 0.0)
         sf_vol = (prev_q_team_weekly or {}).get('leads_volume_fact', 0.0)
         sf_appr = (prev_q_team_weekly or {}).get('approved_units', 0.0)
         sf_iss = (prev_q_team_weekly or {}).get('issued_volume', 0.0)
         data_rows = [
-            ["Заявки, штук", "—", units_fact, "—", f"{pct(units_fact - prev_units_fact, prev_units_fact) if prev_units_fact else 0:+d}%", "—", f"{sf_units:.1f}"],
-            ["Заявки, млн", "—", f"{vol_fact:.1f}", "—", f"{pct(vol_fact - prev_vol_fact, prev_vol_fact) if prev_vol_fact else 0:+d}%", "—", f"{sf_vol:.1f}"],
-            ["Одобрено, млн", f"{approved_plan:.1f}" if approved_plan else "-", f"{approved_fact:.1f}", f"{approved_conv}%" if approved_plan else "—", f"{pct(approved_fact - prev_approved_fact, prev_approved_fact) if prev_approved_fact else 0:+d}%", "—", f"{sf_appr:.1f}"],
-            ["Выдано, млн", f"{issued_plan:.1f}" if issued_plan else "-", f"{issued_fact:.1f}", f"{issued_conv}%" if issued_plan else "—", f"{pct(issued_fact - prev_issued_fact, prev_issued_fact) if prev_issued_fact else 0:+d}%", "—", f"{sf_iss:.1f}"],
+            ["Заявки, штук", units_fact, f"{pct(units_fact - prev_units_fact, prev_units_fact) if prev_units_fact else 0:+d}%", f"{sf_units:.1f}"],
+            ["Заявки, млн", f"{vol_fact:.1f}", f"{pct(vol_fact - prev_vol_fact, prev_vol_fact) if prev_vol_fact else 0:+d}%", f"{sf_vol:.1f}"],
+            ["Одобрено, млн", f"{approved_fact:.1f}", f"{pct(approved_fact - prev_approved_fact, prev_approved_fact) if prev_approved_fact else 0:+d}%", f"{sf_appr:.1f}"],
+            ["Выдано, млн", f"{issued_fact:.1f}", f"{pct(issued_fact - prev_issued_fact, prev_issued_fact) if prev_issued_fact else 0:+d}%", f"{sf_iss:.1f}"],
         ]
         for r, row in enumerate(data_rows, start=1):
             for c, v in enumerate(row):
@@ -339,7 +330,7 @@ class SimplePresentationService:
                     cell.fill.solid(); cell.fill.fore_color.rgb = hex_to_rgb("#F7F9FC")
                 for par in cell.text_frame.paragraphs:
                     par.font.name = "Roboto"; par.font.size = Pt(10); par.alignment = PP_ALIGN.CENTER if c>0 else PP_ALIGN.LEFT
-                    if c >= 4:
+                    if c >= 2:
                         par.font.color.rgb = hex_to_rgb(PRIMARY)
 
         # Comment
