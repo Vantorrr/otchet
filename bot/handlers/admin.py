@@ -270,7 +270,7 @@ async def cmd_generate_quarterly_presentation(message: types.Message) -> None:
 
 @admin_router.message(Command("presentation_range"))
 async def cmd_presentation_range(message: types.Message, command: CommandObject) -> None:
-    """Generate AI presentation for custom date range: /presentation_range YYYY-MM-DD YYYY-MM-DD"""
+    """Generate simple presentation for custom date range: /presentation_range YYYY-MM-DD YYYY-MM-DD"""
     args = (command.args or "").split()
     if len(args) != 2:
         await message.reply("Укажите период: /presentation_range YYYY-MM-DD YYYY-MM-DD")
@@ -286,7 +286,8 @@ async def cmd_presentation_range(message: types.Message, command: CommandObject)
     try:
         container = Container.get()
         aggregator = DataAggregatorService(container.sheets)
-        presentation_service = PresentationService(container.settings)
+        from bot.services.simple_presentation import SimplePresentationService
+        presentation_service = SimplePresentationService(container.settings)
         period_data, prev_data, period_name, start_date, end_date, prev_start, prev_end = await aggregator.aggregate_custom_with_previous(start, end)
         if not period_data:
             await message.reply("❌ Нет данных за этот период.")
@@ -298,8 +299,8 @@ async def cmd_presentation_range(message: types.Message, command: CommandObject)
             prev_data = {}
             
         pptx_bytes = await presentation_service.generate_presentation(period_data, period_name, start_date, end_date, prev_data, prev_start, prev_end)
-        document = types.BufferedInputFile(pptx_bytes, filename=f"AI_Отчет_{period_name.replace(' ', '_')}.pptx")
-        await message.reply_document(document, caption=f"📊 {period_name}\n🤖 AI-презентация готова!")
+        document = types.BufferedInputFile(pptx_bytes, filename=f"Отчет_По_Активности_{start.strftime('%Y%m%d')}_{end.strftime('%Y%m%d')}.pptx")
+        await message.reply_document(document, caption=f"📊 {period_name}\n🤖 Презентация готова!")
     except Exception as e:
         await message.reply(f"❌ Ошибка: {str(e)}")
 
