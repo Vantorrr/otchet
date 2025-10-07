@@ -178,9 +178,9 @@ class SimplePresentationService:
         p = tf.paragraphs[0]; p.font.name = "Roboto"; p.font.size = Pt(22); p.font.bold = True; p.font.color.rgb = hex_to_rgb(PRIMARY); p.alignment = PP_ALIGN.CENTER
 
         # Current totals
-        units_plan = sum(m.leads_units_plan for m in period_data.values())
+        units_plan = 0  # план по заявкам признан бессмысленным и исключён
         units_fact = sum(m.leads_units_fact for m in period_data.values())
-        vol_plan = sum(m.leads_volume_plan for m in period_data.values())
+        vol_plan = 0  # план по заявкам (млн) исключён
         vol_fact = sum(m.leads_volume_fact for m in period_data.values())
         approved_plan = sum(getattr(m, 'approved_plan', 0) for m in period_data.values())
         approved_fact = sum(getattr(m, 'approved_volume', 0) for m in period_data.values())
@@ -209,14 +209,14 @@ class SimplePresentationService:
             except Exception:
                 return 0
 
-        units_conv = pct(units_fact, units_plan)
-        vol_conv = pct(vol_fact, vol_plan)
+        units_conv = 0
+        vol_conv = 0
         approved_conv = pct(approved_fact, approved_plan) if approved_plan else 0
         issued_conv = pct(issued_fact, issued_plan) if issued_plan else 0
 
         data_rows = [
-            ["Заявки, штук", units_plan or "-", units_fact, f"{units_conv}%", f"{pct(units_fact - prev_units_fact, prev_units_fact) if prev_units_fact else 0:+d}%", "0%", f"{avg['leads_units_fact']:.1f}"],
-            ["Заявки, млн", f"{vol_plan:.1f}" if vol_plan else "-", f"{vol_fact:.1f}", f"{vol_conv}%", f"{pct(vol_fact - prev_vol_fact, prev_vol_fact) if prev_vol_fact else 0:+d}%", "0%", f"{avg['leads_volume_fact']:.1f}"],
+            ["Заявки, штук", "—", units_fact, "—", f"{pct(units_fact - prev_units_fact, prev_units_fact) if prev_units_fact else 0:+d}%", "—", f"{avg['leads_units_fact']:.1f}"],
+            ["Заявки, млн", "—", f"{vol_fact:.1f}", "—", f"{pct(vol_fact - prev_vol_fact, prev_vol_fact) if prev_vol_fact else 0:+d}%", "—", f"{avg['leads_volume_fact']:.1f}"],
             ["Одобрено, млн", f"{approved_plan:.1f}" if approved_plan else "-", f"{approved_fact:.1f}", f"{approved_conv}%" if approved_plan else "—", f"{pct(approved_fact - prev_approved_fact, prev_approved_fact) if prev_approved_fact else 0:+d}%", "—", f"{avg['approved_units']:.1f}"],
             ["Выдано, млн", f"{issued_plan:.1f}" if issued_plan else "-", f"{issued_fact:.1f}", f"{issued_conv}%" if issued_plan else "—", f"{pct(issued_fact - prev_issued_fact, prev_issued_fact) if prev_issued_fact else 0:+d}%", "—", f"{avg['issued_volume']:.1f}"],
         ]
@@ -387,12 +387,12 @@ class SimplePresentationService:
              f"{(m.new_calls/m.new_calls_plan*100) if m.new_calls_plan else 0:.0f}%",
              f"{ref['new_calls_fact']:.1f}",
              f"{(ref['new_calls_fact']/ref['new_calls_plan']*100) if ref['new_calls_plan'] else 0:.0f}%"],
-            ["Заведено заявок шт", m.leads_units_plan, m.leads_units_fact,
-             f"{(m.leads_units_fact/m.leads_units_plan*100) if m.leads_units_plan else 0:.0f}%",
+            ["Заведено заявок шт", "—", m.leads_units_fact,
+             "—",
              f"{ref['leads_units_fact']:.1f}",
              f"{(ref['leads_units_fact']/ref['leads_units_plan']*100) if ref['leads_units_plan'] else 0:.0f}%"],
-            ["Заведено заявок, млн", f"{m.leads_volume_plan:.1f}", f"{m.leads_volume_fact:.1f}",
-             f"{(m.leads_volume_fact/m.leads_volume_plan*100) if m.leads_volume_plan else 0:.0f}%",
+            ["Заведено заявок, млн", "—", f"{m.leads_volume_fact:.1f}",
+             "—",
              f"{ref['leads_volume_fact']:.1f}",
              f"{(ref['leads_volume_fact']/ref['leads_volume_plan']*100) if ref['leads_volume_plan'] else 0:.0f}%"],
             ["Одобрено заявок шт", "", getattr(m, 'approved_units', 0), "", f"{ref['approved_units']:.1f}", ""],
