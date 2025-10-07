@@ -110,11 +110,11 @@ class SimplePresentationService:
         
         # Title with manager name
         title_box = slide.shapes.add_textbox(margin, Inches(0.3), prs.slide_width - 2*margin, Inches(0.5))
-        title_box.text_frame.text = f"Статистика менеджер, карточка по каждому"
+        title_box.text_frame.text = f"Статистика менеджера: {manager_name}"
         title_box.text_frame.paragraphs[0].font.name = "Roboto"
-        title_box.text_frame.paragraphs[0].font.size = Pt(20)
+        title_box.text_frame.paragraphs[0].font.size = Pt(22)
         title_box.text_frame.paragraphs[0].font.bold = True
-        title_box.text_frame.paragraphs[0].font.color.rgb = hex_to_rgb(TEXT_MAIN)
+        title_box.text_frame.paragraphs[0].font.color.rgb = hex_to_rgb(PRIMARY)
         title_box.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
         
         # Table: 7 rows (header + 6 metrics), 5 columns
@@ -180,42 +180,55 @@ class SimplePresentationService:
             for c, val in enumerate(data):
                 cell = tbl.cell(r, c)
                 cell.text = str(val)
+                cell.vertical_anchor = 1  # Middle
                 if r % 2 == 0:
                     cell.fill.solid()
                     cell.fill.fore_color.rgb = hex_to_rgb("#FAFAFA")
                 for p in cell.text_frame.paragraphs:
                     p.font.name = "Roboto"
-                    p.font.size = Pt(9)
+                    p.font.size = Pt(10)
                     p.font.color.rgb = hex_to_rgb(TEXT_MAIN)
                     p.alignment = PP_ALIGN.CENTER if c > 0 else PP_ALIGN.LEFT
+                    p.space_before = Pt(3)
+                    p.space_after = Pt(3)
         
         # AI commentary section
         y_start = Inches(0.9) + tbl_height + Inches(0.2)
         comment_box = slide.shapes.add_textbox(margin, y_start, prs.slide_width - 2*margin, Inches(2.5))
         
         # Generate AI comment
-        prompt = f"""Ты — аналитик по банковским гарантиям. Проанализируй активность менеджера {manager_name}.
+        calls_conv = (m.calls_fact/m.calls_plan*100) if m.calls_plan else 0
+        new_calls_conv = (m.new_calls/m.new_calls_plan*100) if m.new_calls_plan else 0
+        leads_conv = (m.leads_units_fact/m.leads_units_plan*100) if m.leads_units_plan else 0
+        vol_conv = (m.leads_volume_fact/m.leads_volume_plan*100) if m.leads_volume_plan else 0
+        
+        prompt = f"""Ты — руководитель отдела по банковским гарантиям. Проанализируй работу менеджера {manager_name} за период.
 
-Показатели менеджера:
-- Повторные звонки: план {m.calls_plan}, факт {m.calls_fact} ({(m.calls_fact/m.calls_plan*100) if m.calls_plan else 0:.0f}%)
-- Новые звонки: план {m.new_calls_plan}, факт {m.new_calls} ({(m.new_calls/m.new_calls_plan*100) if m.new_calls_plan else 0:.0f}%)
-- Заявки шт: план {m.leads_units_plan}, факт {m.leads_units_fact} ({(m.leads_units_fact/m.leads_units_plan*100) if m.leads_units_plan else 0:.0f}%)
-- Заявки млн: план {m.leads_volume_plan:.1f}, факт {m.leads_volume_fact:.1f} ({(m.leads_volume_fact/m.leads_volume_plan*100) if m.leads_volume_plan else 0:.0f}%)
-- Одобрено: {getattr(m, 'approved_units', 0)} шт
-- Выдано: {m.issued_volume:.1f} млн
+ПОКАЗАТЕЛИ МЕНЕДЖЕРА:
+- Повторные звонки: {m.calls_fact} из {m.calls_plan} ({calls_conv:.0f}%) | Средний: {avg['calls_fact']:.1f}
+- Новые звонки: {m.new_calls} из {m.new_calls_plan} ({new_calls_conv:.0f}%) | Средний: {avg['new_calls_fact']:.1f}
+- Заявки (шт): {m.leads_units_fact} из {m.leads_units_plan} ({leads_conv:.0f}%) | Средний: {avg['leads_units_fact']:.1f}
+- Заявки (млн): {m.leads_volume_fact:.1f} из {m.leads_volume_plan:.1f} ({vol_conv:.0f}%) | Средний: {avg['leads_volume_fact']:.1f}
+- Одобрено: {getattr(m, 'approved_units', 0)} шт | Средний: {avg['approved_units']:.1f}
+- Выдано (млн): {m.issued_volume:.1f} | Средний: {avg['issued_volume']:.1f}
 
-Средние показатели команды:
-- Звонки факт: {avg['calls_fact']:.1f}
-- Новые звонки факт: {avg['new_calls_fact']:.1f}
-- Заявки факт: {avg['leads_units_fact']:.1f} шт, {avg['leads_volume_fact']:.1f} млн
-- Выдано: {avg['issued_volume']:.1f} млн
+ПРАВИЛА АНАЛИЗА:
+1. Конверсия 80%+ = отлично, 60-80% = норма, <60% = нужна работа
+2. Одобрено ≠ Выдано — это нормально (выдачи растягиваются по времени, не ругай конверсию)
+3. Сравни КАЖДЫЙ показатель менеджера со средним по команде
+4. Дай общий вывод: работает лучше/хуже/на уровне команды
 
-Дай краткий анализ в формате нумерованного списка (3 пункта максимум). Каждый пункт — одно короткое предложение. Сравни менеджера со средним по команде. Без воды."""
+ФОРМАТ ОТВЕТА (строго 3 пункта):
+1. [Сравнение звонков и активности с командой — выше/ниже среднего, на сколько]
+2. [Сравнение заявок и объёмов с командой — выше/ниже среднего, конверсия план/факт]
+3. [Общий вывод и рекомендация — продолжить/усилить активность/проработать конверсию]
+
+Пиши КРАТКО, ДЕЛОВЫМ ЯЗЫКОМ, БЕЗ ВОДЫ."""
         
         try:
             ai_text = await self.ai.generate_text(prompt)
         except Exception as e:
-            ai_text = f"1. Сравнение каждого показателя со средним менеджером после этого общий вывод на основании того сколько показателей соответствует или выше/ниже среднего показателя"
+            ai_text = f"1. Активность менеджера в работе\n2. Конверсия по заявкам и объёмам\n3. Общий вывод и рекомендации"
         
         # Add title and text
         tf = comment_box.text_frame
