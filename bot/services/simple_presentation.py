@@ -126,7 +126,7 @@ class SimplePresentationService:
             cell = tbl.cell(0, c); cell.text = h
             cell.fill.solid(); cell.fill.fore_color.rgb = hex_to_rgb("#E3F2FD")
             for par in cell.text_frame.paragraphs:
-                par.font.name = "Roboto"; par.font.size = Pt(11); par.font.bold = True; par.alignment = PP_ALIGN.CENTER
+                par.font.name = "Roboto"; par.font.size = Pt(11); par.font.bold = True; par.alignment = PP_ALIGN.CENTER; par.font.color.rgb = hex_to_rgb(TEXT_MAIN)
 
         # Data rows
         def pct(a, b):
@@ -206,7 +206,7 @@ class SimplePresentationService:
             cell = tbl.cell(0, c); cell.text = h
             cell.fill.solid(); cell.fill.fore_color.rgb = hex_to_rgb("#E3F2FD")
             for par in cell.text_frame.paragraphs:
-                par.font.name = "Roboto"; par.font.size = Pt(11); par.font.bold = True; par.alignment = PP_ALIGN.CENTER
+                par.font.name = "Roboto"; par.font.size = Pt(11); par.font.bold = True; par.alignment = PP_ALIGN.CENTER; par.font.color.rgb = hex_to_rgb(TEXT_MAIN)
 
         def pct(a, b):
             try:
