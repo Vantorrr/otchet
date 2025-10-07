@@ -115,6 +115,8 @@ class SimplePresentationService:
         # Previous totals (fallback 0)
         prev_calls_fact = sum((getattr(m, 'calls_fact', 0) for m in (prev_data or {}).values())) if prev_data else 0
         prev_new_fact = sum((getattr(m, 'new_calls', 0) for m in (prev_data or {}).values())) if prev_data else 0
+        prev_calls_plan = sum((getattr(m, 'calls_plan', 0) for m in (prev_data or {}).values())) if prev_data else 0
+        prev_new_plan = sum((getattr(m, 'new_calls_plan', 0) for m in (prev_data or {}).values())) if prev_data else 0
 
         # Table with 2 rows + header, columns: Показатель, План, Факт, Конверсия, % к факту, % конверсии, Средний факт
         rows, cols = 3, 7
@@ -135,10 +137,17 @@ class SimplePresentationService:
 
         calls_conv = pct(cur_calls_fact, cur_calls_plan)
         new_conv = pct(cur_new_fact, cur_new_plan)
+        prev_calls_conv = pct(prev_calls_fact, prev_calls_plan) if prev_calls_plan else 0
+        prev_new_conv = pct(prev_new_fact, prev_new_plan) if prev_new_plan else 0
+        def diff_pct(cur, prev):
+            try:
+                return round(((cur - prev) / prev) * 100) if prev else 0
+            except Exception:
+                return 0
         vs_calls = pct(cur_calls_fact - prev_calls_fact, prev_calls_fact) if prev_calls_fact else 0
         vs_new = pct(cur_new_fact - prev_new_fact, prev_new_fact) if prev_new_fact else 0
-        vs_calls_conv = 0  # нет прошлой конверсии надёжно, оставим 0
-        vs_new_conv = 0
+        vs_calls_conv = diff_pct(calls_conv, prev_calls_conv)
+        vs_new_conv = diff_pct(new_conv, prev_new_conv)
 
         data_rows = [
             ["Повторные звонки", cur_calls_plan, cur_calls_fact, f"{calls_conv}%", f"{vs_calls:+d}%", f"{vs_calls_conv:+d}%", f"{avg['calls_fact']:.1f}"],
