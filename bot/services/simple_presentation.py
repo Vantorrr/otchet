@@ -208,15 +208,15 @@ class SimplePresentationService:
         prev_calls_plan = sum((getattr(m, 'calls_plan', 0) for m in (prev_data or {}).values())) if prev_data else 0
         prev_new_plan = sum((getattr(m, 'new_calls_plan', 0) for m in (prev_data or {}).values())) if prev_data else 0
 
-        # Table with 2 rows + header (compact): Показатель, Факт, % к факту (ПП), Δ конверсии, п.п. (ПП), на средний факт предыдущего квартала
-        rows, cols = 3, 5
-        tbl = slide.shapes.add_table(rows, cols, margin, Inches(0.9), prs.slide_width - 2*margin, Inches(2.0)).table
-        headers = ["Показатель", "Факт", "% к факту (ПП)", "Δ конверсии, п.п. (ПП)", "на средний факт предыдущего квартала"]
+        # Table with 2 rows + header: Показатель, План, Факт, Конверсия, % к факту (ПП), Δ конверсии, п.п. (ПП), Средний факт предыдущего квартала
+        rows, cols = 3, 7
+        tbl = slide.shapes.add_table(rows, cols, margin, Inches(0.9), prs.slide_width - 2*margin, Inches(2.2)).table
+        headers = ["Показатель", "План", "Факт", "Конверсия", "% к факту (ПП)", "Δ конверсии, п.п. (ПП)", "Средний факт предыдущего квартала"]
         for c, h in enumerate(headers):
             cell = tbl.cell(0, c); cell.text = h
             cell.fill.solid();
-            # Подсветка правого блока колонок, относящихся к ПП (начиная с колонки 2)
-            cell.fill.fore_color.rgb = hex_to_rgb("#E3F2FD" if c < 2 else "#BBDEFB")
+            # Подсветка правого блока колонок, относящихся к ПП (начиная с колонки 4)
+            cell.fill.fore_color.rgb = hex_to_rgb("#E3F2FD" if c < 4 else "#BBDEFB")
             for par in cell.text_frame.paragraphs:
                 par.font.name = "Roboto"; par.font.size = Pt(11); par.font.bold = True; par.alignment = PP_ALIGN.CENTER; par.font.color.rgb = hex_to_rgb(TEXT_MAIN)
 
@@ -241,8 +241,8 @@ class SimplePresentationService:
         sf_calls = (prev_q_team_weekly or {}).get('calls_fact', 0.0)
         sf_new = (prev_q_team_weekly or {}).get('new_calls_fact', 0.0)
         data_rows = [
-            ["Повторные звонки", cur_calls_fact, f"{vs_calls:+d}%", f"{vs_calls_conv:+d}", f"{sf_calls:.1f}"],
-            ["Новые звонки", cur_new_fact, f"{vs_new:+d}%", f"{vs_new_conv:+d}", f"{sf_new:.1f}"],
+            ["Повторные звонки", cur_calls_plan, cur_calls_fact, f"{calls_conv}%", f"{vs_calls:+d}%", f"{vs_calls_conv:+d}", f"{sf_calls:.1f}"],
+            ["Новые звонки", cur_new_plan, cur_new_fact, f"{new_conv}%", f"{vs_new:+d}%", f"{vs_new_conv:+d}", f"{sf_new:.1f}"],
         ]
         for r, row in enumerate(data_rows, start=1):
             for c, v in enumerate(row):
@@ -251,13 +251,13 @@ class SimplePresentationService:
                     cell.fill.solid(); cell.fill.fore_color.rgb = hex_to_rgb("#F7F9FC")
                 for par in cell.text_frame.paragraphs:
                     par.font.name = "Roboto"; par.font.size = Pt(10); par.alignment = PP_ALIGN.CENTER if c>0 else PP_ALIGN.LEFT
-                    if c >= 2:  # колонки, относящиеся к ПП
+                    if c >= 4:  # колонки, относящиеся к ПП
                         par.font.color.rgb = hex_to_rgb(PRIMARY)
 
         # Примечание про ПП
         note = slide.shapes.add_textbox(margin, Inches(3.15), prs.slide_width - 2*margin, Inches(0.3))
         nt = note.text_frame; nt.clear()
-        pnt = nt.paragraphs[0]; pnt.text = "Колонки справа (% к факту (ПП), Δ конверсии, п.п. (ПП), на средний факт предыдущего квартала) — сравнение с ПП."
+        pnt = nt.paragraphs[0]; pnt.text = "Колонки справа (% к факту (ПП), Δ конверсии, п.п. (ПП), Средний факт предыдущего квартала) — сравнение с ПП."
         pnt.font.name = "Roboto"; pnt.font.size = Pt(9); pnt.font.color.rgb = hex_to_rgb(TEXT_MUTED)
 
         # Comment block
@@ -304,7 +304,7 @@ class SimplePresentationService:
         # Table (compact): Показатель, Факт, % к факту (ПП), на средний факт предыдущего квартала
         rows, cols = 5, 4
         tbl = slide.shapes.add_table(rows, cols, margin, Inches(0.9), prs.slide_width - 2*margin, Inches(2.2)).table
-        headers = ["Показатель", "Факт", "% к факту (ПП)", "на средний факт предыдущего квартала"]
+        headers = ["Показатель", "Факт", "% к факту (ПП)", "Средний факт предыдущего квартала"]
         for c, h in enumerate(headers):
             cell = tbl.cell(0, c); cell.text = h
             cell.fill.solid(); cell.fill.fore_color.rgb = hex_to_rgb("#E3F2FD" if c < 2 else "#BBDEFB")
