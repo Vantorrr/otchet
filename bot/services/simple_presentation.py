@@ -17,6 +17,8 @@ from pptx.util import Cm
 
 from bot.config import Settings
 from bot.services.yandex_gpt import YandexGPTService
+from bot.services.data_aggregator import DataAggregatorService
+from bot.services.di import Container
 
 
 def hex_to_rgb(hex_color: str) -> RGBColor:
@@ -63,10 +65,13 @@ class SimplePresentationService:
         total_managers = len(period_data)
         avg = self._calculate_averages(period_data, total_managers)
         prev_avg = self._calculate_averages(prev_data, len(prev_data)) if prev_data else None
+
+        # Compute previous quarter references (weekly):
+        prev_q_team_weekly, prev_q_per_manager_weekly = await self._compute_prev_quarter_refs(end_date)
         # Calls overview slide (second slide)
-        await self._add_calls_overview_slide(prs, period_data, prev_data, avg, margin, period_name)
+        await self._add_calls_overview_slide(prs, period_data, prev_data, prev_q_per_manager_weekly, margin, period_name)
         # Leads overview slide (third slide)
-        await self._add_leads_overview_slide(prs, period_data, prev_data, avg, margin, period_name)
+        await self._add_leads_overview_slide(prs, period_data, prev_data, prev_q_per_manager_weekly, margin, period_name)
         
         # One slide per manager
         for manager_name, manager_data in period_data.items():
@@ -95,6 +100,69 @@ class SimplePresentationService:
             'issued_volume': sum(m.issued_volume for m in period_data.values()),
         }
         return {k: v / total_managers if total_managers > 0 else 0 for k, v in totals.items()}
+
+    async def _compute_prev_quarter_refs(self, end_date):
+        """Compute previous quarter weekly averages: team and per-manager.
+
+        Team weekly avg: sum facts across existing weeks / weeks_with_data.
+        Per-manager weekly avg: average of manager weekly avgs among managers with data.
+        """
+        try:
+            container = Container.get()
+            aggregator = DataAggregatorService(container.sheets)
+            # Determine previous quarter date range using aggregator helper
+            from datetime import timedelta
+            # Use end_date to infer current quarter; reuse existing helper via quarter aggregation, then shift
+            current, _, _, _, prev_start, prev_end = await aggregator.aggregate_quarterly_data_with_previous()
+            # prev_start/prev_end already describe previous quarter
+            series = await aggregator.get_daily_series(prev_start, prev_end)
+            # Build week buckets
+            from collections import defaultdict
+            week_buckets = defaultdict(lambda: {'calls_fact':0,'new_calls':0,'leads_units_fact':0,'leads_volume_fact':0.0,'approved_volume':0.0,'issued_volume':0.0})
+            for item in series:
+                from datetime import datetime as _dt
+                d = _dt.strptime(item['date'], '%Y-%m-%d').date()
+                iso_year, iso_week, _ = d.isocalendar()
+                key = f"{iso_year}-W{iso_week:02d}"
+                for k in week_buckets[key]:
+                    week_buckets[key][k] += float(item.get(k, 0) or 0)
+            weeks_with_data = [w for w in week_buckets.values() if any(v>0 for v in w.values())]
+            def avg_of_key(key: str) -> float:
+                if not weeks_with_data:
+                    return 0.0
+                return sum(w[key] for w in weeks_with_data) / len(weeks_with_data)
+            team_weekly = {
+                'calls_fact': avg_of_key('calls_fact'),
+                'new_calls_fact': avg_of_key('new_calls'),
+                'leads_units_fact': avg_of_key('leads_units_fact'),
+                'leads_volume_fact': avg_of_key('leads_volume_fact'),
+                'approved_units': avg_of_key('approved_volume'),
+                'issued_volume': avg_of_key('issued_volume'),
+                'calls_plan': 0,
+                'new_calls_plan': 0,
+                'leads_units_plan': 0,
+                'leads_volume_plan': 0.0,
+            }
+            # Per-manager weekly average: approximate using per-team divided by count of active managers last quarter
+            prev_data = await aggregator._aggregate_data_for_period(prev_start, prev_end)
+            active_managers = len(prev_data) if prev_data else 0
+            per_manager_weekly = None
+            if active_managers > 0:
+                per_manager_weekly = {
+                    'calls_fact': team_weekly['calls_fact'] / active_managers,
+                    'new_calls_fact': team_weekly['new_calls_fact'] / active_managers,
+                    'leads_units_fact': team_weekly['leads_units_fact'] / active_managers,
+                    'leads_volume_fact': team_weekly['leads_volume_fact'] / active_managers,
+                    'approved_units': team_weekly['approved_units'] / active_managers,
+                    'issued_volume': team_weekly['issued_volume'] / active_managers,
+                    'calls_plan': 0,
+                    'new_calls_plan': 0,
+                    'leads_units_plan': 0,
+                    'leads_volume_plan': 0.0,
+                }
+            return team_weekly, per_manager_weekly
+        except Exception:
+            return None, None
 
     async def _add_calls_overview_slide(self, prs, period_data, prev_data, avg, margin, period_name):
         """Add 'Общие показатели звонков' slide as per reference."""
@@ -394,7 +462,9 @@ class SimplePresentationService:
         
         # Manager data vs averages
         m = manager_data
-        ref = prev_avg or avg
+        # baseline for "средний менеджер": из прошлого квартала (недельный), если доступно; иначе текущая средняя
+        _, prev_q_per_manager_weekly = await self._compute_prev_quarter_refs(Container.get().settings and None)  # settings ignored
+        ref = prev_q_per_manager_weekly or prev_avg or avg
         row_data = [
             ["Повторные звонки", m.calls_plan, m.calls_fact, 
              f"{(m.calls_fact/m.calls_plan*100) if m.calls_plan else 0:.0f}%",
