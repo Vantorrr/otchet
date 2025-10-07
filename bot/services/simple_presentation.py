@@ -226,9 +226,13 @@ class SimplePresentationService:
 Пиши КРАТКО, ДЕЛОВЫМ ЯЗЫКОМ, БЕЗ ВОДЫ."""
         
         try:
-            ai_text = await self.ai.generate_text(prompt)
+            ai_text = await self.ai.generate_answer(prompt)
         except Exception as e:
-            ai_text = f"1. Активность менеджера в работе\n2. Конверсия по заявкам и объёмам\n3. Общий вывод и рекомендации"
+            ai_text = (
+                "1. Активность менеджера в работе\n"
+                "2. Конверсия по заявкам и объёмам\n"
+                "3. Общий вывод и рекомендации"
+            )
         
         # Add title and text
         tf = comment_box.text_frame
@@ -256,7 +260,7 @@ class SimplePresentationService:
                 p = tf.add_paragraph()
                 p.text = line.strip()
                 p.font.name = "Roboto"
-                p.font.size = Pt(9)
+                p.font.size = Pt(10)
                 p.font.color.rgb = hex_to_rgb(TEXT_MAIN)
                 p.space_after = Pt(3)
                 p.level = 0
