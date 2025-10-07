@@ -110,11 +110,19 @@ class SimplePresentationService:
         try:
             container = Container.get()
             aggregator = DataAggregatorService(container.sheets)
-            # Determine previous quarter date range using aggregator helper
-            from datetime import timedelta
-            # Use end_date to infer current quarter; reuse existing helper via quarter aggregation, then shift
-            current, _, _, _, prev_start, prev_end = await aggregator.aggregate_quarterly_data_with_previous()
-            # prev_start/prev_end already describe previous quarter
+            from datetime import date as _date, timedelta
+            # Determine previous quarter range based on provided end_date
+            q = (end_date.month - 1) // 3 + 1
+            cur_q_start_month = (q - 1) * 3 + 1
+            cur_q_start = _date(end_date.year, cur_q_start_month, 1)
+            prev_end = cur_q_start - timedelta(days=1)
+            if q == 1:
+                prev_q_year = end_date.year - 1
+                prev_q_start_month = 10
+            else:
+                prev_q_year = end_date.year
+                prev_q_start_month = (q - 2) * 3 + 1
+            prev_start = _date(prev_q_year, prev_q_start_month, 1)
             series = await aggregator.get_daily_series(prev_start, prev_end)
             # Build week buckets
             from collections import defaultdict
