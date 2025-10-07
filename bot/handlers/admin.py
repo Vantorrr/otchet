@@ -305,6 +305,37 @@ async def cmd_presentation_range(message: types.Message, command: CommandObject)
         await message.reply(f"❌ Ошибка: {str(e)}")
 
 
+@admin_router.message(Command("simple_range"))
+async def cmd_simple_range(message: types.Message, command: CommandObject) -> None:
+    """Generate simple PPTX (per-manager table + AI comment + logo): /simple_range YYYY-MM-DD YYYY-MM-DD"""
+    args = (command.args or "").split()
+    if len(args) != 2:
+        await message.reply("Укажите период: /simple_range YYYY-MM-DD YYYY-MM-DD")
+        return
+    try:
+        from datetime import datetime as _dt
+        start = _dt.strptime(args[0], "%Y-%m-%d").date()
+        end = _dt.strptime(args[1], "%Y-%m-%d").date()
+    except Exception:
+        await message.reply("Неверный формат дат. Пример: /simple_range 2025-08-01 2025-08-07")
+        return
+    await message.reply("🔄 Генерирую простой PPTX (по менеджерам + комментарии ИИ)…")
+    try:
+        container = Container.get()
+        aggregator = DataAggregatorService(container.sheets)
+        from bot.services.simple_presentation import SimplePresentationService
+        presentation_service = SimplePresentationService(container.settings)
+        period_data, prev_data, period_name, start_date, end_date, prev_start, prev_end = await aggregator.aggregate_custom_with_previous(start, end)
+        if not period_data:
+            await message.reply("❌ Нет данных за этот период.")
+            return
+        pptx_bytes = await presentation_service.generate_presentation(period_data, period_name, start_date, end_date, prev_data, prev_start, prev_end)
+        document = types.BufferedInputFile(pptx_bytes, filename=f"Отчет_По_Активности_{start.strftime('%Y%m%d')}_{end.strftime('%Y%m%d')}.pptx")
+        await message.reply_document(document, caption=f"📊 {period_name}\n🤖 Простой отчёт готов!")
+    except Exception as e:
+        await message.reply(f"❌ Ошибка: {str(e)}")
+
+
 @admin_router.message(Command("slides_range"))
 async def cmd_slides_range(message: types.Message, command: CommandObject) -> None:
     """Generate premium presentation for custom date range (PPTX or Google Slides based on config).

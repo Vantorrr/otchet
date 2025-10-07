@@ -13,6 +13,7 @@ from pptx import Presentation
 from pptx.util import Inches, Pt
 from pptx.enum.text import PP_ALIGN
 from pptx.dml.color import RGBColor
+from pptx.util import Cm
 
 from bot.config import Settings
 from bot.services.yandex_gpt import YandexGPTService
@@ -91,6 +92,7 @@ class SimplePresentationService:
     async def _add_title_slide(self, prs, period_name, start_date, end_date, margin):
         """Title slide."""
         slide = prs.slides.add_slide(prs.slide_layouts[6])
+        self._add_logo(slide, prs)
         
         # Title
         title_box = slide.shapes.add_textbox(
@@ -107,6 +109,7 @@ class SimplePresentationService:
     async def _add_manager_stats_slide(self, prs, manager_name, manager_data, avg, margin):
         """Manager statistics table + AI commentary (exactly as in reference)."""
         slide = prs.slides.add_slide(prs.slide_layouts[6])
+        self._add_logo(slide, prs)
         
         # Title with manager name
         title_box = slide.shapes.add_textbox(margin, Inches(0.3), prs.slide_width - 2*margin, Inches(0.5))
@@ -121,7 +124,7 @@ class SimplePresentationService:
         rows = 7
         cols = 5
         tbl_width = prs.slide_width - 2*margin
-        tbl_height = Inches(2.8)
+        tbl_height = Inches(3.0)
         tbl = slide.shapes.add_table(rows, cols, margin, Inches(0.9), tbl_width, tbl_height).table
         
         # Set column widths
@@ -136,7 +139,7 @@ class SimplePresentationService:
         # Re-create table with 6 columns
         tbl = slide.shapes.add_table(rows, 6, margin, Inches(0.9), tbl_width, tbl_height).table
         
-        col_widths = [Inches(2.0), Inches(1.6), Inches(1.4), Inches(1.6), Inches(1.8), Inches(2.0)]
+        col_widths = [Inches(2.2), Inches(1.6), Inches(1.5), Inches(1.7), Inches(1.8), Inches(2.0)]
         for c in range(6):
             tbl.columns[c].width = col_widths[c]
         
@@ -148,7 +151,7 @@ class SimplePresentationService:
             cell.fill.fore_color.rgb = hex_to_rgb("#E3F2FD")
             for p in cell.text_frame.paragraphs:
                 p.font.name = "Roboto"
-                p.font.size = Pt(10)
+                p.font.size = Pt(11)
                 p.font.bold = True
                 p.font.color.rgb = hex_to_rgb(TEXT_MAIN)
                 p.alignment = PP_ALIGN.CENTER
@@ -180,10 +183,13 @@ class SimplePresentationService:
             for c, val in enumerate(data):
                 cell = tbl.cell(r, c)
                 cell.text = str(val)
-                cell.vertical_anchor = 1  # Middle
+                try:
+                    cell.vertical_anchor = 1  # Middle
+                except Exception:
+                    pass
                 if r % 2 == 0:
                     cell.fill.solid()
-                    cell.fill.fore_color.rgb = hex_to_rgb("#FAFAFA")
+                    cell.fill.fore_color.rgb = hex_to_rgb("#F7F9FC")
                 for p in cell.text_frame.paragraphs:
                     p.font.name = "Roboto"
                     p.font.size = Pt(10)
@@ -194,7 +200,7 @@ class SimplePresentationService:
         
         # AI commentary section
         y_start = Inches(0.9) + tbl_height + Inches(0.2)
-        comment_box = slide.shapes.add_textbox(margin, y_start, prs.slide_width - 2*margin, Inches(2.5))
+        comment_box = slide.shapes.add_textbox(margin, y_start, prs.slide_width - 2*margin, Inches(2.8))
         
         # Generate AI comment
         calls_conv = (m.calls_fact/m.calls_plan*100) if m.calls_plan else 0
@@ -264,4 +270,26 @@ class SimplePresentationService:
                 p.font.color.rgb = hex_to_rgb(TEXT_MAIN)
                 p.space_after = Pt(3)
                 p.level = 0
+
+    def _add_logo(self, slide, prs) -> None:
+        """Add company logo at top-right if file exists (Логотип.png)."""
+        import os
+        from pptx.util import Inches
+        logo_name_candidates = ["Логотип.png", "logo.png", "Logo.png"]
+        root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+        logo_path = None
+        for name in logo_name_candidates:
+            p = os.path.join(root, name)
+            if os.path.exists(p):
+                logo_path = p
+                break
+        if not logo_path:
+            return
+        try:
+            width = Inches(1.4)
+            left = prs.slide_width - width - Inches(0.4)
+            top = Inches(0.2)
+            slide.shapes.add_picture(logo_path, left, top, width=width)
+        except Exception:
+            pass
 
