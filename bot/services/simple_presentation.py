@@ -121,7 +121,7 @@ class SimplePresentationService:
         # Table with 2 rows + header, columns: Показатель, План, Факт, Конверсия, % к факту, % конверсии, Средний факт
         rows, cols = 3, 7
         tbl = slide.shapes.add_table(rows, cols, margin, Inches(0.9), prs.slide_width - 2*margin, Inches(2.2)).table
-        headers = ["Показатель", "План", "Факт", "Конверсия", "% к факту", "% конверсии", "Средний факт"]
+        headers = ["Показатель", "План", "Факт", "Конверсия", "% к факту", "Δ конверсии, п.п.", "Средний факт"]
         for c, h in enumerate(headers):
             cell = tbl.cell(0, c); cell.text = h
             cell.fill.solid(); cell.fill.fore_color.rgb = hex_to_rgb("#E3F2FD")
@@ -139,19 +139,15 @@ class SimplePresentationService:
         new_conv = pct(cur_new_fact, cur_new_plan)
         prev_calls_conv = pct(prev_calls_fact, prev_calls_plan) if prev_calls_plan else 0
         prev_new_conv = pct(prev_new_fact, prev_new_plan) if prev_new_plan else 0
-        def diff_pct(cur, prev):
-            try:
-                return round(((cur - prev) / prev) * 100) if prev else 0
-            except Exception:
-                return 0
         vs_calls = pct(cur_calls_fact - prev_calls_fact, prev_calls_fact) if prev_calls_fact else 0
         vs_new = pct(cur_new_fact - prev_new_fact, prev_new_fact) if prev_new_fact else 0
-        vs_calls_conv = diff_pct(calls_conv, prev_calls_conv)
-        vs_new_conv = diff_pct(new_conv, prev_new_conv)
+        # conversion deltas in percentage points
+        vs_calls_conv = calls_conv - prev_calls_conv
+        vs_new_conv = new_conv - prev_new_conv
 
         data_rows = [
-            ["Повторные звонки", cur_calls_plan, cur_calls_fact, f"{calls_conv}%", f"{vs_calls:+d}%", f"{vs_calls_conv:+d}%", f"{avg['calls_fact']:.1f}"],
-            ["Новые звонки", cur_new_plan, cur_new_fact, f"{new_conv}%", f"{vs_new:+d}%", f"{vs_new_conv:+d}%", f"{avg['new_calls_fact']:.1f}"],
+            ["Повторные звонки", cur_calls_plan, cur_calls_fact, f"{calls_conv}%", f"{vs_calls:+d}%", f"{vs_calls_conv:+d}", f"{avg['calls_fact']:.1f}"],
+            ["Новые звонки", cur_new_plan, cur_new_fact, f"{new_conv}%", f"{vs_new:+d}%", f"{vs_new_conv:+d}", f"{avg['new_calls_fact']:.1f}"],
         ]
         for r, row in enumerate(data_rows, start=1):
             for c, v in enumerate(row):
