@@ -62,6 +62,7 @@ class SimplePresentationService:
         # Calculate team averages for comparison
         total_managers = len(period_data)
         avg = self._calculate_averages(period_data, total_managers)
+        prev_avg = self._calculate_averages(prev_data, len(prev_data)) if prev_data else None
         # Calls overview slide (second slide)
         await self._add_calls_overview_slide(prs, period_data, prev_data, avg, margin, period_name)
         # Leads overview slide (third slide)
@@ -69,7 +70,7 @@ class SimplePresentationService:
         
         # One slide per manager
         for manager_name, manager_data in period_data.items():
-            await self._add_manager_stats_slide(prs, manager_name, manager_data, avg, margin)
+            await self._add_manager_stats_slide(prs, manager_name, manager_data, avg, prev_avg, margin)
         # Team summary slide
         await self._add_team_summary_slide(prs, period_data, avg, period_name, margin)
         
@@ -324,7 +325,7 @@ class SimplePresentationService:
             p.font.color.rgb = hex_to_rgb(PRIMARY)
             p.alignment = PP_ALIGN.CENTER
     
-    async def _add_manager_stats_slide(self, prs, manager_name, manager_data, avg, margin):
+    async def _add_manager_stats_slide(self, prs, manager_name, manager_data, avg, prev_avg, margin):
         """Manager statistics table + AI commentary (exactly as in reference)."""
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         self._add_logo(slide, prs)
@@ -376,25 +377,26 @@ class SimplePresentationService:
         
         # Manager data vs averages
         m = manager_data
+        ref = prev_avg or avg
         row_data = [
             ["Повторные звонки", m.calls_plan, m.calls_fact, 
              f"{(m.calls_fact/m.calls_plan*100) if m.calls_plan else 0:.0f}%",
-             f"{avg['calls_fact']:.1f}",
-             f"{(avg['calls_fact']/avg['calls_plan']*100) if avg['calls_plan'] else 0:.0f}%"],
+             f"{ref['calls_fact']:.1f}",
+             f"{(ref['calls_fact']/ref['calls_plan']*100) if ref['calls_plan'] else 0:.0f}%"],
             ["Новые звонки", m.new_calls_plan, m.new_calls,
              f"{(m.new_calls/m.new_calls_plan*100) if m.new_calls_plan else 0:.0f}%",
-             f"{avg['new_calls_fact']:.1f}",
-             f"{(avg['new_calls_fact']/avg['new_calls_plan']*100) if avg['new_calls_plan'] else 0:.0f}%"],
+             f"{ref['new_calls_fact']:.1f}",
+             f"{(ref['new_calls_fact']/ref['new_calls_plan']*100) if ref['new_calls_plan'] else 0:.0f}%"],
             ["Заведено заявок шт", m.leads_units_plan, m.leads_units_fact,
              f"{(m.leads_units_fact/m.leads_units_plan*100) if m.leads_units_plan else 0:.0f}%",
-             f"{avg['leads_units_fact']:.1f}",
-             f"{(avg['leads_units_fact']/avg['leads_units_plan']*100) if avg['leads_units_plan'] else 0:.0f}%"],
+             f"{ref['leads_units_fact']:.1f}",
+             f"{(ref['leads_units_fact']/ref['leads_units_plan']*100) if ref['leads_units_plan'] else 0:.0f}%"],
             ["Заведено заявок, млн", f"{m.leads_volume_plan:.1f}", f"{m.leads_volume_fact:.1f}",
              f"{(m.leads_volume_fact/m.leads_volume_plan*100) if m.leads_volume_plan else 0:.0f}%",
-             f"{avg['leads_volume_fact']:.1f}",
-             f"{(avg['leads_volume_fact']/avg['leads_volume_plan']*100) if avg['leads_volume_plan'] else 0:.0f}%"],
-            ["Одобрено заявок шт", "", getattr(m, 'approved_units', 0), "", f"{avg['approved_units']:.1f}", ""],
-            ["Выдано, млн", "", f"{m.issued_volume:.1f}", "", f"{avg['issued_volume']:.1f}", ""]
+             f"{ref['leads_volume_fact']:.1f}",
+             f"{(ref['leads_volume_fact']/ref['leads_volume_plan']*100) if ref['leads_volume_plan'] else 0:.0f}%"],
+            ["Одобрено заявок шт", "", getattr(m, 'approved_units', 0), "", f"{ref['approved_units']:.1f}", ""],
+            ["Выдано, млн", "", f"{m.issued_volume:.1f}", "", f"{ref['issued_volume']:.1f}", ""]
         ]
         
         for r, data in enumerate(row_data, start=1):
@@ -429,12 +431,12 @@ class SimplePresentationService:
         prompt = f"""Ты — руководитель отдела по банковским гарантиям. Проанализируй работу менеджера {manager_name} за период.
 
 ПОКАЗАТЕЛИ МЕНЕДЖЕРА:
-- Повторные звонки: {m.calls_fact} из {m.calls_plan} ({calls_conv:.0f}%) | Средний: {avg['calls_fact']:.1f}
-- Новые звонки: {m.new_calls} из {m.new_calls_plan} ({new_calls_conv:.0f}%) | Средний: {avg['new_calls_fact']:.1f}
-- Заявки (шт): {m.leads_units_fact} из {m.leads_units_plan} ({leads_conv:.0f}%) | Средний: {avg['leads_units_fact']:.1f}
-- Заявки (млн): {m.leads_volume_fact:.1f} из {m.leads_volume_plan:.1f} ({vol_conv:.0f}%) | Средний: {avg['leads_volume_fact']:.1f}
-- Одобрено: {getattr(m, 'approved_units', 0)} шт | Средний: {avg['approved_units']:.1f}
-- Выдано (млн): {m.issued_volume:.1f} | Средний: {avg['issued_volume']:.1f}
+- Повторные звонки: {m.calls_fact} из {m.calls_plan} ({calls_conv:.0f}%) | Средний менеджер: {ref['calls_fact']:.1f}
+- Новые звонки: {m.new_calls} из {m.new_calls_plan} ({new_calls_conv:.0f}%) | Средний менеджер: {ref['new_calls_fact']:.1f}
+- Заявки (шт): {m.leads_units_fact} из {m.leads_units_plan} ({leads_conv:.0f}%) | Средний менеджер: {ref['leads_units_fact']:.1f}
+- Заявки (млн): {m.leads_volume_fact:.1f} из {m.leads_volume_plan:.1f} ({vol_conv:.0f}%) | Средний менеджер: {ref['leads_volume_fact']:.1f}
+- Одобрено: {getattr(m, 'approved_units', 0)} шт | Средний менеджер: {ref['approved_units']:.1f}
+- Выдано (млн): {m.issued_volume:.1f} | Средний менеджер: {ref['issued_volume']:.1f}
 
 ПРАВИЛА АНАЛИЗА:
 1. Конверсия 80%+ = отлично, 60-80% = норма, <60% = нужна работа
