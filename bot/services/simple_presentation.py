@@ -49,7 +49,7 @@ class SimplePresentationService:
         prev_start: date,
         prev_end: date,
     ) -> bytes:
-        """Generate presentation with title + one slide per manager."""
+        """Generate presentation with title + one slide per manager + team summary."""
         prs = Presentation()
         prs.slide_width = Inches(11.69)  # 16:9
         prs.slide_height = Inches(6.58)
@@ -66,6 +66,8 @@ class SimplePresentationService:
         # One slide per manager
         for manager_name, manager_data in period_data.items():
             await self._add_manager_stats_slide(prs, manager_name, manager_data, avg, margin)
+        # Team summary slide
+        await self._add_team_summary_slide(prs, period_data, avg, period_name, margin)
         
         # Save to bytes
         buffer = io.BytesIO()
@@ -88,6 +90,71 @@ class SimplePresentationService:
             'issued_volume': sum(m.issued_volume for m in period_data.values()),
         }
         return {k: v / total_managers if total_managers > 0 else 0 for k, v in totals.items()}
+
+    async def _add_team_summary_slide(self, prs, period_data, avg, period_name, margin):
+        """Add team totals and concise AI comment."""
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+        self._add_logo(slide, prs)
+        # Title
+        t = slide.shapes.add_textbox(margin, Inches(0.3), prs.slide_width - 2*margin, Inches(0.5))
+        t.text_frame.text = f"Итоги по команде: {period_name}"
+        p0 = t.text_frame.paragraphs[0]
+        p0.font.name = "Roboto"
+        p0.font.size = Pt(22)
+        p0.font.bold = True
+        p0.font.color.rgb = hex_to_rgb(PRIMARY)
+        p0.alignment = PP_ALIGN.CENTER
+
+        # Totals table (4 строки)
+        rows, cols = 5, 4
+        tbl = slide.shapes.add_table(rows, cols, margin, Inches(0.9), prs.slide_width - 2*margin, Inches(2.0)).table
+        headers = ["Метрика", "Факт", "План", "Выполнение"]
+        for c, h in enumerate(headers):
+            cell = tbl.cell(0, c)
+            cell.text = h
+            cell.fill.solid(); cell.fill.fore_color.rgb = hex_to_rgb("#E3F2FD")
+            for p in cell.text_frame.paragraphs:
+                p.font.name = "Roboto"; p.font.size = Pt(11); p.font.bold = True; p.alignment = PP_ALIGN.CENTER
+
+        # Compute totals
+        total_calls_plan = sum(m.calls_plan for m in period_data.values())
+        total_calls_fact = sum(m.calls_fact for m in period_data.values())
+        total_units_plan = sum(m.leads_units_plan for m in period_data.values())
+        total_units_fact = sum(m.leads_units_fact for m in period_data.values())
+        total_vol_plan = sum(m.leads_volume_plan for m in period_data.values())
+        total_vol_fact = sum(m.leads_volume_fact for m in period_data.values())
+        total_issued = sum(m.issued_volume for m in period_data.values())
+
+        data_rows = [
+            ["Перезвоны", total_calls_fact, total_calls_plan, f"{(total_calls_fact/total_calls_plan*100) if total_calls_plan else 0:.0f}%"],
+            ["Заявки, шт", total_units_fact, total_units_plan, f"{(total_units_fact/total_units_plan*100) if total_units_plan else 0:.0f}%"],
+            ["Заявки, млн", f"{total_vol_fact:.1f}", f"{total_vol_plan:.1f}", f"{(total_vol_fact/total_vol_plan*100) if total_vol_plan else 0:.0f}%"],
+            ["Выдано, млн", f"{total_issued:.1f}", "—", "—"],
+        ]
+        for r, row in enumerate(data_rows, start=1):
+            for c, v in enumerate(row):
+                cell = tbl.cell(r, c); cell.text = str(v)
+                if r % 2 == 0:
+                    cell.fill.solid(); cell.fill.fore_color.rgb = hex_to_rgb("#F7F9FC")
+                for p in cell.text_frame.paragraphs:
+                    p.font.name = "Roboto"; p.font.size = Pt(10); p.alignment = PP_ALIGN.CENTER if c>0 else PP_ALIGN.LEFT
+
+        # Team AI comment
+        box = slide.shapes.add_textbox(margin, Inches(3.1), prs.slide_width - 2*margin, Inches(2.6))
+        from textwrap import dedent
+        prompt = dedent(f"""
+        Ты — руководитель отдела. Дай краткий вывод по команде (5–7 предложений), деловым стилем.
+        Укажи выполнение планов по перезвонам, заявкам (шт и млн) и общий итог по выдачам. Дай 2–3 приоритета на неделю.
+        Данные: calls {total_calls_fact}/{total_calls_plan}; units {total_units_fact}/{total_units_plan}; volume {total_vol_fact:.1f}/{total_vol_plan:.1f}; issued {total_issued:.1f}.
+        """)
+        try:
+            comment = await self.ai.generate_answer(prompt)
+        except Exception:
+            comment = "Итоги сформированы. Фокус: довести планы по перезвонам и объёмам; удерживать выдачи."
+        tf = box.text_frame; tf.clear()
+        hp = tf.paragraphs[0]; hp.text = "Итоги по команде"
+        hp.font.name = "Roboto"; hp.font.size = Pt(14); hp.font.bold = True; hp.font.color.rgb = hex_to_rgb(TEXT_MAIN)
+        p = tf.add_paragraph(); p.text = comment; p.font.name = "Roboto"; p.font.size = Pt(10)
     
     async def _add_title_slide(self, prs, period_name, start_date, end_date, margin):
         """Title slide."""
