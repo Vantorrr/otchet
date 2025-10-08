@@ -660,13 +660,9 @@ class SimplePresentationService:
             ph.text_frame.text = "[График звонков: установите plotly]"
             for par in ph.text_frame.paragraphs: par.font.size = Pt(12); par.alignment = PP_ALIGN.CENTER
 
-        # Rankings
-        box = slide.shapes.add_textbox(margin, Inches(3.4), prs.slide_width - 2*margin, Inches(2.2))
-        tf = box.text_frame; tf.clear()
-        hdr = tf.paragraphs[0]; hdr.text = "Лидеры"; hdr.font.name = "Roboto"; hdr.font.size = Pt(14); hdr.font.bold = True
-
         # Weights
         from math import sqrt
+        from pptx.enum.shapes import MSO_SHAPE
         # Baselines from prev quarter weekly scaled to current working days
         def workdays_between(a, b):
             cur=a; days=0
@@ -706,6 +702,28 @@ class SimplePresentationService:
         issued_rank.sort(key=lambda x: x[1], reverse=True)
         top2_issued = issued_rank[:2]
 
-        p1 = tf.add_paragraph(); p1.text = f"Топ-2 по звонкам (40/30/30): {', '.join([f'{n} ({s})' for n,s in top2_calls])}"; p1.font.name="Roboto"; p1.font.size=Pt(11)
-        p2 = tf.add_paragraph(); p2.text = f"Топ-2 по выданным (20/30/50): {', '.join([f'{n} ({s})' for n,s in top2_issued])}"; p2.font.name="Roboto"; p2.font.size=Pt(11)
+        # Render leaderboards as cards
+        card_top = Inches(3.5)
+        card_h = Inches(2.8)
+        half_w = (prs.slide_width - margin*3) / 2
+
+        # Left card: Calls
+        left_card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, margin, card_top, half_w, card_h)
+        left_card.fill.solid(); left_card.fill.fore_color.rgb = hex_to_rgb("#E3F2FD")
+        left_card.line.color.rgb = hex_to_rgb(PRIMARY); left_card.line.width = Pt(2)
+        ltf = left_card.text_frame; ltf.clear(); ltf.margin_left = Inches(0.2); ltf.margin_top = Inches(0.15)
+        lh = ltf.paragraphs[0]; lh.text = "🏆 ТОП-2 по звонкам (40/30/30)"; lh.font.name = "Roboto"; lh.font.size = Pt(16); lh.font.bold = True; lh.font.color.rgb = hex_to_rgb(PRIMARY)
+        for i, (name, score) in enumerate(top2_calls, start=1):
+            icon = "🥇" if i==1 else "🥈"
+            lp = ltf.add_paragraph(); lp.text = f"{icon} {name}: {score}"; lp.font.name = "Roboto"; lp.font.size = Pt(14); lp.space_before = Pt(8)
+
+        # Right card: Issued
+        right_card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, margin + half_w + margin, card_top, half_w, card_h)
+        right_card.fill.solid(); right_card.fill.fore_color.rgb = hex_to_rgb("#E8F5E9")
+        right_card.line.color.rgb = hex_to_rgb("#43A047"); right_card.line.width = Pt(2)
+        rtf = right_card.text_frame; rtf.clear(); rtf.margin_left = Inches(0.2); rtf.margin_top = Inches(0.15)
+        rh = rtf.paragraphs[0]; rh.text = "💎 ТОП-2 по выданным (20/30/50)"; rh.font.name = "Roboto"; rh.font.size = Pt(16); rh.font.bold = True; rh.font.color.rgb = hex_to_rgb("#43A047")
+        for i, (name, score) in enumerate(top2_issued, start=1):
+            icon = "🥇" if i==1 else "🥈"
+            rp = rtf.add_paragraph(); rp.text = f"{icon} {name}: {score}"; rp.font.name = "Roboto"; rp.font.size = Pt(14); rp.space_before = Pt(8)
 
