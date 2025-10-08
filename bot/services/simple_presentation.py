@@ -291,8 +291,54 @@ class SimplePresentationService:
         pnt = nt.paragraphs[0]; pnt.text = "Колонки справа (% к факту (ПП), Δ конверсии, п.п. (ПП), Средний факт предыдущего квартала) — сравнение с ПП."
         pnt.font.name = "Roboto"; pnt.font.size = Pt(9); pnt.font.color.rgb = hex_to_rgb(TEXT_MUTED)
 
+        # Manager calls chart: each manager = line (sum of new+repeat calls daily)
+        chart_top = Inches(3.5)
+        chart_h = Inches(2.0)
+        try:
+            import plotly.graph_objects as go
+            import plotly.io as pio
+            # Get daily series per manager
+            container = Container.get()
+            aggregator = DataAggregatorService(container.sheets)
+            from datetime import timedelta
+            # Build daily buckets per manager
+            from collections import defaultdict
+            daily_manager_buckets = defaultdict(lambda: defaultdict(lambda: {'calls':0,'new_calls':0}))
+            all_records = container.sheets._reports.get_all_records()
+            for rec in all_records:
+                rec = {str(k).strip().lower(): v for k,v in rec.items()}
+                date_str = str(rec.get('date','')).strip()
+                if not date_str: continue
+                d = aggregator._parse_record_date(date_str)
+                if not d or d < start_date or d > end_date: continue
+                mgr = str(rec.get('manager','')).strip()
+                if not mgr: continue
+                key = d.strftime('%Y-%m-%d')
+                daily_manager_buckets[mgr][key]['calls'] += int(rec.get('evening_calls_success',0) or 0)
+                daily_manager_buckets[mgr][key]['new_calls'] += int(rec.get('evening_new_calls',0) or 0)
+            # Build date range
+            cur = start_date
+            dates = []
+            while cur <= end_date:
+                dates.append(cur.strftime('%Y-%m-%d'))
+                cur = cur + timedelta(days=1)
+            # Plot each manager
+            fig = go.Figure()
+            colors_palette = ['#1565C0','#43A047','#E53935','#FB8C00','#8E24AA','#00ACC1','#FDD835','#7CB342']
+            for i, (mgr, day_map) in enumerate(daily_manager_buckets.items()):
+                vals = [day_map.get(d,{}).get('calls',0) + day_map.get(d,{}).get('new_calls',0) for d in dates]
+                fig.add_trace(go.Scatter(x=dates, y=vals, mode='lines+markers', name=mgr, line=dict(color=colors_palette[i % len(colors_palette)], width=2)))
+            fig.update_layout(margin=dict(l=10,r=10,t=10,b=10), height=340, legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1))
+            from io import BytesIO
+            stream = BytesIO(pio.to_image(fig, format='png', scale=2))
+            slide.shapes.add_picture(stream, margin, chart_top, width=prs.slide_width - 2*margin, height=chart_h)
+        except Exception:
+            ph = slide.shapes.add_textbox(margin, chart_top, prs.slide_width - 2*margin, chart_h)
+            ph.text_frame.text = "[График по менеджерам: установите plotly или нет данных]"
+            for par in ph.text_frame.paragraphs: par.font.size = Pt(10); par.alignment = PP_ALIGN.CENTER
+
         # Comment block
-        box = slide.shapes.add_textbox(margin, Inches(3.45), prs.slide_width - 2*margin, Inches(2.25))
+        box = slide.shapes.add_textbox(margin, Inches(5.6), prs.slide_width - 2*margin, Inches(0.7))
         prompt = (
             "Сформируй краткий комментарий по звонкам за период '" + period_name + "'. "
             f"Повторные: факт {cur_calls_fact} из {cur_calls_plan} ({calls_conv}%). Новые: факт {cur_new_fact} из {cur_new_plan} ({new_conv}%). "
@@ -303,8 +349,8 @@ class SimplePresentationService:
         except Exception:
             text = "Количество звонков выросло/снизилось относительно прошлого периода. Рекомендация: скорректировать темп и довести план."
         t = box.text_frame; t.clear();
-        h = t.paragraphs[0]; h.text = "Комментарии нейросети"; h.font.name = "Roboto"; h.font.size = Pt(14); h.font.bold = True
-        p1 = t.add_paragraph(); p1.text = text; p1.font.name = "Roboto"; p1.font.size = Pt(10)
+        h = t.paragraphs[0]; h.text = "Комментарии нейросети"; h.font.name = "Roboto"; h.font.size = Pt(12); h.font.bold = True
+        p1 = t.add_paragraph(); p1.text = text; p1.font.name = "Roboto"; p1.font.size = Pt(9)
 
     async def _add_leads_overview_slide(self, prs, period_data, prev_data, prev_q_team_weekly, margin, period_name, start_date, end_date):
         """Add 'Общие показатели по заявкам' slide (units, volume, approved, issued)."""
