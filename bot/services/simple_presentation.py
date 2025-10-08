@@ -14,6 +14,15 @@ from pptx.util import Inches, Pt
 from pptx.enum.text import PP_ALIGN
 from pptx.dml.color import RGBColor
 from pptx.util import Cm
+from math import sqrt
+
+# Plotly for charts
+try:
+    import plotly.graph_objects as go
+    import plotly.io as pio
+except Exception:
+    go = None
+    pio = None
 
 from bot.config import Settings
 from bot.services.yandex_gpt import YandexGPTService
@@ -72,12 +81,14 @@ class SimplePresentationService:
         await self._add_calls_overview_slide(prs, period_data, prev_data, prev_q_team_weekly, margin, period_name, start_date, end_date)
         # Leads overview slide (third slide)
         await self._add_leads_overview_slide(prs, period_data, prev_data, prev_q_team_weekly, margin, period_name, start_date, end_date)
+
+        # Slide 4: Calls trend (line) + TOP-2 leaders
+        await self._add_calls_trend_and_tops(prs, period_data, prev_q_team_weekly, margin, period_name, start_date, end_date)
         
         # One slide per manager
         for manager_name, manager_data in period_data.items():
             await self._add_manager_stats_slide(prs, manager_name, manager_data, avg, prev_avg, prev_q_per_manager_weekly, margin, start_date, end_date)
-        # Team summary slide
-        await self._add_team_summary_slide(prs, period_data, avg, period_name, margin)
+        # Team summary slide removed per request
         
         # Save to bytes
         buffer = io.BytesIO()
@@ -386,70 +397,7 @@ class SimplePresentationService:
         h = t.paragraphs[0]; h.text = "Комментарии нейросети"; h.font.name = "Roboto"; h.font.size = Pt(14); h.font.bold = True
         p1 = t.add_paragraph(); p1.text = text; p1.font.name = "Roboto"; p1.font.size = Pt(10)
 
-    async def _add_team_summary_slide(self, prs, period_data, avg, period_name, margin):
-        """Add team totals and concise AI comment."""
-        slide = prs.slides.add_slide(prs.slide_layouts[6])
-        self._add_logo(slide, prs)
-        # Title
-        t = slide.shapes.add_textbox(margin, Inches(0.3), prs.slide_width - 2*margin, Inches(0.5))
-        t.text_frame.text = f"Итоги по команде: {period_name}"
-        p0 = t.text_frame.paragraphs[0]
-        p0.font.name = "Roboto"
-        p0.font.size = Pt(22)
-        p0.font.bold = True
-        p0.font.color.rgb = hex_to_rgb(PRIMARY)
-        p0.alignment = PP_ALIGN.CENTER
-
-        # Totals table (4 строки)
-        rows, cols = 5, 4
-        tbl = slide.shapes.add_table(rows, cols, margin, Inches(0.9), prs.slide_width - 2*margin, Inches(2.0)).table
-        headers = ["Метрика", "Факт", "План", "Выполнение"]
-        for c, h in enumerate(headers):
-            cell = tbl.cell(0, c)
-            cell.text = h
-            cell.fill.solid(); cell.fill.fore_color.rgb = hex_to_rgb("#E3F2FD")
-            for p in cell.text_frame.paragraphs:
-                p.font.name = "Roboto"; p.font.size = Pt(11); p.font.bold = True; p.alignment = PP_ALIGN.CENTER
-
-        # Compute totals
-        total_calls_plan = sum(m.calls_plan for m in period_data.values())
-        total_calls_fact = sum(m.calls_fact for m in period_data.values())
-        total_units_plan = sum(m.leads_units_plan for m in period_data.values())
-        total_units_fact = sum(m.leads_units_fact for m in period_data.values())
-        total_vol_plan = sum(m.leads_volume_plan for m in period_data.values())
-        total_vol_fact = sum(m.leads_volume_fact for m in period_data.values())
-        total_issued = sum(m.issued_volume for m in period_data.values())
-
-        data_rows = [
-            ["Перезвоны", total_calls_fact, total_calls_plan, f"{(total_calls_fact/total_calls_plan*100) if total_calls_plan else 0:.0f}%"],
-            ["Заявки, шт", total_units_fact, total_units_plan, f"{(total_units_fact/total_units_plan*100) if total_units_plan else 0:.0f}%"],
-            ["Заявки, млн", f"{total_vol_fact:.1f}", f"{total_vol_plan:.1f}", f"{(total_vol_fact/total_vol_plan*100) if total_vol_plan else 0:.0f}%"],
-            ["Выдано, млн", f"{total_issued:.1f}", "—", "—"],
-        ]
-        for r, row in enumerate(data_rows, start=1):
-            for c, v in enumerate(row):
-                cell = tbl.cell(r, c); cell.text = str(v)
-                if r % 2 == 0:
-                    cell.fill.solid(); cell.fill.fore_color.rgb = hex_to_rgb("#F7F9FC")
-                for p in cell.text_frame.paragraphs:
-                    p.font.name = "Roboto"; p.font.size = Pt(10); p.alignment = PP_ALIGN.CENTER if c>0 else PP_ALIGN.LEFT
-
-        # Team AI comment
-        box = slide.shapes.add_textbox(margin, Inches(3.1), prs.slide_width - 2*margin, Inches(2.6))
-        from textwrap import dedent
-        prompt = dedent(f"""
-        Ты — руководитель отдела. Дай краткий вывод по команде (5–7 предложений), деловым стилем.
-        Укажи выполнение планов по перезвонам, заявкам (шт и млн) и общий итог по выдачам. Дай 2–3 приоритета на неделю.
-        Данные: calls {total_calls_fact}/{total_calls_plan}; units {total_units_fact}/{total_units_plan}; volume {total_vol_fact:.1f}/{total_vol_plan:.1f}; issued {total_issued:.1f}.
-        """)
-        try:
-            comment = await self.ai.generate_answer(prompt)
-        except Exception:
-            comment = "Итоги сформированы. Фокус: довести планы по перезвонам и объёмам; удерживать выдачи."
-        tf = box.text_frame; tf.clear()
-        hp = tf.paragraphs[0]; hp.text = "Итоги по команде"
-        hp.font.name = "Roboto"; hp.font.size = Pt(14); hp.font.bold = True; hp.font.color.rgb = hex_to_rgb(TEXT_MAIN)
-        p = tf.add_paragraph(); p.text = comment; p.font.name = "Roboto"; p.font.size = Pt(10)
+    # Team summary slide removed per request
     
     async def _add_title_slide(self, prs, period_name, start_date, end_date, margin):
         """Title slide."""
@@ -675,4 +623,89 @@ class SimplePresentationService:
             slide.shapes.add_picture(logo_path, left, top, width=width)
         except Exception:
             pass
+
+    async def _add_calls_trend_and_tops(self, prs, period_data, prev_q_team_weekly, margin, period_name, start_date, end_date):
+        """Add slide with daily calls trend and TOP-2 leaders."""
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+        self._add_logo(slide, prs)
+        # Title
+        title = slide.shapes.add_textbox(margin, Inches(0.3), prs.slide_width - 2*margin, Inches(0.5))
+        title.text_frame.text = "Динамика звонков и лидеры"
+        p = title.text_frame.paragraphs[0]; p.font.name = "Roboto"; p.font.size = Pt(22); p.font.bold = True; p.font.color.rgb = hex_to_rgb(PRIMARY); p.alignment = PP_ALIGN.CENTER
+
+        # Daily series
+        container = Container.get()
+        aggregator = DataAggregatorService(container.sheets)
+        daily = await aggregator.get_daily_series(start_date, end_date)
+        dates = [d['date'] for d in daily]
+        calls = [d.get('calls_fact', 0) for d in daily]
+        new_calls = [d.get('new_calls', 0) for d in daily]
+
+        # Try plotly line chart
+        chart_left, chart_top = margin, Inches(0.9)
+        chart_w = prs.slide_width - margin*2
+        chart_h = Inches(2.4)
+        try:
+            import plotly.graph_objects as go
+            import plotly.io as pio
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(x=dates, y=calls, mode='lines+markers', name='Повторные', line=dict(color='#1565C0', width=3)))
+            fig.add_trace(go.Scatter(x=dates, y=new_calls, mode='lines+markers', name='Новые', line=dict(color='#42A5F5', width=3)))
+            fig.update_layout(margin=dict(l=10,r=10,t=10,b=10), height=400, legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1))
+            from io import BytesIO
+            stream = BytesIO(pio.to_image(fig, format='png', scale=2))
+            slide.shapes.add_picture(stream, chart_left, chart_top, width=chart_w, height=chart_h)
+        except Exception:
+            ph = slide.shapes.add_textbox(chart_left, chart_top, chart_w, chart_h)
+            ph.text_frame.text = "[График звонков: установите plotly]"
+            for par in ph.text_frame.paragraphs: par.font.size = Pt(12); par.alignment = PP_ALIGN.CENTER
+
+        # Rankings
+        box = slide.shapes.add_textbox(margin, Inches(3.4), prs.slide_width - 2*margin, Inches(2.2))
+        tf = box.text_frame; tf.clear()
+        hdr = tf.paragraphs[0]; hdr.text = "Лидеры"; hdr.font.name = "Roboto"; hdr.font.size = Pt(14); hdr.font.bold = True
+
+        # Weights
+        from math import sqrt
+        # Baselines from prev quarter weekly scaled to current working days
+        def workdays_between(a, b):
+            cur=a; days=0
+            from datetime import timedelta
+            while cur<=b:
+                if cur.weekday()<5: days+=1
+                cur = cur + timedelta(days=1)
+            return days
+        wd = workdays_between(start_date, end_date)
+        scale = (wd/5) if wd else 0
+        base_new = (prev_q_team_weekly or {}).get('new_calls_fact', 0.0) * scale
+        base_rep = (prev_q_team_weekly or {}).get('calls_fact', 0.0) * scale
+
+        conv_raws = []
+        temp = []
+        for name, m in period_data.items():
+            s_new = min(100, (m.new_calls/base_new*100) if base_new>0 else 0)
+            s_rep = min(100, (m.calls_fact/base_rep*100) if base_rep>0 else 0)
+            conv = (m.calls_fact/m.calls_plan*100) if m.calls_plan else 0
+            raw = sqrt(max(0.0, conv) * max(0.0, float(m.calls_fact)))
+            temp.append((name, s_new, s_rep, raw))
+            conv_raws.append(raw)
+        max_conv = max(conv_raws) if conv_raws else 1
+        ranked_calls = []
+        for name, s_new, s_rep, raw in temp:
+            s_conv = (raw/max_conv*100) if max_conv>0 else 0
+            total = s_new*0.4 + s_rep*0.3 + s_conv*0.3
+            ranked_calls.append((name, round(total,1)))
+        ranked_calls.sort(key=lambda x: x[1], reverse=True)
+        top2_calls = ranked_calls[:2]
+
+        # Issued weighted score 20/30/50
+        issued_rank = []
+        for name, m in period_data.items():
+            score = (float(m.leads_volume_fact or 0)*0.2) + (float(getattr(m,'approved_volume',0) or 0)*0.3) + (float(m.issued_volume or 0)*0.5)
+            issued_rank.append((name, round(score,1)))
+        issued_rank.sort(key=lambda x: x[1], reverse=True)
+        top2_issued = issued_rank[:2]
+
+        p1 = tf.add_paragraph(); p1.text = f"Топ-2 по звонкам (40/30/30): {', '.join([f'{n} ({s})' for n,s in top2_calls])}"; p1.font.name="Roboto"; p1.font.size=Pt(11)
+        p2 = tf.add_paragraph(); p2.text = f"Топ-2 по выданным (20/30/50): {', '.join([f'{n} ({s})' for n,s in top2_issued])}"; p2.font.name="Roboto"; p2.font.size=Pt(11)
 
