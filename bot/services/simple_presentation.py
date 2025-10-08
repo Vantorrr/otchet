@@ -745,6 +745,10 @@ class SimplePresentationService:
         issued_rank.sort(key=lambda x: x[1], reverse=True)
         top2_issued = issued_rank[:2]
 
+        # Guard: skip slide if no rankings
+        if not top2_calls or not top2_issued:
+            return
+        
         # Render leaderboards as cards
         card_top = Inches(0.9)
         card_h = Inches(2.2)
@@ -756,7 +760,7 @@ class SimplePresentationService:
         left_card.line.color.rgb = hex_to_rgb(PRIMARY); left_card.line.width = Pt(1.5)
         ltf = left_card.text_frame; ltf.clear(); ltf.margin_left = Inches(0.2); ltf.margin_top = Inches(0.15)
         lh = ltf.paragraphs[0]; lh.text = "🏆 ТОП-2 по звонкам (40/30/30)"; lh.font.name = "Roboto"; lh.font.size = Pt(15); lh.font.bold = True; lh.font.color.rgb = hex_to_rgb(PRIMARY)
-        for i, (name, score) in enumerate(top2_calls, start=1):
+        for i, (name, score) in enumerate(top2_calls[:2], start=1):
             icon = "🥇" if i==1 else "🥈"
             lp = ltf.add_paragraph(); lp.text = f"{icon} {name}: {score}"; lp.font.name = "Roboto"; lp.font.size = Pt(14); lp.font.color.rgb = hex_to_rgb(TEXT_MAIN); lp.space_before = Pt(6)
 
@@ -766,7 +770,7 @@ class SimplePresentationService:
         right_card.line.color.rgb = hex_to_rgb("#43A047"); right_card.line.width = Pt(1.5)
         rtf = right_card.text_frame; rtf.clear(); rtf.margin_left = Inches(0.2); rtf.margin_top = Inches(0.15)
         rh = rtf.paragraphs[0]; rh.text = "💎 ТОП-2 по выданным (20/30/50)"; rh.font.name = "Roboto"; rh.font.size = Pt(15); rh.font.bold = True; rh.font.color.rgb = hex_to_rgb("#43A047")
-        for i, (name, score) in enumerate(top2_issued, start=1):
+        for i, (name, score) in enumerate(top2_issued[:2], start=1):
             icon = "🥇" if i==1 else "🥈"
             rp = rtf.add_paragraph(); rp.text = f"{icon} {name}: {score}"; rp.font.name = "Roboto"; rp.font.size = Pt(14); rp.font.color.rgb = hex_to_rgb(TEXT_MAIN); rp.space_before = Pt(6)
 
