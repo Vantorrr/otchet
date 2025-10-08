@@ -803,23 +803,40 @@ class SimplePresentationService:
             })
 
         # Build detailed prompt for AI with full formula breakdown
-        prompt = f"""Сформируй краткие пояснения к рейтингам лидеров за {period_name}.
-
-ТОП-2 ПО ЗВОНКАМ (веса: новые 40%, повторные 30%, конверсия 30%):
-🥇 {top_calls_data[0]['name']}: {top_calls_data[0]['score']} — новые {top_calls_data[0]['new']}, повторные {top_calls_data[0]['repeat']}, план {top_calls_data[0]['plan']}, конв {top_calls_data[0]['conv']:.0f}%
-   Балл новые {top_calls_data[0]['s_new']:.1f}, балл повторные {top_calls_data[0]['s_rep']:.1f}, балл конв {top_calls_data[0]['s_conv']:.1f}
-   Расчёт: ({top_calls_data[0]['s_new']:.1f}×0.4) + ({top_calls_data[0]['s_rep']:.1f}×0.3) + ({top_calls_data[0]['s_conv']:.1f}×0.3) = {top_calls_data[0]['score']}
-🥈 {top_calls_data[1]['name']}: {top_calls_data[1]['score']} — новые {top_calls_data[1]['new']}, повторные {top_calls_data[1]['repeat']}, план {top_calls_data[1]['plan']}, конв {top_calls_data[1]['conv']:.0f}%
-   Балл новые {top_calls_data[1]['s_new']:.1f}, балл повторные {top_calls_data[1]['s_rep']:.1f}, балл конв {top_calls_data[1]['s_conv']:.1f}
-   Расчёт: ({top_calls_data[1]['s_new']:.1f}×0.4) + ({top_calls_data[1]['s_rep']:.1f}×0.3) + ({top_calls_data[1]['s_conv']:.1f}×0.3) = {top_calls_data[1]['score']}
-
-ТОП-2 ПО ВЫДАННЫМ (веса: заведено 20%, одобрено 30%, выдано 50%):
-🥇 {top_issued_data[0]['name']}: {top_issued_data[0]['score']} — заведено {top_issued_data[0]['leads_vol']:.1f} млн, одобрено {top_issued_data[0]['approved']:.1f} млн, выдано {top_issued_data[0]['issued']:.1f} млн
-   Формула: ({top_issued_data[0]['leads_vol']:.1f}×0.2) + ({top_issued_data[0]['approved']:.1f}×0.3) + ({top_issued_data[0]['issued']:.1f}×0.5) = {(top_issued_data[0]['leads_vol']*0.2 + top_issued_data[0]['approved']*0.3 + top_issued_data[0]['issued']*0.5):.1f}
-🥈 {top_issued_data[1]['name']}: {top_issued_data[1]['score']} — заведено {top_issued_data[1]['leads_vol']:.1f} млн, одобрено {top_issued_data[1]['approved']:.1f} млн, выдано {top_issued_data[1]['issued']:.1f} млн
-   Формула: ({top_issued_data[1]['leads_vol']:.1f}×0.2) + ({top_issued_data[1]['approved']:.1f}×0.3) + ({top_issued_data[1]['issued']:.1f}×0.5) = {(top_issued_data[1]['leads_vol']*0.2 + top_issued_data[1]['approved']*0.3 + top_issued_data[1]['issued']*0.5):.1f}
-
-Дай краткий вывод (2–3 предложения): почему эти менеджеры лидеры и что команде стоит взять на заметку."""
+        # Guard against empty rankings
+        if not top_calls_data or not top_issued_data:
+            cp = ctf.add_paragraph(); cp.text = "Недостаточно данных для формирования рейтинга."; cp.font.name = "Roboto"; cp.font.size = Pt(10)
+            return
+        
+        calls_1 = top_calls_data[0] if len(top_calls_data) > 0 else None
+        calls_2 = top_calls_data[1] if len(top_calls_data) > 1 else None
+        issued_1 = top_issued_data[0] if len(top_issued_data) > 0 else None
+        issued_2 = top_issued_data[1] if len(top_issued_data) > 1 else None
+        
+        prompt_parts = [f"Сформируй краткие пояснения к рейтингам лидеров за {period_name}.", ""]
+        prompt_parts.append("ТОП-2 ПО ЗВОНКАМ (веса: новые 40%, повторные 30%, конверсия 30%):")
+        if calls_1:
+            prompt_parts.append(f"🥇 {calls_1['name']}: {calls_1['score']} — новые {calls_1['new']}, повторные {calls_1['repeat']}, план {calls_1['plan']}, конв {calls_1['conv']:.0f}%")
+            prompt_parts.append(f"   Балл новые {calls_1['s_new']:.1f}, балл повторные {calls_1['s_rep']:.1f}, балл конв {calls_1['s_conv']:.1f}")
+            prompt_parts.append(f"   Расчёт: ({calls_1['s_new']:.1f}×0.4) + ({calls_1['s_rep']:.1f}×0.3) + ({calls_1['s_conv']:.1f}×0.3) = {calls_1['score']}")
+        if calls_2:
+            prompt_parts.append(f"🥈 {calls_2['name']}: {calls_2['score']} — новые {calls_2['new']}, повторные {calls_2['repeat']}, план {calls_2['plan']}, конв {calls_2['conv']:.0f}%")
+            prompt_parts.append(f"   Балл новые {calls_2['s_new']:.1f}, балл повторные {calls_2['s_rep']:.1f}, балл конв {calls_2['s_conv']:.1f}")
+            prompt_parts.append(f"   Расчёт: ({calls_2['s_new']:.1f}×0.4) + ({calls_2['s_rep']:.1f}×0.3) + ({calls_2['s_conv']:.1f}×0.3) = {calls_2['score']}")
+        prompt_parts.append("")
+        prompt_parts.append("ТОП-2 ПО ВЫДАННЫМ (веса: заведено 20%, одобрено 30%, выдано 50%):")
+        if issued_1:
+            prompt_parts.append(f"🥇 {issued_1['name']}: {issued_1['score']} — заведено {issued_1['leads_vol']:.1f} млн, одобрено {issued_1['approved']:.1f} млн, выдано {issued_1['issued']:.1f} млн")
+            calc_1 = (issued_1['leads_vol']*0.2 + issued_1['approved']*0.3 + issued_1['issued']*0.5)
+            prompt_parts.append(f"   Формула: ({issued_1['leads_vol']:.1f}×0.2) + ({issued_1['approved']:.1f}×0.3) + ({issued_1['issued']:.1f}×0.5) = {calc_1:.1f}")
+        if issued_2:
+            prompt_parts.append(f"🥈 {issued_2['name']}: {issued_2['score']} — заведено {issued_2['leads_vol']:.1f} млн, одобрено {issued_2['approved']:.1f} млн, выдано {issued_2['issued']:.1f} млн")
+            calc_2 = (issued_2['leads_vol']*0.2 + issued_2['approved']*0.3 + issued_2['issued']*0.5)
+            prompt_parts.append(f"   Формула: ({issued_2['leads_vol']:.1f}×0.2) + ({issued_2['approved']:.1f}×0.3) + ({issued_2['issued']:.1f}×0.5) = {calc_2:.1f}")
+        prompt_parts.append("")
+        prompt_parts.append("Дай краткий вывод (2–3 предложения): почему эти менеджеры лидеры и что команде стоит взять на заметку.")
+        prompt = "\n".join(prompt_parts)
+        
         try:
             comment = await self.ai.generate_answer(prompt)
         except Exception:
