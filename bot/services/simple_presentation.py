@@ -433,8 +433,8 @@ class SimplePresentationService:
         title_box.text_frame.paragraphs[0].font.color.rgb = hex_to_rgb(PRIMARY)
         title_box.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
         
-        # Table: 7 rows (header + 6 metrics), 5 columns
-        rows = 7
+        # Table: 8 rows (header + 7 metrics: добавлена "Одобрено, млн"), 5 columns
+        rows = 8
         cols = 5
         tbl_width = prs.slide_width - 2*margin
         tbl_height = Inches(3.0)
@@ -510,6 +510,7 @@ class SimplePresentationService:
              f"{ref['leads_volume_fact']:.1f}",
              f"{(ref['leads_volume_fact']/ref['leads_volume_plan']*100) if ref['leads_volume_plan'] else 0:.0f}%"],
             ["Одобрено заявок шт", "", getattr(m, 'approved_units', 0), "", f"{ref['approved_units']:.1f}", ""],
+            ["Одобрено, млн", "", f"{getattr(m, 'approved_volume', 0.0):.1f}", "", "", ""],
             ["Выдано, млн", "", f"{m.issued_volume:.1f}", "", f"{ref['issued_volume']:.1f}", ""]
         ]
         
