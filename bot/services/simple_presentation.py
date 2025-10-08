@@ -294,54 +294,8 @@ class SimplePresentationService:
         pnt = nt.paragraphs[0]; pnt.text = "Колонки справа (% к факту (ПП), Δ конверсии, п.п. (ПП), Средний факт предыдущего квартала) — сравнение с ПП."
         pnt.font.name = "Roboto"; pnt.font.size = Pt(8); pnt.font.color.rgb = hex_to_rgb(TEXT_MUTED)
 
-        # Manager calls chart: each manager = line (sum of new+repeat calls daily)
-        chart_top = Inches(2.65)
-        chart_h = Inches(2.3)
-        try:
-            import plotly.graph_objects as go
-            import plotly.io as pio
-            # Get daily series per manager
-            container = Container.get()
-            aggregator = DataAggregatorService(container.sheets)
-            from datetime import timedelta
-            # Build daily buckets per manager
-            from collections import defaultdict
-            daily_manager_buckets = defaultdict(lambda: defaultdict(lambda: {'calls':0,'new_calls':0}))
-            all_records = container.sheets._reports.get_all_records()
-            for rec in all_records:
-                rec = {str(k).strip().lower(): v for k,v in rec.items()}
-                date_str = str(rec.get('date','')).strip()
-                if not date_str: continue
-                d = aggregator._parse_record_date(date_str)
-                if not d or d < start_date or d > end_date: continue
-                mgr = str(rec.get('manager','')).strip()
-                if not mgr: continue
-                key = d.strftime('%Y-%m-%d')
-                daily_manager_buckets[mgr][key]['calls'] += int(rec.get('evening_calls_success',0) or 0)
-                daily_manager_buckets[mgr][key]['new_calls'] += int(rec.get('evening_new_calls',0) or 0)
-            # Build date range
-            cur = start_date
-            dates = []
-            while cur <= end_date:
-                dates.append(cur.strftime('%Y-%m-%d'))
-                cur = cur + timedelta(days=1)
-            # Plot each manager
-            fig = go.Figure()
-            colors_palette = ['#1565C0','#43A047','#E53935','#FB8C00','#8E24AA','#00ACC1','#FDD835','#7CB342']
-            for i, (mgr, day_map) in enumerate(daily_manager_buckets.items()):
-                vals = [day_map.get(d,{}).get('calls',0) + day_map.get(d,{}).get('new_calls',0) for d in dates]
-                fig.add_trace(go.Scatter(x=dates, y=vals, mode='lines+markers', name=mgr, line=dict(color=colors_palette[i % len(colors_palette)], width=2)))
-            fig.update_layout(margin=dict(l=10,r=10,t=10,b=10), height=340, legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1))
-            from io import BytesIO
-            stream = BytesIO(pio.to_image(fig, format='png', scale=2))
-            slide.shapes.add_picture(stream, margin, chart_top, width=prs.slide_width - 2*margin, height=chart_h)
-        except Exception:
-            ph = slide.shapes.add_textbox(margin, chart_top, prs.slide_width - 2*margin, chart_h)
-            ph.text_frame.text = "[График по менеджерам: установите plotly или нет данных]"
-            for par in ph.text_frame.paragraphs: par.font.size = Pt(10); par.alignment = PP_ALIGN.CENTER
-
         # Comment block
-        box = slide.shapes.add_textbox(margin, Inches(5.0), prs.slide_width - 2*margin, Inches(1.3))
+        box = slide.shapes.add_textbox(margin, Inches(2.65), prs.slide_width - 2*margin, Inches(3.6))
         prompt = (
             "Сформируй краткий комментарий по звонкам за период '" + period_name + "'. "
             f"Повторные: факт {cur_calls_fact} из {cur_calls_plan} ({calls_conv}%). Новые: факт {cur_new_fact} из {cur_new_plan} ({new_conv}%). "
@@ -674,7 +628,7 @@ class SimplePresentationService:
             pass
 
     async def _add_calls_trend_slide(self, prs, period_data, margin, period_name, start_date, end_date):
-        """Slide 4: Daily calls trend chart only."""
+        """Slide 4: Daily calls trend charts (team 2-line + manager multi-line)."""
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         self._add_logo(slide, prs)
         # Title
@@ -690,24 +644,55 @@ class SimplePresentationService:
         calls = [d.get('calls_fact', 0) for d in daily]
         new_calls = [d.get('new_calls', 0) for d in daily]
 
-        # Try plotly line chart
-        chart_left, chart_top = margin, Inches(0.9)
-        chart_w = prs.slide_width - margin*2
-        chart_h = Inches(5.4)
+        # Chart 1: Team (повторные + новые)
+        chart1_top = Inches(0.9)
+        chart1_h = Inches(2.5)
         try:
             import plotly.graph_objects as go
             import plotly.io as pio
             fig = go.Figure()
             fig.add_trace(go.Scatter(x=dates, y=calls, mode='lines+markers', name='Повторные', line=dict(color='#1565C0', width=3)))
             fig.add_trace(go.Scatter(x=dates, y=new_calls, mode='lines+markers', name='Новые', line=dict(color='#42A5F5', width=3)))
-            fig.update_layout(margin=dict(l=10,r=10,t=10,b=10), height=900, legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1))
+            fig.update_layout(margin=dict(l=10,r=10,t=10,b=10), height=420, legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1))
             from io import BytesIO
             stream = BytesIO(pio.to_image(fig, format='png', scale=2))
-            slide.shapes.add_picture(stream, chart_left, chart_top, width=chart_w, height=chart_h)
+            slide.shapes.add_picture(stream, margin, chart1_top, width=prs.slide_width - 2*margin, height=chart1_h)
         except Exception:
-            ph = slide.shapes.add_textbox(chart_left, chart_top, chart_w, chart_h)
-            ph.text_frame.text = "[График звонков: установите plotly]"
+            ph = slide.shapes.add_textbox(margin, chart1_top, prs.slide_width - 2*margin, chart1_h)
+            ph.text_frame.text = "[График команды: установите plotly]"
             for par in ph.text_frame.paragraphs: par.font.size = Pt(12); par.alignment = PP_ALIGN.CENTER
+
+        # Chart 2: Per-manager (sum new+repeat, each manager = line)
+        chart2_top = Inches(3.5)
+        chart2_h = Inches(2.7)
+        try:
+            from datetime import timedelta
+            from collections import defaultdict
+            daily_manager_buckets = defaultdict(lambda: defaultdict(lambda: {'calls':0,'new_calls':0}))
+            all_records = container.sheets._reports.get_all_records()
+            for rec in all_records:
+                rec = {str(k).strip().lower(): v for k,v in rec.items()}
+                date_str = str(rec.get('date','')).strip()
+                if not date_str: continue
+                d = aggregator._parse_record_date(date_str)
+                if not d or d < start_date or d > end_date: continue
+                mgr = str(rec.get('manager','')).strip()
+                if not mgr: continue
+                key = d.strftime('%Y-%m-%d')
+                daily_manager_buckets[mgr][key]['calls'] += int(rec.get('evening_calls_success',0) or 0)
+                daily_manager_buckets[mgr][key]['new_calls'] += int(rec.get('evening_new_calls',0) or 0)
+            fig2 = go.Figure()
+            colors_palette = ['#1565C0','#43A047','#E53935','#FB8C00','#8E24AA','#00ACC1','#FDD835','#7CB342']
+            for i, (mgr, day_map) in enumerate(daily_manager_buckets.items()):
+                vals = [day_map.get(d,{}).get('calls',0) + day_map.get(d,{}).get('new_calls',0) for d in dates]
+                fig2.add_trace(go.Scatter(x=dates, y=vals, mode='lines+markers', name=mgr, line=dict(color=colors_palette[i % len(colors_palette)], width=2)))
+            fig2.update_layout(margin=dict(l=10,r=10,t=10,b=10), height=460, legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1))
+            stream2 = BytesIO(pio.to_image(fig2, format='png', scale=2))
+            slide.shapes.add_picture(stream2, margin, chart2_top, width=prs.slide_width - 2*margin, height=chart2_h)
+        except Exception:
+            ph = slide.shapes.add_textbox(margin, chart2_top, prs.slide_width - 2*margin, chart2_h)
+            ph.text_frame.text = "[График по менеджерам: установите plotly или нет данных]"
+            for par in ph.text_frame.paragraphs: par.font.size = Pt(10); par.alignment = PP_ALIGN.CENTER
 
     async def _add_top2_leaders_slide(self, prs, period_data, prev_q_team_weekly, margin, period_name, start_date, end_date):
         """Slide 5: TOP-2 rankings with detailed AI commentary."""
