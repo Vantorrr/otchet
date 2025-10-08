@@ -82,8 +82,11 @@ class SimplePresentationService:
         # Leads overview slide (third slide)
         await self._add_leads_overview_slide(prs, period_data, prev_data, prev_q_team_weekly, margin, period_name, start_date, end_date)
 
-        # Slide 4: Calls trend (line) + TOP-2 leaders
-        await self._add_calls_trend_and_tops(prs, period_data, prev_q_team_weekly, margin, period_name, start_date, end_date)
+        # Slide 4: Calls trend (line chart only)
+        await self._add_calls_trend_slide(prs, period_data, margin, period_name, start_date, end_date)
+        
+        # Slide 5: TOP-2 leaders with detailed AI commentary
+        await self._add_top2_leaders_slide(prs, period_data, prev_q_team_weekly, margin, period_name, start_date, end_date)
         
         # One slide per manager
         for manager_name, manager_data in period_data.items():
@@ -670,13 +673,13 @@ class SimplePresentationService:
         except Exception:
             pass
 
-    async def _add_calls_trend_and_tops(self, prs, period_data, prev_q_team_weekly, margin, period_name, start_date, end_date):
-        """Add slide with daily calls trend and TOP-2 leaders."""
+    async def _add_calls_trend_slide(self, prs, period_data, margin, period_name, start_date, end_date):
+        """Slide 4: Daily calls trend chart only."""
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         self._add_logo(slide, prs)
         # Title
         title = slide.shapes.add_textbox(margin, Inches(0.3), prs.slide_width - 2*margin, Inches(0.5))
-        title.text_frame.text = "Динамика звонков и лидеры"
+        title.text_frame.text = "Динамика звонков"
         p = title.text_frame.paragraphs[0]; p.font.name = "Roboto"; p.font.size = Pt(22); p.font.bold = True; p.font.color.rgb = hex_to_rgb(PRIMARY); p.alignment = PP_ALIGN.CENTER
 
         # Daily series
@@ -690,14 +693,14 @@ class SimplePresentationService:
         # Try plotly line chart
         chart_left, chart_top = margin, Inches(0.9)
         chart_w = prs.slide_width - margin*2
-        chart_h = Inches(2.8)
+        chart_h = Inches(5.4)
         try:
             import plotly.graph_objects as go
             import plotly.io as pio
             fig = go.Figure()
             fig.add_trace(go.Scatter(x=dates, y=calls, mode='lines+markers', name='Повторные', line=dict(color='#1565C0', width=3)))
             fig.add_trace(go.Scatter(x=dates, y=new_calls, mode='lines+markers', name='Новые', line=dict(color='#42A5F5', width=3)))
-            fig.update_layout(margin=dict(l=10,r=10,t=10,b=10), height=400, legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1))
+            fig.update_layout(margin=dict(l=10,r=10,t=10,b=10), height=900, legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1))
             from io import BytesIO
             stream = BytesIO(pio.to_image(fig, format='png', scale=2))
             slide.shapes.add_picture(stream, chart_left, chart_top, width=chart_w, height=chart_h)
@@ -706,7 +709,15 @@ class SimplePresentationService:
             ph.text_frame.text = "[График звонков: установите plotly]"
             for par in ph.text_frame.paragraphs: par.font.size = Pt(12); par.alignment = PP_ALIGN.CENTER
 
-        # Weights
+    async def _add_top2_leaders_slide(self, prs, period_data, prev_q_team_weekly, margin, period_name, start_date, end_date):
+        """Slide 5: TOP-2 rankings with detailed AI commentary."""
+        slide = prs.slides.add_slide(prs.slide_layouts[6])
+        self._add_logo(slide, prs)
+        title = slide.shapes.add_textbox(margin, Inches(0.3), prs.slide_width - 2*margin, Inches(0.5))
+        title.text_frame.text = "Лидеры недели"
+        p = title.text_frame.paragraphs[0]; p.font.name = "Roboto"; p.font.size = Pt(22); p.font.bold = True; p.font.color.rgb = hex_to_rgb(PRIMARY); p.alignment = PP_ALIGN.CENTER
+
+        # Calculate rankings
         from math import sqrt
         from pptx.enum.shapes import MSO_SHAPE
         # Baselines from prev quarter weekly scaled to current working days
@@ -749,8 +760,8 @@ class SimplePresentationService:
         top2_issued = issued_rank[:2]
 
         # Render leaderboards as cards
-        card_top = Inches(3.8)
-        card_h = Inches(2.4)
+        card_top = Inches(0.9)
+        card_h = Inches(2.2)
         half_w = (prs.slide_width - margin*3) / 2
 
         # Left card: Calls
@@ -761,7 +772,7 @@ class SimplePresentationService:
         lh = ltf.paragraphs[0]; lh.text = "🏆 ТОП-2 по звонкам (40/30/30)"; lh.font.name = "Roboto"; lh.font.size = Pt(15); lh.font.bold = True; lh.font.color.rgb = hex_to_rgb(PRIMARY)
         for i, (name, score) in enumerate(top2_calls, start=1):
             icon = "🥇" if i==1 else "🥈"
-            lp = ltf.add_paragraph(); lp.text = f"{icon} {name}: {score}"; lp.font.name = "Roboto"; lp.font.size = Pt(13); lp.font.color.rgb = hex_to_rgb(TEXT_MAIN); lp.space_before = Pt(6)
+            lp = ltf.add_paragraph(); lp.text = f"{icon} {name}: {score}"; lp.font.name = "Roboto"; lp.font.size = Pt(14); lp.font.color.rgb = hex_to_rgb(TEXT_MAIN); lp.space_before = Pt(6)
 
         # Right card: Issued
         right_card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, margin + half_w + margin, card_top, half_w, card_h)
@@ -771,5 +782,58 @@ class SimplePresentationService:
         rh = rtf.paragraphs[0]; rh.text = "💎 ТОП-2 по выданным (20/30/50)"; rh.font.name = "Roboto"; rh.font.size = Pt(15); rh.font.bold = True; rh.font.color.rgb = hex_to_rgb("#43A047")
         for i, (name, score) in enumerate(top2_issued, start=1):
             icon = "🥇" if i==1 else "🥈"
-            rp = rtf.add_paragraph(); rp.text = f"{icon} {name}: {score}"; rp.font.name = "Roboto"; rp.font.size = Pt(13); rp.font.color.rgb = hex_to_rgb(TEXT_MAIN); rp.space_before = Pt(6)
+            rp = rtf.add_paragraph(); rp.text = f"{icon} {name}: {score}"; rp.font.name = "Roboto"; rp.font.size = Pt(14); rp.font.color.rgb = hex_to_rgb(TEXT_MAIN); rp.space_before = Pt(6)
+
+        # AI commentary below cards: explain formulas for both rankings
+        comment_top = Inches(3.2)
+        comment_h = Inches(3.0)
+        cbox = slide.shapes.add_textbox(margin, comment_top, prs.slide_width - 2*margin, comment_h)
+        ctf = cbox.text_frame; ctf.clear()
+        ch = ctf.paragraphs[0]; ch.text = "Комментарии нейросети"; ch.font.name = "Roboto"; ch.font.size = Pt(14); ch.font.bold = True
+
+        # Prepare data for AI prompt
+        top_calls_data = []
+        for name, score in top2_calls:
+            m = period_data[name]
+            s_new = min(100, (m.new_calls/base_new*100) if base_new>0 else 0)
+            s_rep = min(100, (m.calls_fact/base_rep*100) if base_rep>0 else 0)
+            conv = (m.calls_fact/m.calls_plan*100) if m.calls_plan else 0
+            raw = sqrt(max(0.0, conv) * max(0.0, float(m.calls_fact)))
+            s_conv = (raw/max_conv*100) if max_conv>0 else 0
+            top_calls_data.append({
+                'name': name, 'score': score, 
+                'new': m.new_calls, 'repeat': m.calls_fact, 'plan': m.calls_plan, 'conv': conv,
+                's_new': s_new, 's_rep': s_rep, 's_conv': s_conv
+            })
+        
+        top_issued_data = []
+        for name, score in top2_issued:
+            m = period_data[name]
+            top_issued_data.append({
+                'name': name, 'score': score,
+                'leads_vol': float(m.leads_volume_fact or 0),
+                'approved': float(getattr(m,'approved_volume',0) or 0),
+                'issued': float(m.issued_volume or 0)
+            })
+
+        prompt = f"""Сформируй краткие пояснения к рейтингам лидеров за {period_name}.
+
+ТОП-2 ПО ЗВОНКАМ (веса: новые 40%, повторные 30%, конверсия 30%):
+1. {top_calls_data[0]['name']}: {top_calls_data[0]['score']} (новые {top_calls_data[0]['new']}, повторные {top_calls_data[0]['repeat']}, план {top_calls_data[0]['plan']}, конв {top_calls_data[0]['conv']:.0f}%)
+   Балл новые {top_calls_data[0]['s_new']:.1f}, балл повторные {top_calls_data[0]['s_rep']:.1f}, балл конв {top_calls_data[0]['s_conv']:.1f}
+2. {top_calls_data[1]['name']}: {top_calls_data[1]['score']} (новые {top_calls_data[1]['new']}, повторные {top_calls_data[1]['repeat']}, план {top_calls_data[1]['plan']}, конв {top_calls_data[1]['conv']:.0f}%)
+   Балл новые {top_calls_data[1]['s_new']:.1f}, балл повторные {top_calls_data[1]['s_rep']:.1f}, балл конв {top_calls_data[1]['s_conv']:.1f}
+
+ТОП-2 ПО ВЫДАННЫМ (веса: заведено 20%, одобрено 30%, выдано 50%):
+1. {top_issued_data[0]['name']}: {top_issued_data[0]['score']} (заведено {top_issued_data[0]['leads_vol']:.1f} млн, одобрено {top_issued_data[0]['approved']:.1f} млн, выдано {top_issued_data[0]['issued']:.1f} млн)
+   Формула: ({top_issued_data[0]['leads_vol']:.1f}×0.2) + ({top_issued_data[0]['approved']:.1f}×0.3) + ({top_issued_data[0]['issued']:.1f}×0.5) = {top_issued_data[0]['score']:.1f}
+2. {top_issued_data[1]['name']}: {top_issued_data[1]['score']} (заведено {top_issued_data[1]['leads_vol']:.1f} млн, одобрено {top_issued_data[1]['approved']:.1f} млн, выдано {top_issued_data[1]['issued']:.1f} млн)
+   Формула: ({top_issued_data[1]['leads_vol']:.1f}×0.2) + ({top_issued_data[1]['approved']:.1f}×0.3) + ({top_issued_data[1]['issued']:.1f}×0.5) = {top_issued_data[1]['score']:.1f}
+
+Дай краткий вывод (3–4 предложения): почему эти менеджеры лидеры и что команде стоит взять на заметку."""
+        try:
+            comment = await self.ai.generate_answer(prompt)
+        except Exception:
+            comment = "Лидеры показали высокие результаты по взвешенным метрикам. Рекомендуется команде изучить их подход."
+        cp = ctf.add_paragraph(); cp.text = comment; cp.font.name = "Roboto"; cp.font.size = Pt(10)
 
