@@ -644,7 +644,7 @@ class SimplePresentationService:
         # Try plotly line chart
         chart_left, chart_top = margin, Inches(0.9)
         chart_w = prs.slide_width - margin*2
-        chart_h = Inches(2.4)
+        chart_h = Inches(2.8)
         try:
             import plotly.graph_objects as go
             import plotly.io as pio
@@ -703,27 +703,27 @@ class SimplePresentationService:
         top2_issued = issued_rank[:2]
 
         # Render leaderboards as cards
-        card_top = Inches(3.5)
-        card_h = Inches(2.8)
+        card_top = Inches(3.8)
+        card_h = Inches(2.4)
         half_w = (prs.slide_width - margin*3) / 2
 
         # Left card: Calls
         left_card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, margin, card_top, half_w, card_h)
-        left_card.fill.solid(); left_card.fill.fore_color.rgb = hex_to_rgb("#E3F2FD")
-        left_card.line.color.rgb = hex_to_rgb(PRIMARY); left_card.line.width = Pt(2)
+        left_card.fill.solid(); left_card.fill.fore_color.rgb = hex_to_rgb("#F0F8FF")
+        left_card.line.color.rgb = hex_to_rgb(PRIMARY); left_card.line.width = Pt(1.5)
         ltf = left_card.text_frame; ltf.clear(); ltf.margin_left = Inches(0.2); ltf.margin_top = Inches(0.15)
-        lh = ltf.paragraphs[0]; lh.text = "🏆 ТОП-2 по звонкам (40/30/30)"; lh.font.name = "Roboto"; lh.font.size = Pt(16); lh.font.bold = True; lh.font.color.rgb = hex_to_rgb(PRIMARY)
+        lh = ltf.paragraphs[0]; lh.text = "🏆 ТОП-2 по звонкам (40/30/30)"; lh.font.name = "Roboto"; lh.font.size = Pt(15); lh.font.bold = True; lh.font.color.rgb = hex_to_rgb(PRIMARY)
         for i, (name, score) in enumerate(top2_calls, start=1):
             icon = "🥇" if i==1 else "🥈"
-            lp = ltf.add_paragraph(); lp.text = f"{icon} {name}: {score}"; lp.font.name = "Roboto"; lp.font.size = Pt(14); lp.space_before = Pt(8)
+            lp = ltf.add_paragraph(); lp.text = f"{icon} {name}: {score}"; lp.font.name = "Roboto"; lp.font.size = Pt(13); lp.font.color.rgb = hex_to_rgb(TEXT_MAIN); lp.space_before = Pt(6)
 
         # Right card: Issued
         right_card = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, margin + half_w + margin, card_top, half_w, card_h)
-        right_card.fill.solid(); right_card.fill.fore_color.rgb = hex_to_rgb("#E8F5E9")
-        right_card.line.color.rgb = hex_to_rgb("#43A047"); right_card.line.width = Pt(2)
+        right_card.fill.solid(); right_card.fill.fore_color.rgb = hex_to_rgb("#F1F8F4")
+        right_card.line.color.rgb = hex_to_rgb("#43A047"); right_card.line.width = Pt(1.5)
         rtf = right_card.text_frame; rtf.clear(); rtf.margin_left = Inches(0.2); rtf.margin_top = Inches(0.15)
-        rh = rtf.paragraphs[0]; rh.text = "💎 ТОП-2 по выданным (20/30/50)"; rh.font.name = "Roboto"; rh.font.size = Pt(16); rh.font.bold = True; rh.font.color.rgb = hex_to_rgb("#43A047")
+        rh = rtf.paragraphs[0]; rh.text = "💎 ТОП-2 по выданным (20/30/50)"; rh.font.name = "Roboto"; rh.font.size = Pt(15); rh.font.bold = True; rh.font.color.rgb = hex_to_rgb("#43A047")
         for i, (name, score) in enumerate(top2_issued, start=1):
             icon = "🥇" if i==1 else "🥈"
-            rp = rtf.add_paragraph(); rp.text = f"{icon} {name}: {score}"; rp.font.name = "Roboto"; rp.font.size = Pt(14); rp.space_before = Pt(8)
+            rp = rtf.add_paragraph(); rp.text = f"{icon} {name}: {score}"; rp.font.name = "Roboto"; rp.font.size = Pt(13); rp.font.color.rgb = hex_to_rgb(TEXT_MAIN); rp.space_before = Pt(6)
 
