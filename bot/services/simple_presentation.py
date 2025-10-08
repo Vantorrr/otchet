@@ -433,24 +433,12 @@ class SimplePresentationService:
         title_box.text_frame.paragraphs[0].font.color.rgb = hex_to_rgb(PRIMARY)
         title_box.text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER
         
-        # Table: 8 rows (header + 7 metrics: добавлена "Одобрено, млн"), 5 columns
+        # Table: 8 rows (header + 7 metrics: добавлена "Одобрено, млн"), 6 columns
         rows = 8
-        cols = 5
+        cols = 6
         tbl_width = prs.slide_width - 2*margin
-        tbl_height = Inches(3.0)
+        tbl_height = Inches(3.3)
         tbl = slide.shapes.add_table(rows, cols, margin, Inches(0.9), tbl_width, tbl_height).table
-        
-        # Set column widths
-        col_widths = [Inches(2.2), Inches(1.8), Inches(1.5), Inches(2.2), Inches(2.2)]
-        for c in range(cols):
-            tbl.columns[c].width = col_widths[c]
-        
-        # Headers
-        headers = ["", "Запланировано", "Факт", "Конверсия", "Средний\nменеджер\nфакт", "Средний\nменеджер\nконверсия"]
-        # Actually 6 columns if we include empty first column header
-        # But reference shows 5 columns with merged first cell - let's use 6 cols
-        # Re-create table with 6 columns
-        tbl = slide.shapes.add_table(rows, 6, margin, Inches(0.9), tbl_width, tbl_height).table
         
         col_widths = [Inches(2.2), Inches(1.6), Inches(1.5), Inches(1.7), Inches(1.8), Inches(2.0)]
         for c in range(6):
