@@ -801,28 +801,27 @@ class SimplePresentationService:
                 'issued': float(m.issued_volume or 0)
             })
 
-        # Build detailed text explanation instead of AI for transparency
-        explanation_lines = []
-        explanation_lines.append("ТОП-2 ПО ЗВОНКАМ (веса: новые 40%, повторные 30%, конверсия 30%):")
-        for i, d in enumerate(top_calls_data, start=1):
-            icon = "🥇" if i==1 else "🥈"
-            explanation_lines.append(
-                f"{icon} {d['name']}: {d['score']} — новые {d['new']}, повторные {d['repeat']}, план {d['plan']}, конв {d['conv']:.0f}%"
-            )
-            calc = f"   Балл новые {d['s_new']:.1f}, балл повторные {d['s_rep']:.1f}, балл конв {d['s_conv']:.1f}"
-            calc += f" → ({d['s_new']:.1f}×0.4) + ({d['s_rep']:.1f}×0.3) + ({d['s_conv']:.1f}×0.3) = {d['score']}"
-            explanation_lines.append(calc)
-        explanation_lines.append("")
-        explanation_lines.append("ТОП-2 ПО ВЫДАННЫМ (веса: заведено 20%, одобрено 30%, выдано 50%):")
-        for i, d in enumerate(top_issued_data, start=1):
-            icon = "🥇" if i==1 else "🥈"
-            explanation_lines.append(
-                f"{icon} {d['name']}: {d['score']} — заведено {d['leads_vol']:.1f} млн, одобрено {d['approved']:.1f} млн, выдано {d['issued']:.1f} млн"
-            )
-            calc_val = (d['leads_vol']*0.2) + (d['approved']*0.3) + (d['issued']*0.5)
-            calc = f"   Формула: ({d['leads_vol']:.1f}×0.2) + ({d['approved']:.1f}×0.3) + ({d['issued']:.1f}×0.5) = {calc_val:.1f}"
-            explanation_lines.append(calc)
-        
-        comment = "\n".join(explanation_lines)
-        cp = ctf.add_paragraph(); cp.text = comment; cp.font.name = "Roboto"; cp.font.size = Pt(9)
+        # Build detailed prompt for AI with full formula breakdown
+        prompt = f"""Сформируй краткие пояснения к рейтингам лидеров за {period_name}.
+
+ТОП-2 ПО ЗВОНКАМ (веса: новые 40%, повторные 30%, конверсия 30%):
+🥇 {top_calls_data[0]['name']}: {top_calls_data[0]['score']} — новые {top_calls_data[0]['new']}, повторные {top_calls_data[0]['repeat']}, план {top_calls_data[0]['plan']}, конв {top_calls_data[0]['conv']:.0f}%
+   Балл новые {top_calls_data[0]['s_new']:.1f}, балл повторные {top_calls_data[0]['s_rep']:.1f}, балл конв {top_calls_data[0]['s_conv']:.1f}
+   Расчёт: ({top_calls_data[0]['s_new']:.1f}×0.4) + ({top_calls_data[0]['s_rep']:.1f}×0.3) + ({top_calls_data[0]['s_conv']:.1f}×0.3) = {top_calls_data[0]['score']}
+🥈 {top_calls_data[1]['name']}: {top_calls_data[1]['score']} — новые {top_calls_data[1]['new']}, повторные {top_calls_data[1]['repeat']}, план {top_calls_data[1]['plan']}, конв {top_calls_data[1]['conv']:.0f}%
+   Балл новые {top_calls_data[1]['s_new']:.1f}, балл повторные {top_calls_data[1]['s_rep']:.1f}, балл конв {top_calls_data[1]['s_conv']:.1f}
+   Расчёт: ({top_calls_data[1]['s_new']:.1f}×0.4) + ({top_calls_data[1]['s_rep']:.1f}×0.3) + ({top_calls_data[1]['s_conv']:.1f}×0.3) = {top_calls_data[1]['score']}
+
+ТОП-2 ПО ВЫДАННЫМ (веса: заведено 20%, одобрено 30%, выдано 50%):
+🥇 {top_issued_data[0]['name']}: {top_issued_data[0]['score']} — заведено {top_issued_data[0]['leads_vol']:.1f} млн, одобрено {top_issued_data[0]['approved']:.1f} млн, выдано {top_issued_data[0]['issued']:.1f} млн
+   Формула: ({top_issued_data[0]['leads_vol']:.1f}×0.2) + ({top_issued_data[0]['approved']:.1f}×0.3) + ({top_issued_data[0]['issued']:.1f}×0.5) = {(top_issued_data[0]['leads_vol']*0.2 + top_issued_data[0]['approved']*0.3 + top_issued_data[0]['issued']*0.5):.1f}
+🥈 {top_issued_data[1]['name']}: {top_issued_data[1]['score']} — заведено {top_issued_data[1]['leads_vol']:.1f} млн, одобрено {top_issued_data[1]['approved']:.1f} млн, выдано {top_issued_data[1]['issued']:.1f} млн
+   Формула: ({top_issued_data[1]['leads_vol']:.1f}×0.2) + ({top_issued_data[1]['approved']:.1f}×0.3) + ({top_issued_data[1]['issued']:.1f}×0.5) = {(top_issued_data[1]['leads_vol']*0.2 + top_issued_data[1]['approved']*0.3 + top_issued_data[1]['issued']*0.5):.1f}
+
+Дай краткий вывод (2–3 предложения): почему эти менеджеры лидеры и что команде стоит взять на заметку."""
+        try:
+            comment = await self.ai.generate_answer(prompt)
+        except Exception:
+            comment = "Лидеры показали высокие результаты по взвешенным метрикам. Рекомендуется команде изучить их подход."
+        cp = ctf.add_paragraph(); cp.text = comment; cp.font.name = "Roboto"; cp.font.size = Pt(10)
 
