@@ -497,9 +497,9 @@ class SimplePresentationService:
              "—",
              f"{ref['leads_volume_fact']:.1f}",
              f"{(ref['leads_volume_fact']/ref['leads_volume_plan']*100) if ref['leads_volume_plan'] else 0:.0f}%"],
-            ["Одобрено заявок шт", "", getattr(m, 'approved_units', 0), "", f"{ref['approved_units']:.1f}", ""],
-            ["Одобрено, млн", "", f"{getattr(m, 'approved_volume', 0.0):.1f}", "", "", ""],
-            ["Выдано, млн", "", f"{m.issued_volume:.1f}", "", f"{ref['issued_volume']:.1f}", ""]
+            ["Одобрено заявок шт", "—", getattr(m, 'approved_units', 0), "—", f"{ref['approved_units']:.1f}", "—"],
+            ["Одобрено, млн", "—", f"{getattr(m, 'approved_volume', 0.0):.1f}", "—", "—", "—"],
+            ["Выдано, млн", "—", f"{m.issued_volume:.1f}", "—", f"{ref['issued_volume']:.1f}", "—"]
         ]
         
         for r, data in enumerate(row_data, start=1):
