@@ -228,7 +228,7 @@ class SimplePresentationService:
 
         # Table with 2 rows + header: Показатель, План, Факт, Конверсия, % к факту (ПП), Δ конверсии, п.п. (ПП), Средний факт предыдущего квартала
         rows, cols = 3, 7
-        tbl = slide.shapes.add_table(rows, cols, margin, Inches(0.9), prs.slide_width - 2*margin, Inches(2.2)).table
+        tbl = slide.shapes.add_table(rows, cols, margin, Inches(0.9), prs.slide_width - 2*margin, Inches(1.4)).table
         headers = ["Показатель", "План", "Факт", "Конверсия", "% к факту (ПП)", "Δ конверсии, п.п. (ПП)", "Средний факт предыдущего квартала"]
         for c, h in enumerate(headers):
             cell = tbl.cell(0, c); cell.text = h
@@ -286,14 +286,14 @@ class SimplePresentationService:
                         par.font.color.rgb = hex_to_rgb(PRIMARY)
 
         # Примечание про ПП
-        note = slide.shapes.add_textbox(margin, Inches(3.15), prs.slide_width - 2*margin, Inches(0.3))
+        note = slide.shapes.add_textbox(margin, Inches(2.35), prs.slide_width - 2*margin, Inches(0.25))
         nt = note.text_frame; nt.clear()
         pnt = nt.paragraphs[0]; pnt.text = "Колонки справа (% к факту (ПП), Δ конверсии, п.п. (ПП), Средний факт предыдущего квартала) — сравнение с ПП."
-        pnt.font.name = "Roboto"; pnt.font.size = Pt(9); pnt.font.color.rgb = hex_to_rgb(TEXT_MUTED)
+        pnt.font.name = "Roboto"; pnt.font.size = Pt(8); pnt.font.color.rgb = hex_to_rgb(TEXT_MUTED)
 
         # Manager calls chart: each manager = line (sum of new+repeat calls daily)
-        chart_top = Inches(3.5)
-        chart_h = Inches(2.0)
+        chart_top = Inches(2.65)
+        chart_h = Inches(2.3)
         try:
             import plotly.graph_objects as go
             import plotly.io as pio
@@ -338,7 +338,7 @@ class SimplePresentationService:
             for par in ph.text_frame.paragraphs: par.font.size = Pt(10); par.alignment = PP_ALIGN.CENTER
 
         # Comment block
-        box = slide.shapes.add_textbox(margin, Inches(5.6), prs.slide_width - 2*margin, Inches(0.7))
+        box = slide.shapes.add_textbox(margin, Inches(5.0), prs.slide_width - 2*margin, Inches(1.3))
         prompt = (
             "Сформируй краткий комментарий по звонкам за период '" + period_name + "'. "
             f"Повторные: факт {cur_calls_fact} из {cur_calls_plan} ({calls_conv}%). Новые: факт {cur_new_fact} из {cur_new_plan} ({new_conv}%). "
@@ -349,8 +349,8 @@ class SimplePresentationService:
         except Exception:
             text = "Количество звонков выросло/снизилось относительно прошлого периода. Рекомендация: скорректировать темп и довести план."
         t = box.text_frame; t.clear();
-        h = t.paragraphs[0]; h.text = "Комментарии нейросети"; h.font.name = "Roboto"; h.font.size = Pt(12); h.font.bold = True
-        p1 = t.add_paragraph(); p1.text = text; p1.font.name = "Roboto"; p1.font.size = Pt(9)
+        h = t.paragraphs[0]; h.text = "Комментарии нейросети"; h.font.name = "Roboto"; h.font.size = Pt(13); h.font.bold = True
+        p1 = t.add_paragraph(); p1.text = text; p1.font.name = "Roboto"; p1.font.size = Pt(10)
 
     async def _add_leads_overview_slide(self, prs, period_data, prev_data, prev_q_team_weekly, margin, period_name, start_date, end_date):
         """Add 'Общие показатели по заявкам' slide (units, volume, approved, issued)."""
