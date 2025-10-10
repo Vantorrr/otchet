@@ -15,10 +15,13 @@ from bot.services.di import Container
 from bot.services.data_aggregator import DataAggregatorService
 from bot.services.simple_presentation import SimplePresentationService
 from bot.utils.time_utils import start_end_of_week_today
+from dotenv import load_dotenv
 
 
 def main() -> int:
-    # Load settings and init DI (uses .env)
+    # Load .env to populate BOT_TOKEN and other settings
+    load_dotenv()
+    # Load settings and init DI (uses env)
     settings = Settings.load()
     Container.init(settings)
 
