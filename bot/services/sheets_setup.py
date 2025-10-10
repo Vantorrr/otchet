@@ -40,11 +40,18 @@ def setup_office_sheets() -> None:
             "horizontalAlignment": "CENTER",
         })
         
-        # Add FILTER formula to pull data from Reports sheet
-        filter_formula = f'=FILTER({{Reports!A:A, Reports!B:B, Reports!D:D, Reports!G:G, Reports!E:E, Reports!L:L, Reports!H:H, Reports!I:I, Reports!J:J, Reports!K:K}}, Reports!M:M="{office}")'
-        sheet.update([[filter_formula]], range_name="A2")
+        # Add QUERY formula (uses ColN indexing; RU locale -> semicolons)
+        # Select columns: date (Col1), manager (Col2), morning_calls_planned (Col4),
+        # evening_calls_success (Col7), morning_new_calls_planned (Col5), evening_new_calls (Col12),
+        # evening_leads_units (Col8), evening_leads_volume (Col9), approved_volume (Col10), issued_volume (Col11)
+        # Filter by office (Col13)
+        query_formula = (
+            f'=QUERY(Reports!A:M; "select Col1, Col2, Col4, Col7, Col5, Col12, Col8, Col9, Col10, Col11 '
+            f'where Col13 = \"{office}\" order by Col1 desc"; 1)'
+        )
+        sheet.update([[query_formula]], range_name="A2")
         
-        print(f"✅ Настроен лист '{office}' с формулой FILTER")
+        print(f"✅ Настроен лист '{office}' с формулой QUERY")
     
     # Create HQ summary sheet
     try:
