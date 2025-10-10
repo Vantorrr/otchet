@@ -30,12 +30,15 @@ async def cmd_start(message: types.Message) -> None:
     settings = Settings.load()
     Container.init(settings)
     # Remember group chat id for scheduled jobs
-    if message.chat.id and message.chat.type == ChatType.SUPERGROUP:
+    chat_id = message.chat.id
+    if chat_id and message.chat.type == ChatType.SUPERGROUP:
         try:
-            Container.get().sheets.set_group_chat_id(message.chat.id)
+            Container.get().sheets.set_group_chat_id(chat_id)
         except Exception:
             pass
-    await message.reply("Бот запущен. Используйте /bind_manager и /set_summary_topic в нужных темах.")
+        await message.reply(f"Бот запущен. Используйте /bind_manager и /set_summary_topic в нужных темах.\n\n📍 Chat ID: {chat_id}")
+    else:
+        await message.reply("Бот запущен. Используйте /bind_manager и /set_summary_topic в нужных темах.")
 
 
 @admin_router.message(Command("bind_manager"), F.chat.type == ChatType.SUPERGROUP)
