@@ -10,6 +10,15 @@ def setup_office_sheets() -> None:
     
     gc = gspread.service_account(filename=creds_path)
     spread = gc.open(sheet_name)
+    # Detect spreadsheet locale to choose function argument separator
+    # Google Sheets uses ';' in many non-English locales (e.g. ru_RU) and ',' in en_US
+    try:
+        meta = spread.fetch_sheet_metadata()
+        locale = (meta.get("properties", {}).get("locale", "") or "").lower()
+    except Exception:
+        locale = ""
+    use_semicolon = not ("en" in locale or "us" in locale)
+    sep = ";" if use_semicolon else ","
     
     offices = ["Офис 4", "Санжаровский", "Батурлов", "Савела"]
     
@@ -40,14 +49,14 @@ def setup_office_sheets() -> None:
             "horizontalAlignment": "CENTER",
         })
         
-        # Add QUERY formula (uses ColN indexing; RU locale -> semicolons)
+        # Add QUERY formula (uses ColN indexing; locale-aware separators)
         # Select columns: date (Col1), manager (Col2), morning_calls_planned (Col4),
         # evening_calls_success (Col7), morning_new_calls_planned (Col5), evening_new_calls (Col12),
         # evening_leads_units (Col8), evening_leads_volume (Col9), approved_volume (Col10), issued_volume (Col11)
         # Filter by office (Col13)
         query_formula = (
-            f"=QUERY(Reports!A:M; 'select Col1, Col2, Col4, Col7, Col5, Col12, Col8, Col9, Col10, Col11 "
-            f"where Col13 = '{office}' order by Col1 desc'; 1)"
+            f"=QUERY(Reports!A:M{sep} \"select Col1, Col2, Col4, Col7, Col5, Col12, Col8, Col9, Col10, Col11 "
+            f"where Col13 = '{office}' order by Col1 desc\"{sep} 1)"
         )
         # Ensure Google Sheets treats the value as a formula (not text)
         sheet.update("A2", [[query_formula]], value_input_option="USER_ENTERED")
