@@ -1,12 +1,15 @@
 """Setup professional multi-office Google Sheets structure."""
 import gspread
-from bot.config import Settings
+import os
 
 
-def setup_office_sheets(settings: Settings) -> None:
+def setup_office_sheets() -> None:
     """Create professional sheet structure with separate views per office."""
-    gc = gspread.service_account(filename=settings.google_credentials_path)
-    spread = gc.open(settings.spreadsheet_name)
+    creds_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "/opt/otchet/service_account.json")
+    sheet_name = os.getenv("SPREADSHEET_NAME", "Sales Reports")
+    
+    gc = gspread.service_account(filename=creds_path)
+    spread = gc.open(sheet_name)
     
     offices = ["Офис 4", "Санжаровский", "Батурлов"]
     
@@ -70,6 +73,5 @@ def setup_office_sheets(settings: Settings) -> None:
 
 
 if __name__ == "__main__":
-    settings = Settings.load()
-    setup_office_sheets(settings)
+    setup_office_sheets()
 
