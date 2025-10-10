@@ -49,7 +49,8 @@ def setup_office_sheets() -> None:
             f"=QUERY(Reports!A:M; 'select Col1, Col2, Col4, Col7, Col5, Col12, Col8, Col9, Col10, Col11 "
             f"where Col13 = '{office}' order by Col1 desc'; 1)"
         )
-        sheet.update([[query_formula]], range_name="A2")
+        # Ensure Google Sheets treats the value as a formula (not text)
+        sheet.update("A2", query_formula, value_input_option="USER_ENTERED")
         
         print(f"✅ Настроен лист '{office}' с формулой QUERY")
     
