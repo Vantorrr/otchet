@@ -11,13 +11,16 @@ def setup_office_sheets() -> None:
     gc = gspread.service_account(filename=creds_path)
     spread = gc.open(sheet_name)
     
-    offices = ["Офис 4", "Санжаровский", "Батурлов"]
+    offices = ["Офис 4", "Санжаровский", "Батурлов", "Савела"]
     
     # Create office-specific sheets with QUERY formulas
     for office in offices:
         try:
             sheet = spread.worksheet(office)
-            print(f"✅ Лист '{office}' уже существует")
+            print(f"⚠️ Лист '{office}' уже существует — пересоздаём для единообразия")
+            spread.del_worksheet(sheet)
+            sheet = spread.add_worksheet(title=office, rows=1000, cols=20)
+            print(f"✅ Пересоздан лист '{office}'")
         except gspread.exceptions.WorksheetNotFound:
             sheet = spread.add_worksheet(title=office, rows=1000, cols=20)
             print(f"✅ Создан лист '{office}'")
