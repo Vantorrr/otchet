@@ -50,7 +50,7 @@ def setup_office_sheets() -> None:
             f"where Col13 = '{office}' order by Col1 desc'; 1)"
         )
         # Ensure Google Sheets treats the value as a formula (not text)
-        sheet.update("A2", query_formula, value_input_option="USER_ENTERED")
+        sheet.update("A2", [[query_formula]], value_input_option="USER_ENTERED")
         
         print(f"✅ Настроен лист '{office}' с формулой QUERY")
     
