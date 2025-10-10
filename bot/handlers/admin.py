@@ -84,9 +84,11 @@ async def cmd_menu(message: types.Message) -> None:
         )
     elif message.message_thread_id == summary_topic_id:
         # Тема сводки
+        from bot.offices_config import is_hq
+        is_hq_chat = is_hq(message.chat.id)
         await message.reply(
-            "Меню администратора:",
-            reply_markup=get_admin_menu_keyboard()
+            "Меню администратора:" + (" (Головной офис)" if is_hq_chat else ""),
+            reply_markup=get_admin_menu_keyboard(is_hq=is_hq_chat)
         )
     else:
         # Неопределенная тема
@@ -564,3 +566,73 @@ async def cmd_remind_now(message: types.Message) -> None:
             continue
 
     await message.reply(f"✅ Отправлено напоминаний: {sent} ({mode}).")
+
+
+# ====== Callback handlers for office management (HQ only) ======
+
+@admin_router.callback_query(F.data == "admin_section_offices")
+async def cb_offices_menu(query: types.CallbackQuery) -> None:
+    from bot.keyboards.main import get_admin_offices_keyboard
+    await query.message.edit_text("🏢 Управление офисами:", reply_markup=get_admin_offices_keyboard())
+    await query.answer()
+
+
+@admin_router.callback_query(F.data == "admin_back")
+async def cb_admin_back(query: types.CallbackQuery) -> None:
+    from bot.offices_config import is_hq
+    is_hq_chat = is_hq(query.message.chat.id)
+    await query.message.edit_text("Меню администратора:" + (" (Головной офис)" if is_hq_chat else ""), reply_markup=get_admin_menu_keyboard(is_hq=is_hq_chat))
+    await query.answer()
+
+
+# Office-specific presentation handlers
+@admin_router.callback_query(F.data.in_(["presentation_office4", "presentation_sanzharovsky", "presentation_baturlov", "presentation_all_offices"]))
+async def cb_presentation_office(query: types.CallbackQuery) -> None:
+    office_map = {
+        "presentation_office4": "Офис 4",
+        "presentation_sanzharovsky": "Санжаровский",
+        "presentation_baturlov": "Батурлов",
+        "presentation_all_offices": None  # All offices
+    }
+    office = office_map.get(query.data)
+    try:
+        container = Container.get()
+        aggregator = DataAggregatorService(container.sheets)
+        from bot.services.simple_presentation import SimplePresentationService
+        presentation_service = SimplePresentationService(container.settings)
+        
+        # Use current week
+        from datetime import datetime as _dt, timedelta
+        from bot.utils.time_utils import start_end_of_week_today
+        start_str, end_str = start_end_of_week_today(container.settings)
+        start = _dt.strptime(start_str, "%Y-%m-%d").date()
+        end = _dt.strptime(end_str, "%Y-%m-%d").date()
+        
+        # Aggregate with office filter
+        if office:
+            period_data = await aggregator._aggregate_data_for_period(start, end, office_filter=office)
+            delta = end - start
+            prev_end = start - timedelta(days=1)
+            prev_start = prev_end - delta
+            prev_data = await aggregator._aggregate_data_for_period(prev_start, prev_end, office_filter=office)
+            period_name = f"{office}: Неделя {start.strftime('%d.%m')}—{end.strftime('%d.%m.%Y')}"
+        else:
+            period_data = await aggregator._aggregate_data_for_period(start, end)
+            delta = end - start
+            prev_end = start - timedelta(days=1)
+            prev_start = prev_end - delta
+            prev_data = await aggregator._aggregate_data_for_period(prev_start, prev_end)
+            period_name = f"Все офисы: Неделя {start.strftime('%d.%m')}—{end.strftime('%d.%m.%Y')}"
+        
+        if not period_data:
+            await query.message.answer("❌ Нет данных за этот период.")
+            await query.answer()
+            return
+        
+        pptx_bytes = await presentation_service.generate_presentation(period_data, period_name, start, end, prev_data or {}, prev_start, prev_end)
+        document = types.BufferedInputFile(pptx_bytes, filename=f"Отчет_{office or 'Все'}_{start.strftime('%Y%m%d')}_{end.strftime('%Y%m%d')}.pptx")
+        await query.message.answer_document(document, caption=f"📊 {period_name}\n🤖 Презентация готова!")
+        await query.answer()
+    except Exception as e:
+        await query.message.answer(f"❌ Ошибка: {str(e)}")
+        await query.answer()

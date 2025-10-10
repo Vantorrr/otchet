@@ -95,8 +95,8 @@ class DataAggregatorService:
         previous = await self._aggregate_data_for_period(prev_start, prev_end)
         return current, previous, period_name, start_date, end_date, prev_start, prev_end
     
-    async def _aggregate_data_for_period(self, start_date: date, end_date: date) -> Dict[str, ManagerData]:
-        """Aggregate data for a specific period."""
+    async def _aggregate_data_for_period(self, start_date: date, end_date: date, office_filter: Optional[str] = None) -> Dict[str, ManagerData]:
+        """Aggregate data for a specific period, optionally filtered by office."""
         try:
             # Get all records from sheets
             worksheet = self.sheets_service._reports
@@ -110,6 +110,13 @@ class DataAggregatorService:
                 try:
                     # Normalize keys to lowercase to be robust to header casing
                     record = {str(k).strip().lower(): v for k, v in record.items()}
+                    
+                    # Filter by office if specified
+                    if office_filter:
+                        rec_office = str(record.get('office', '')).strip()
+                        if rec_office != office_filter:
+                            continue
+                    
                     # Parse and validate date
                     date_str = str(record.get('date', '')).strip()
                     if not date_str:
