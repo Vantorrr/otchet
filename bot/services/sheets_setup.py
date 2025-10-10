@@ -13,7 +13,7 @@ def setup_office_sheets() -> None:
     
     offices = ["Офис 4", "Санжаровский", "Батурлов", "Савела"]
     
-    # Create office-specific sheets with QUERY formulas
+    # Create office-specific sheets with FILTER formulas
     for office in offices:
         try:
             sheet = spread.worksheet(office)
@@ -24,28 +24,27 @@ def setup_office_sheets() -> None:
         except gspread.exceptions.WorksheetNotFound:
             sheet = spread.add_worksheet(title=office, rows=1000, cols=20)
             print(f"✅ Создан лист '{office}'")
-            
-            # Headers for office view
-            headers = [
-                "Дата", "Менеджер", "План перезвоны", "Факт перезвоны",
-                "План новые", "Факт новые",
-                "Заявки шт", "Заявки млн", "Одобрено млн", "Выдано млн"
-            ]
-            sheet.update([headers], range_name="A1:J1")
-            
-            # Format header row
-            sheet.format("A1:J1", {
-                "backgroundColor": {"red": 0.89, "green": 0.95, "blue": 1.0},
-                "textFormat": {"bold": True, "fontSize": 11},
-                "horizontalAlignment": "CENTER",
-            })
-            
-            # Add FILTER formula to pull data from Reports sheet (simpler than QUERY)
-            # Show: Date, Manager, Plan calls, Fact calls, Plan new, Fact new, Leads units, Leads vol, Approved vol, Issued vol
-            filter_formula = f'=FILTER({{Reports!A:A, Reports!B:B, Reports!D:D, Reports!G:G, Reports!E:E, Reports!L:L, Reports!H:H, Reports!I:I, Reports!J:J, Reports!K:K}}, Reports!M:M="{office}")'
-            sheet.update([[filter_formula]], range_name="A2")
-            
-            print(f"✅ Настроен лист '{office}' с формулой QUERY")
+        
+        # Headers for office view (always set after creation/recreation)
+        headers = [
+            "Дата", "Менеджер", "План перезвоны", "Факт перезвоны",
+            "План новые", "Факт новые",
+            "Заявки шт", "Заявки млн", "Одобрено млн", "Выдано млн"
+        ]
+        sheet.update([headers], range_name="A1:J1")
+        
+        # Format header row
+        sheet.format("A1:J1", {
+            "backgroundColor": {"red": 0.89, "green": 0.95, "blue": 1.0},
+            "textFormat": {"bold": True, "fontSize": 11},
+            "horizontalAlignment": "CENTER",
+        })
+        
+        # Add FILTER formula to pull data from Reports sheet
+        filter_formula = f'=FILTER({{Reports!A:A, Reports!B:B, Reports!D:D, Reports!G:G, Reports!E:E, Reports!L:L, Reports!H:H, Reports!I:I, Reports!J:J, Reports!K:K}}, Reports!M:M="{office}")'
+        sheet.update([[filter_formula]], range_name="A2")
+        
+        print(f"✅ Настроен лист '{office}' с формулой FILTER")
     
     # Create HQ summary sheet
     try:
