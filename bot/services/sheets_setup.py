@@ -41,8 +41,8 @@ def setup_office_sheets() -> None:
             })
             
             # Add QUERY formula to pull data from Reports sheet
-            # Row 2: =QUERY(Reports!A:M, "SELECT A, B, C, G, G/C, F, L, L/F, H, I, J, K WHERE B = 'OFFICE_NAME' ORDER BY A DESC", 1)
-            query_formula = f'=QUERY(Reports!A:M, "SELECT A, B, C, G, G/C, F, L, L/F, H, I, J, K WHERE C = \'{office}\' ORDER BY A DESC", 0)'
+            # M is office column, select relevant columns
+            query_formula = f'=QUERY(Reports!A:M, "SELECT A, B, D, G, G/D, E, L, L/E, H, I, J, K WHERE M = \'{office}\' ORDER BY A DESC", 0)'
             sheet.update("A2", [[query_formula]])
             
             print(f"✅ Настроен лист '{office}' с формулой QUERY")
