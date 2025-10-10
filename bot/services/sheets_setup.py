@@ -54,9 +54,10 @@ def setup_office_sheets() -> None:
         # evening_calls_success (Col7), morning_new_calls_planned (Col5), evening_new_calls (Col12),
         # evening_leads_units (Col8), evening_leads_volume (Col9), approved_volume (Col10), issued_volume (Col11)
         # Filter by office (Col13)
+        # Read from A2 to skip raw headers in 'Reports', and set header arg to 0
         query_formula = (
-            f"=QUERY(Reports!A:M{sep} \"select Col1, Col2, Col4, Col7, Col5, Col12, Col8, Col9, Col10, Col11 "
-            f"where Col13 = '{office}' order by Col1 desc\"{sep} 1)"
+            f"=QUERY(Reports!A2:M{sep} \"select Col1, Col2, Col4, Col7, Col5, Col12, Col8, Col9, Col10, Col11 "
+            f"where Col13 = '{office}' order by Col1 desc\"{sep} 0)"
         )
         # Ensure Google Sheets treats the value as a formula (not text)
         sheet.update("A2", [[query_formula]], value_input_option="USER_ENTERED")
