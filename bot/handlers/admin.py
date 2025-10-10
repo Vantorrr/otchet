@@ -636,3 +636,106 @@ async def cb_presentation_office(query: types.CallbackQuery) -> None:
     except Exception as e:
         await query.message.answer(f"❌ Ошибка: {str(e)}")
         await query.answer()
+
+
+# Office-specific summary handlers
+@admin_router.callback_query(F.data.in_(["summary_office4", "summary_sanzharovsky", "summary_baturlov", "summary_all_offices"]))
+async def cb_summary_office(query: types.CallbackQuery) -> None:
+    office_map = {
+        "summary_office4": "Офис 4",
+        "summary_sanzharovsky": "Санжаровский",
+        "summary_baturlov": "Батурлов",
+        "summary_all_offices": None  # All offices
+    }
+    office = office_map.get(query.data)
+    try:
+        container = Container.get()
+        aggregator = DataAggregatorService(container.sheets)
+        
+        # Use current week
+        from datetime import datetime as _dt
+        from bot.utils.time_utils import start_end_of_week_today
+        start_str, end_str = start_end_of_week_today(container.settings)
+        start = _dt.strptime(start_str, "%Y-%m-%d").date()
+        end = _dt.strptime(end_str, "%Y-%m-%d").date()
+        
+        # Aggregate with office filter
+        if office:
+            period_data = await aggregator._aggregate_data_for_period(start, end, office_filter=office)
+            period_name = f"{office}: {start.strftime('%d.%m')}—{end.strftime('%d.%m.%Y')}"
+        else:
+            period_data = await aggregator._aggregate_data_for_period(start, end)
+            period_name = f"Все офисы: {start.strftime('%d.%m')}—{end.strftime('%d.%m.%Y')}"
+        
+        if not period_data:
+            await query.message.answer(f"❌ Нет данных за {period_name}.")
+            await query.answer()
+            return
+        
+        # Build summary text
+        total_calls = sum(m.calls_fact for m in period_data.values())
+        total_new = sum(m.new_calls for m in period_data.values())
+        total_leads = sum(m.leads_units_fact for m in period_data.values())
+        total_volume = sum(m.leads_volume_fact for m in period_data.values())
+        total_issued = sum(m.issued_volume for m in period_data.values())
+        
+        response = f"📊 Сводка: {period_name}\n\n"
+        response += f"👥 Менеджеров: {len(period_data)}\n"
+        response += f"📞 Перезвоны: {total_calls}\n"
+        response += f"🆕 Новые звонки: {total_new}\n"
+        response += f"📋 Заявки (шт): {total_leads}\n"
+        response += f"💰 Заявки (млн): {total_volume:.1f}\n"
+        response += f"✅ Выдано (млн): {total_issued:.1f}\n\n"
+        response += "Топ-3 менеджера:\n"
+        
+        # Rank by issued
+        ranked = sorted(period_data.items(), key=lambda x: x[1].issued_volume, reverse=True)[:3]
+        for i, (name, m) in enumerate(ranked, start=1):
+            response += f"{i}. {name}: {m.issued_volume:.1f} млн выдано\n"
+        
+        await query.message.answer(response)
+        await query.answer()
+    except Exception as e:
+        await query.message.answer(f"❌ Ошибка: {str(e)}")
+        await query.answer()
+
+
+# Compare offices
+@admin_router.callback_query(F.data == "compare_offices")
+async def cb_compare_offices(query: types.CallbackQuery) -> None:
+    try:
+        container = Container.get()
+        aggregator = DataAggregatorService(container.sheets)
+        
+        from datetime import datetime as _dt
+        from bot.utils.time_utils import start_end_of_week_today
+        start_str, end_str = start_end_of_week_today(container.settings)
+        start = _dt.strptime(start_str, "%Y-%m-%d").date()
+        end = _dt.strptime(end_str, "%Y-%m-%d").date()
+        
+        offices = ["Офис 4", "Санжаровский", "Батурлов"]
+        response = f"📈 Сравнение офисов: {start.strftime('%d.%m')}—{end.strftime('%d.%m.%Y')}\n\n"
+        
+        office_stats = []
+        for office in offices:
+            data = await aggregator._aggregate_data_for_period(start, end, office_filter=office)
+            if data:
+                total_calls = sum(m.calls_fact for m in data.values())
+                total_issued = sum(m.issued_volume for m in data.values())
+                office_stats.append((office, len(data), total_calls, total_issued))
+        
+        # Sort by issued
+        office_stats.sort(key=lambda x: x[3], reverse=True)
+        
+        for i, (office, mgrs, calls, issued) in enumerate(office_stats, start=1):
+            medal = "🥇" if i==1 else "🥈" if i==2 else "🥉"
+            response += f"{medal} {office}:\n"
+            response += f"   👥 Менеджеров: {mgrs}\n"
+            response += f"   📞 Звонков: {calls}\n"
+            response += f"   ✅ Выдано: {issued:.1f} млн\n\n"
+        
+        await query.message.answer(response)
+        await query.answer()
+    except Exception as e:
+        await query.message.answer(f"❌ Ошибка: {str(e)}")
+        await query.answer()
