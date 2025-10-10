@@ -40,11 +40,10 @@ def setup_office_sheets() -> None:
                 "horizontalAlignment": "CENTER",
             })
             
-            # Add QUERY formula to pull data from Reports sheet
-            # A=date, B=manager, D=morning_calls_planned, G=evening_calls_success, E=morning_new_calls_planned, L=evening_new_calls
-            # H=evening_leads_units, I=evening_leads_volume, J=evening_approved_volume, K=evening_issued_volume, M=office
-            query_formula = f'=QUERY(Reports!A:M, "SELECT A, B, D, G, E, L, H, I, J, K WHERE M = \'{office}\' ORDER BY A DESC", 0)'
-            sheet.update([[query_formula]], range_name="A2")
+            # Add FILTER formula to pull data from Reports sheet (simpler than QUERY)
+            # Show: Date, Manager, Plan calls, Fact calls, Plan new, Fact new, Leads units, Leads vol, Approved vol, Issued vol
+            filter_formula = f'=FILTER({{Reports!A:A, Reports!B:B, Reports!D:D, Reports!G:G, Reports!E:E, Reports!L:L, Reports!H:H, Reports!I:I, Reports!J:J, Reports!K:K}}, Reports!M:M="{office}")'
+            sheet.update([[filter_formula]], range_name="A2")
             
             print(f"✅ Настроен лист '{office}' с формулой QUERY")
     
