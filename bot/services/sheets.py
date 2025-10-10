@@ -14,6 +14,7 @@ CONFIG_SHEET = "Config"
 REPORT_HEADERS = [
     "date",
     "manager",
+    "office",
     "morning_calls_planned",
     "morning_leads_planned_units",
     "morning_leads_planned_volume",
@@ -140,7 +141,7 @@ class SheetsClient:
         return None
 
     # Reports
-    def upsert_report(self, date_str: str, manager: str, morning: MorningData | None = None, evening: EveningData | None = None) -> None:
+    def upsert_report(self, date_str: str, manager: str, morning: MorningData | None = None, evening: EveningData | None = None, office: str = "") -> None:
         # Determine current header order from sheet
         current_headers = self._reports.row_values(1)
         # Ensure all required headers exist; if not, append to end
@@ -168,6 +169,8 @@ class SheetsClient:
         # Assign new values by header keys
         existing["date"] = date_str
         existing["manager"] = manager
+        if office:
+            existing["office"] = office
         if morning:
             existing["morning_calls_planned"] = str(morning.calls_planned)
             existing["morning_leads_planned_units"] = str(morning.leads_units_planned)

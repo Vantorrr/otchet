@@ -50,6 +50,10 @@ async def morning_new_calls_planned(message: types.Message, state: FSMContext) -
     container = Container.get()
     manager = data["manager"]  # type: ignore[index]
     date_str = date_str_for_today(container.settings)
+    
+    # Determine office by chat_id
+    from bot.offices_config import get_office_by_chat_id
+    office = get_office_by_chat_id(message.chat.id)
 
     container.sheets.upsert_report(
         date_str,
@@ -60,6 +64,7 @@ async def morning_new_calls_planned(message: types.Message, state: FSMContext) -
             leads_volume_planned=0,
             new_calls_planned=new_calls_planned,
         ),
+        office=office,
     )
 
     await state.clear()
