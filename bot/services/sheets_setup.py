@@ -27,23 +27,24 @@ def setup_office_sheets() -> None:
             
             # Headers for office view
             headers = [
-                "Дата", "Менеджер", "План перезвоны", "Факт перезвоны", "% перезвоны",
-                "План новые", "Факт новые", "% новые",
+                "Дата", "Менеджер", "План перезвоны", "Факт перезвоны",
+                "План новые", "Факт новые",
                 "Заявки шт", "Заявки млн", "Одобрено млн", "Выдано млн"
             ]
-            sheet.update("A1:L1", [headers])
+            sheet.update([headers], range_name="A1:J1")
             
             # Format header row
-            sheet.format("A1:L1", {
+            sheet.format("A1:J1", {
                 "backgroundColor": {"red": 0.89, "green": 0.95, "blue": 1.0},
                 "textFormat": {"bold": True, "fontSize": 11},
                 "horizontalAlignment": "CENTER",
             })
             
             # Add QUERY formula to pull data from Reports sheet
-            # M is office column, select relevant columns
-            query_formula = f'=QUERY(Reports!A:M, "SELECT A, B, D, G, G/D, E, L, L/E, H, I, J, K WHERE M = \'{office}\' ORDER BY A DESC", 0)'
-            sheet.update("A2", [[query_formula]])
+            # A=date, B=manager, D=morning_calls_planned, G=evening_calls_success, E=morning_new_calls_planned, L=evening_new_calls
+            # H=evening_leads_units, I=evening_leads_volume, J=evening_approved_volume, K=evening_issued_volume, M=office
+            query_formula = f'=QUERY(Reports!A:M, "SELECT A, B, D, G, E, L, H, I, J, K WHERE M = \'{office}\' ORDER BY A DESC", 0)'
+            sheet.update([[query_formula]], range_name="A2")
             
             print(f"✅ Настроен лист '{office}' с формулой QUERY")
     
@@ -57,13 +58,13 @@ def setup_office_sheets() -> None:
         
         # HQ summary headers
         headers = [
-            "Офис", "Период", "Менеджеров", 
-            "План перезвоны", "Факт перезвоны", "% перезвоны",
-            "План новые", "Факт новые", "% новые",
+            "Офис", "Менеджеров", 
+            "План перезвоны", "Факт перезвоны",
+            "План новые", "Факт новые",
             "Заявки шт", "Заявки млн", "Одобрено млн", "Выдано млн"
         ]
-        hq_sheet.update("A1:M1", [headers])
-        hq_sheet.format("A1:M1", {
+        hq_sheet.update([headers], range_name="A1:J1")
+        hq_sheet.format("A1:J1", {
             "backgroundColor": {"red": 0.85, "green": 0.92, "blue": 0.83},
             "textFormat": {"bold": True, "fontSize": 12},
             "horizontalAlignment": "CENTER",
