@@ -156,7 +156,7 @@ class DataAggregatorService:
             # Return empty dict on any error
             return {}
 
-    async def get_daily_series(self, start_date: date, end_date: date) -> List[Dict[str, float]]:
+    async def get_daily_series(self, start_date: date, end_date: date, office_filter: Optional[str] = None) -> List[Dict[str, float]]:
         """Aggregate daily totals for the given period for charts.
         Returns list of dicts sorted by date with keys: date, calls_fact, new_calls, leads_units_fact,
         leads_volume_plan, leads_volume_fact, approved_volume, issued_volume.
@@ -177,6 +177,11 @@ class DataAggregatorService:
 
             for record in all_records:
                 record = {str(k).strip().lower(): v for k, v in record.items()}
+                # Filter by office if provided
+                if office_filter:
+                    rec_office = str(record.get('office', '')).strip()
+                    if rec_office != office_filter:
+                        continue
                 date_str = str(record.get('date', '')).strip()
                 if not date_str:
                     continue

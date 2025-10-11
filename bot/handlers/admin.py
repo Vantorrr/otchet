@@ -635,7 +635,7 @@ async def cb_presentation_office(query: types.CallbackQuery) -> None:
             await query.answer()
             return
         
-        pptx_bytes = await presentation_service.generate_presentation(period_data, period_name, start, end, prev_data or {}, prev_start, prev_end)
+        pptx_bytes = await presentation_service.generate_presentation(period_data, period_name, start, end, prev_data or {}, prev_start, prev_end, office_filter=office)
         document = types.BufferedInputFile(pptx_bytes, filename=f"Отчет_{office or 'Все'}_{start.strftime('%Y%m%d')}_{end.strftime('%Y%m%d')}.pptx")
         await query.message.answer_document(document, caption=f"📊 {period_name}\n🤖 Презентация готова!")
         try:

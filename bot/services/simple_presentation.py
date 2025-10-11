@@ -59,6 +59,7 @@ class SimplePresentationService:
         prev_data: Dict,
         prev_start: date,
         prev_end: date,
+        office_filter: str | None = None,
     ) -> bytes:
         """Generate presentation with title + one slide per manager + team summary."""
         prs = Presentation()
@@ -83,7 +84,7 @@ class SimplePresentationService:
         await self._add_leads_overview_slide(prs, period_data, prev_data, prev_q_team_weekly, margin, period_name, start_date, end_date)
 
         # Slide 4: Calls trend (line chart only)
-        await self._add_calls_trend_slide(prs, period_data, margin, period_name, start_date, end_date)
+        await self._add_calls_trend_slide(prs, period_data, margin, period_name, start_date, end_date, office_filter)
         
         # Slide 5: TOP-2 leaders with detailed AI commentary
         await self._add_top2_leaders_slide(prs, period_data, prev_q_team_weekly, margin, period_name, start_date, end_date)
@@ -616,7 +617,7 @@ class SimplePresentationService:
         except Exception:
             pass
 
-    async def _add_calls_trend_slide(self, prs, period_data, margin, period_name, start_date, end_date):
+    async def _add_calls_trend_slide(self, prs, period_data, margin, period_name, start_date, end_date, office_filter: str | None):
         """Slide 4: Daily calls trend charts (team 2-line + manager multi-line)."""
         slide = prs.slides.add_slide(prs.slide_layouts[6])
         self._add_logo(slide, prs)
@@ -628,7 +629,7 @@ class SimplePresentationService:
         # Daily series
         container = Container.get()
         aggregator = DataAggregatorService(container.sheets)
-        daily = await aggregator.get_daily_series(start_date, end_date)
+        daily = await aggregator.get_daily_series(start_date, end_date, office_filter=office_filter)
         dates = [d['date'] for d in daily]
         calls = [d.get('calls_fact', 0) for d in daily]
         new_calls = [d.get('new_calls', 0) for d in daily]
@@ -661,6 +662,8 @@ class SimplePresentationService:
             all_records = container.sheets._reports.get_all_records()
             for rec in all_records:
                 rec = {str(k).strip().lower(): v for k,v in rec.items()}
+                if office_filter and str(rec.get('office','')).strip() != office_filter:
+                    continue
                 date_str = str(rec.get('date','')).strip()
                 if not date_str: continue
                 d = aggregator._parse_record_date(date_str)
