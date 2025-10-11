@@ -78,7 +78,7 @@ async def callback_morning_report(callback: types.CallbackQuery, state: FSMConte
         return
     
     container = Container.get()
-    manager = container.sheets.get_manager_by_topic(callback.message.message_thread_id)
+    manager = container.sheets.get_manager_by_topic(callback.message.chat.id, callback.message.message_thread_id)
     if not manager:
         await callback.answer("Тема не привязана к менеджеру")
         return
@@ -124,7 +124,7 @@ async def callback_evening_report(callback: types.CallbackQuery, state: FSMConte
         return
     
     container = Container.get()
-    manager = container.sheets.get_manager_by_topic(callback.message.message_thread_id)
+    manager = container.sheets.get_manager_by_topic(callback.message.chat.id, callback.message.message_thread_id)
     if not manager:
         await callback.answer("Тема не привязана к менеджеру")
         return
@@ -145,7 +145,7 @@ async def callback_summary_today(callback: types.CallbackQuery) -> None:
     day = date_str_for_today(container.settings)
     summary_text = build_summary_text(container.settings, container.sheets, day)
     
-    summary_topic_id = container.sheets.get_summary_topic_id()
+    summary_topic_id = container.sheets.get_summary_topic_id(callback.message.chat.id)
     if summary_topic_id and callback.message.chat.type == ChatType.SUPERGROUP:
         await callback.bot.send_message(
             chat_id=callback.message.chat.id,
