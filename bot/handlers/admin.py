@@ -52,7 +52,7 @@ async def cmd_bind_manager(message: types.Message) -> None:
         return
     manager = args[1].strip()
     container = Container.get()
-    container.sheets.set_manager_binding(message.message_thread_id, manager)
+    container.sheets.set_manager_binding(message.chat.id, message.message_thread_id, manager)
     await message.reply(f"Тема привязана к менеджеру: {manager}")
 
 
@@ -62,7 +62,7 @@ async def cmd_set_summary_topic(message: types.Message) -> None:
         await message.reply("Команда должна выполняться внутри темы.")
         return
     container = Container.get()
-    container.sheets.set_summary_topic(message.message_thread_id)
+    container.sheets.set_summary_topic(message.chat.id, message.message_thread_id)
     await message.reply("Эта тема установлена для сводки.")
 
 
@@ -73,8 +73,8 @@ async def cmd_menu(message: types.Message) -> None:
         return
     
     container = Container.get()
-    manager = container.sheets.get_manager_by_topic(message.message_thread_id)
-    summary_topic_id = container.sheets.get_summary_topic_id()
+    manager = container.sheets.get_manager_by_topic(message.chat.id, message.message_thread_id)
+    summary_topic_id = container.sheets.get_summary_topic_id(message.chat.id)
     
     if manager:
         # Тема менеджера
@@ -542,7 +542,7 @@ async def cmd_remind_now(message: types.Message) -> None:
     sent = 0
     for binding in container.sheets._bindings.get_all_records():
         topic_id_raw = str(binding.get("topic_id", "")).strip()
-        if not topic_id_raw.isdigit():
+        if str(binding.get("chat_id")) != str(chat_id) or not topic_id_raw.isdigit():
             continue
         topic_id = int(topic_id_raw)
         manager = binding.get("manager")

@@ -27,7 +27,7 @@ REPORT_HEADERS = [
     "evening_new_calls",
 ]
 
-BINDINGS_HEADERS = ["topic_id", "manager"]
+BINDINGS_HEADERS = ["chat_id", "topic_id", "manager"]
 CONFIG_HEADERS = ["key", "value"]
 
 
@@ -92,38 +92,60 @@ class SheetsClient:
             return ws
 
     # Bindings
-    def set_manager_binding(self, topic_id: int, manager: str) -> None:
+    def set_manager_binding(self, chat_id: int, topic_id: int, manager: str) -> None:
         records = self._bindings.get_all_records()
-        # Update if exists
+        # Update if exists (match by chat_id + topic_id)
         updated = False
         for idx, row in enumerate(records, start=2):
-            if str(row.get("topic_id")) == str(topic_id):
-                self._bindings.update_cell(idx, 2, manager)
+            if str(row.get("chat_id")) == str(chat_id) and str(row.get("topic_id")) == str(topic_id):
+                # Column order may vary; find indices by header names
+                headers = self._bindings.row_values(1)
+                try:
+                    manager_col = headers.index("manager") + 1
+                    self._bindings.update_cell(idx, manager_col, manager)
+                except Exception:
+                    # Fallback to col 3 assuming default order [chat_id, topic_id, manager]
+                    self._bindings.update_cell(idx, 3, manager)
                 updated = True
                 break
         if not updated:
-            self._bindings.append_row([str(topic_id), manager])
+            self._bindings.append_row([str(chat_id), str(topic_id), manager])
 
-    def get_manager_by_topic(self, topic_id: int) -> Optional[str]:
+    def get_manager_by_topic(self, chat_id: int, topic_id: int) -> Optional[str]:
         records = self._bindings.get_all_records()
         for row in records:
-            if str(row.get("topic_id")) == str(topic_id):
+            if str(row.get("chat_id")) == str(chat_id) and str(row.get("topic_id")) == str(topic_id):
                 return str(row.get("manager")) if row.get("manager") else None
         return None
 
-    def set_summary_topic(self, topic_id: int) -> None:
-        self._set_config("summary_topic_id", str(topic_id))
+    def set_summary_topic(self, chat_id: int, topic_id: int) -> None:
+        self._set_config(f"summary_topic_id:{chat_id}", str(topic_id))
 
-    def get_summary_topic_id(self) -> Optional[int]:
-        value = self._get_config("summary_topic_id")
+    def get_summary_topic_id(self, chat_id: int) -> Optional[int]:
+        value = self._get_config(f"summary_topic_id:{chat_id}")
         return int(value) if value else None
 
     def set_group_chat_id(self, chat_id: int) -> None:
-        self._set_config("group_chat_id", str(chat_id))
+        """Register this group chat id. Supports multiple offices: stores per-chat key."""
+        self._set_config(f"group_chat_id:{chat_id}", str(chat_id))
 
     def get_group_chat_id(self) -> Optional[int]:
-        value = self._get_config("group_chat_id")
-        return int(value) if value else None
+        """Backward-compat: return any one chat_id if present (e.g., the first)."""
+        ids = self.get_all_group_chat_ids()
+        return ids[0] if ids else None
+
+    def get_all_group_chat_ids(self) -> List[int]:
+        records = self._config.get_all_records()
+        result: List[int] = []
+        for row in records:
+            key = str(row.get("key", ""))
+            if key.startswith("group_chat_id:"):
+                try:
+                    result.append(int(row.get("value")))
+                except Exception:
+                    continue
+        # de-duplicate
+        return sorted(list({x for x in result}))
 
     def _set_config(self, key: str, value: str) -> None:
         records = self._config.get_all_records()
