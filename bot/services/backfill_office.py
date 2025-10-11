@@ -27,6 +27,8 @@ def backfill_office_column() -> None:
         "Чертыковцев": "Савела",
         "Воробьев": "Савела",
         "test": "Савела",
+        # Батурлов
+        "Ефросинин": "Батурлов",
         # Add other offices' managers as they come
     }
     
@@ -48,19 +50,15 @@ def backfill_office_column() -> None:
         manager = str(record.get('manager', '')).strip()
         current_office = str(record.get('office', '')).strip()
         
-        # Skip if office already filled
-        if current_office:
-            continue
-        
-        # Determine office by manager
-        office = manager_to_office.get(manager, "Савела")  # default to Савела for unknown
-        
-        # Prepare update (row, col, value)
-        updates.append({
-            'range': f'{chr(64 + office_col_idx)}{idx}',
-            'values': [[office]]
-        })
-        updated_count += 1
+        # Determine correct office by manager (default сохраняем прежний)
+        target_office = manager_to_office.get(manager, current_office or "")
+        # Update if empty или неверно проставлено
+        if target_office and target_office != current_office:
+            updates.append({
+                'range': f'{chr(64 + office_col_idx)}{idx}',
+                'values': [[target_office]]
+            })
+            updated_count += 1
         
         # Batch update every 100 rows
         if len(updates) >= 100:
