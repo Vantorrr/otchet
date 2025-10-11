@@ -365,6 +365,55 @@ async def callback_admin_reminders(callback: types.CallbackQuery) -> None:
     await callback.answer()
 
 
+@callbacks_router.callback_query(F.data.in_({"admin_remind_all_morning", "admin_remind_all_evening"}))
+async def callback_admin_reminders_all(callback: types.CallbackQuery) -> None:
+    # Доступно только в HQ: рассылает напоминания всем офисам
+    if not callback.message:
+        await callback.answer("Ошибка")
+        return
+    from bot.offices_config import is_hq
+    if not is_hq(callback.message.chat.id):
+        await callback.answer("Доступно только в HQ", show_alert=False)
+        return
+    container = Container.get()
+    mode = "morning" if callback.data == "admin_remind_all_morning" else "evening"
+    from bot.keyboards.main import get_main_menu_keyboard
+    sent = 0
+    total = 0
+    all_chat_ids = container.sheets.get_all_group_chat_ids()
+    for chat_id in all_chat_ids:
+        if is_hq(chat_id):
+            continue
+        for binding in container.sheets._bindings.get_all_records():
+            if str(binding.get("chat_id")) != str(chat_id):
+                continue
+            topic_id_raw = str(binding.get("topic_id", "")).strip()
+            if not topic_id_raw.isdigit():
+                continue
+            topic_id = int(topic_id_raw)
+            manager = binding.get("manager")
+            if not (topic_id and manager):
+                continue
+            text = (
+                f"🌅 Утреннее напоминание для <b>{manager}</b>\nВремя заполнить утренний отчет!"
+                if mode == "morning"
+                else f"🌆 Вечернее напоминание для <b>{manager}</b>\nВремя заполнить вечерний отчет!"
+            )
+            try:
+                await callback.bot.send_message(
+                    chat_id,
+                    text,
+                    message_thread_id=topic_id,
+                    reply_markup=get_main_menu_keyboard(),
+                )
+                sent += 1
+            except Exception:
+                continue
+            total += 1
+    await callback.message.answer(f"✅ Отправлено напоминаний: {sent}/{total} ({mode}).")
+    await callback.answer()
+
+
 @callbacks_router.callback_query(F.data == "presentation_week")
 async def callback_presentation_week(callback: types.CallbackQuery) -> None:
     """Generate weekly AI presentation."""
