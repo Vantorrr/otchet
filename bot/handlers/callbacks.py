@@ -337,7 +337,9 @@ async def callback_admin_reminders(callback: types.CallbackQuery) -> None:
     from bot.keyboards.main import get_main_menu_keyboard
     sent = 0
     for binding in container.sheets._bindings.get_all_records():
-        if str(binding.get("chat_id")) != str(chat_id):
+        bind_chat = str(binding.get("chat_id", "")).strip()
+        # Поддержка старых записей без chat_id: считаем их текущим чатом
+        if bind_chat and bind_chat != str(chat_id):
             continue
         topic_id_raw = str(binding.get("topic_id", "")).strip()
         if not topic_id_raw.isdigit():
