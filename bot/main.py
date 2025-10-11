@@ -91,33 +91,42 @@ async def main() -> None:
                 logging.getLogger(__name__).info("Morning reminder skipped: quiet hours")
                 return
             container = Container.get()
-            chat_id = container.sheets.get_group_chat_id()
-            if not chat_id:
-                logging.getLogger(__name__).warning("Morning reminder: group_chat_id is not set")
-                return
-            # Send menu to each manager topic
+            # Iterate through all office chats, skip HQ
+            from bot.offices_config import is_hq
             from bot.keyboards.main import get_main_menu_keyboard
-            records = container.sheets._bindings.get_all_records()
-            sent = 0
+            all_chat_ids = container.sheets.get_all_group_chat_ids()
+            if not all_chat_ids:
+                logging.getLogger(__name__).warning("Morning reminder: no group_chat_ids configured")
+                return
             total = 0
-            for binding in records:
-                topic_id_raw = str(binding.get("topic_id", "")).strip()
-                if not topic_id_raw.isdigit():
-                    continue
-                topic_id = int(topic_id_raw)
-                manager = binding.get("manager")
-                if topic_id and manager:
+            sent = 0
+            records = container.sheets._bindings.get_all_records()
+            for chat_id in all_chat_ids:
+                if is_hq(chat_id):
+                    continue  # do not send reminders in HQ
+                for binding in records:
+                    if str(binding.get("chat_id")) != str(chat_id):
+                        continue
+                    topic_id_raw = str(binding.get("topic_id", "")).strip()
+                    if not topic_id_raw.isdigit():
+                        continue
+                    topic_id = int(topic_id_raw)
+                    manager = binding.get("manager")
+                    if not (topic_id and manager):
+                        continue
                     total += 1
                     try:
                         await bot.send_message(
-                            chat_id, 
-                            f"🌅 Утреннее напоминание для <b>{manager}</b>\nВремя заполнить утренний отчет!", 
+                            chat_id,
+                            f"🌅 Утреннее напоминание для <b>{manager}</b>\nВремя заполнить утренний отчет!",
                             message_thread_id=topic_id,
-                            reply_markup=get_main_menu_keyboard()
+                            reply_markup=get_main_menu_keyboard(),
                         )
                         sent += 1
                     except Exception as err:
-                        logging.getLogger(__name__).warning(f"Failed to send morning reminder to {manager} (topic {topic_id}): {err}")
+                        logging.getLogger(__name__).warning(
+                            f"Failed to send morning reminder to {manager} (chat {chat_id}, topic {topic_id}): {err}"
+                        )
             logging.getLogger(__name__).info("Morning reminder sent: %d/%d", sent, total)
         except Exception as e:
             logging.getLogger(__name__).warning(f"Morning reminder error: {e}")
@@ -131,33 +140,41 @@ async def main() -> None:
                 logging.getLogger(__name__).info("Evening reminder skipped: quiet hours")
                 return
             container = Container.get()
-            chat_id = container.sheets.get_group_chat_id()
-            if not chat_id:
-                logging.getLogger(__name__).warning("Evening reminder: group_chat_id is not set")
-                return
-            # Send menu to each manager topic
+            from bot.offices_config import is_hq
             from bot.keyboards.main import get_main_menu_keyboard
-            records = container.sheets._bindings.get_all_records()
-            sent = 0
+            all_chat_ids = container.sheets.get_all_group_chat_ids()
+            if not all_chat_ids:
+                logging.getLogger(__name__).warning("Evening reminder: no group_chat_ids configured")
+                return
             total = 0
-            for binding in records:
-                topic_id_raw = str(binding.get("topic_id", "")).strip()
-                if not topic_id_raw.isdigit():
-                    continue
-                topic_id = int(topic_id_raw)
-                manager = binding.get("manager")
-                if topic_id and manager:
+            sent = 0
+            records = container.sheets._bindings.get_all_records()
+            for chat_id in all_chat_ids:
+                if is_hq(chat_id):
+                    continue  # do not send reminders in HQ
+                for binding in records:
+                    if str(binding.get("chat_id")) != str(chat_id):
+                        continue
+                    topic_id_raw = str(binding.get("topic_id", "")).strip()
+                    if not topic_id_raw.isdigit():
+                        continue
+                    topic_id = int(topic_id_raw)
+                    manager = binding.get("manager")
+                    if not (topic_id and manager):
+                        continue
                     total += 1
                     try:
                         await bot.send_message(
-                            chat_id, 
-                            f"🌆 Вечернее напоминание для <b>{manager}</b>\nВремя заполнить вечерний отчет!", 
+                            chat_id,
+                            f"🌆 Вечернее напоминание для <b>{manager}</b>\nВремя заполнить вечерний отчет!",
                             message_thread_id=topic_id,
-                            reply_markup=get_main_menu_keyboard()
+                            reply_markup=get_main_menu_keyboard(),
                         )
                         sent += 1
                     except Exception as err:
-                        logging.getLogger(__name__).warning(f"Failed to send evening reminder to {manager} (topic {topic_id}): {err}")
+                        logging.getLogger(__name__).warning(
+                            f"Failed to send evening reminder to {manager} (chat {chat_id}, topic {topic_id}): {err}"
+                        )
             logging.getLogger(__name__).info("Evening reminder sent: %d/%d", sent, total)
         except Exception as e:
             logging.getLogger(__name__).warning(f"Evening reminder error: {e}")
