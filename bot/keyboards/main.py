@@ -19,9 +19,6 @@ def get_admin_menu_keyboard(is_hq: bool = False) -> InlineKeyboardMarkup:
     ]
     if is_hq:
         keyboard.append([InlineKeyboardButton(text="🏢 Управление офисами", callback_data="admin_section_offices")])
-        # Глобальные напоминания (только в HQ)
-        keyboard.append([InlineKeyboardButton(text="🌅 Напомнить всем (утро)", callback_data="admin_remind_all_morning")])
-        keyboard.append([InlineKeyboardButton(text="🌆 Напомнить всем (вечер)", callback_data="admin_remind_all_evening")])
     else:
         # Напоминания доступны только в офисных чатах, не в HQ
         keyboard.append([InlineKeyboardButton(text="🌅 Утреннее напоминание", callback_data="admin_remind_morning")])
