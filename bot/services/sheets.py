@@ -93,23 +93,49 @@ class SheetsClient:
 
     # Bindings
     def set_manager_binding(self, chat_id: int, topic_id: int, manager: str) -> None:
+        """Create or update binding row. Robust to header order changes."""
         records = self._bindings.get_all_records()
-        # Update if exists (match by chat_id + topic_id)
-        updated = False
+        headers = self._bindings.row_values(1)
+        # Ensure required headers exist (append if missing)
+        required = ["chat_id", "topic_id", "manager"]
+        missing = [h for h in required if h not in headers]
+        if missing:
+            new_headers = headers + missing
+            self._bindings.update("1:1", [new_headers])
+            headers = new_headers
+
+        def build_row(chat_id_val: str, topic_id_val: str, manager_val: str) -> list[str]:
+            row = [""] * len(headers)
+            def set_val(key: str, val: str) -> None:
+                try:
+                    i = headers.index(key)
+                    row[i] = val
+                except ValueError:
+                    pass
+            set_val("chat_id", chat_id_val)
+            set_val("topic_id", topic_id_val)
+            set_val("manager", manager_val)
+            return row
+
+        # Try to update existing row (match by chat_id + topic_id)
         for idx, row in enumerate(records, start=2):
             if str(row.get("chat_id")) == str(chat_id) and str(row.get("topic_id")) == str(topic_id):
-                # Column order may vary; find indices by header names
-                headers = self._bindings.row_values(1)
-                try:
-                    manager_col = headers.index("manager") + 1
-                    self._bindings.update_cell(idx, manager_col, manager)
-                except Exception:
-                    # Fallback to col 3 assuming default order [chat_id, topic_id, manager]
-                    self._bindings.update_cell(idx, 3, manager)
-                updated = True
-                break
-        if not updated:
-            self._bindings.append_row([str(chat_id), str(topic_id), manager])
+                values = build_row(str(chat_id), str(topic_id), manager)
+                # Compute end column letter
+                end_col_idx = len(headers)
+                def idx_to_col(n: int) -> str:
+                    s = ""
+                    while n:
+                        n, r = divmod(n - 1, 26)
+                        s = chr(65 + r) + s
+                    return s
+                end_col = idx_to_col(end_col_idx)
+                self._bindings.update(f"A{idx}:{end_col}{idx}", [values])
+                return
+
+        # Append as new row, respecting header order
+        values = build_row(str(chat_id), str(topic_id), manager)
+        self._bindings.append_row(values)
 
     def get_manager_by_topic(self, chat_id: int, topic_id: int) -> Optional[str]:
         records = self._bindings.get_all_records()

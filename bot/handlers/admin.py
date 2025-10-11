@@ -94,8 +94,8 @@ async def cmd_menu(message: types.Message) -> None:
         # Неопределенная тема
         await message.reply(
             "Эта тема не настроена. Используйте:\n"
-            "• /bind_manager ФИО - для привязки к менеджеру\n"
-            "• /set_summary_topic - для темы сводки"
+            "• /bind_manager ФИО — привязать менеджера к ЭТОЙ теме\n"
+            "• /set_summary_topic — сделать ЭТУ тему темой сводки"
         )
 
 
