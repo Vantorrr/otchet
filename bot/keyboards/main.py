@@ -35,10 +35,12 @@ def get_admin_offices_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="📊 Офис 4", callback_data="summary_office4")],
         [InlineKeyboardButton(text="📊 Санжаровский", callback_data="summary_sanzharovsky")],
         [InlineKeyboardButton(text="📊 Батурлов", callback_data="summary_baturlov")],
+        [InlineKeyboardButton(text="📊 Савела", callback_data="summary_savela")],
         [InlineKeyboardButton(text="🤖 Презентация: Все офисы", callback_data="presentation_all_offices")],
         [InlineKeyboardButton(text="🤖 Презентация: Офис 4", callback_data="presentation_office4")],
         [InlineKeyboardButton(text="🤖 Презентация: Санжаровский", callback_data="presentation_sanzharovsky")],
         [InlineKeyboardButton(text="🤖 Презентация: Батурлов", callback_data="presentation_baturlov")],
+        [InlineKeyboardButton(text="🤖 Презентация: Савела", callback_data="presentation_savela")],
         [InlineKeyboardButton(text="📈 Сравнить офисы", callback_data="compare_offices")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)

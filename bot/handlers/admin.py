@@ -586,7 +586,7 @@ async def cb_admin_back(query: types.CallbackQuery) -> None:
 
 
 # Office-specific presentation handlers
-@admin_router.callback_query(F.data.in_(["presentation_office4", "presentation_sanzharovsky", "presentation_baturlov", "presentation_all_offices"]))
+@admin_router.callback_query(F.data.in_(["presentation_office4", "presentation_sanzharovsky", "presentation_baturlov", "presentation_savela", "presentation_all_offices"]))
 async def cb_presentation_office(query: types.CallbackQuery) -> None:
     # Early ack to avoid Telegram timeout on long generation
     try:
@@ -597,6 +597,7 @@ async def cb_presentation_office(query: types.CallbackQuery) -> None:
         "presentation_office4": "Офис 4",
         "presentation_sanzharovsky": "Санжаровский",
         "presentation_baturlov": "Батурлов",
+        "presentation_savela": "Савела",
         "presentation_all_offices": None  # All offices
     }
     office = office_map.get(query.data)
@@ -650,7 +651,7 @@ async def cb_presentation_office(query: types.CallbackQuery) -> None:
 
 
 # Office-specific summary handlers
-@admin_router.callback_query(F.data.in_(["summary_office4", "summary_sanzharovsky", "summary_baturlov", "summary_all_offices"]))
+@admin_router.callback_query(F.data.in_(["summary_office4", "summary_sanzharovsky", "summary_baturlov", "summary_savela", "summary_all_offices"]))
 async def cb_summary_office(query: types.CallbackQuery) -> None:
     # Early ack to avoid Telegram timeout on longer aggregations
     try:
@@ -661,6 +662,7 @@ async def cb_summary_office(query: types.CallbackQuery) -> None:
         "summary_office4": "Офис 4",
         "summary_sanzharovsky": "Санжаровский",
         "summary_baturlov": "Батурлов",
+        "summary_savela": "Савела",
         "summary_all_offices": None  # All offices
     }
     office = office_map.get(query.data)
@@ -740,7 +742,7 @@ async def cb_compare_offices(query: types.CallbackQuery) -> None:
         start = _dt.strptime(start_str, "%Y-%m-%d").date()
         end = _dt.strptime(end_str, "%Y-%m-%d").date()
         
-        offices = ["Офис 4", "Санжаровский", "Батурлов"]
+        offices = ["Офис 4", "Санжаровский", "Батурлов", "Савела"]
         response = f"📈 Сравнение офисов: {start.strftime('%d.%m')}—{end.strftime('%d.%m.%Y')}\n\n"
         
         office_stats = []
