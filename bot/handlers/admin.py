@@ -588,6 +588,11 @@ async def cb_admin_back(query: types.CallbackQuery) -> None:
 # Office-specific presentation handlers
 @admin_router.callback_query(F.data.in_(["presentation_office4", "presentation_sanzharovsky", "presentation_baturlov", "presentation_all_offices"]))
 async def cb_presentation_office(query: types.CallbackQuery) -> None:
+    # Early ack to avoid Telegram timeout on long generation
+    try:
+        await query.answer("⏳ Генерирую презентацию…", show_alert=False)
+    except Exception:
+        pass
     office_map = {
         "presentation_office4": "Офис 4",
         "presentation_sanzharovsky": "Санжаровский",
@@ -632,15 +637,26 @@ async def cb_presentation_office(query: types.CallbackQuery) -> None:
         pptx_bytes = await presentation_service.generate_presentation(period_data, period_name, start, end, prev_data or {}, prev_start, prev_end)
         document = types.BufferedInputFile(pptx_bytes, filename=f"Отчет_{office or 'Все'}_{start.strftime('%Y%m%d')}_{end.strftime('%Y%m%d')}.pptx")
         await query.message.answer_document(document, caption=f"📊 {period_name}\n🤖 Презентация готова!")
-        await query.answer()
+        try:
+            await query.answer()
+        except Exception:
+            pass
     except Exception as e:
         await query.message.answer(f"❌ Ошибка: {str(e)}")
-        await query.answer()
+        try:
+            await query.answer()
+        except Exception:
+            pass
 
 
 # Office-specific summary handlers
 @admin_router.callback_query(F.data.in_(["summary_office4", "summary_sanzharovsky", "summary_baturlov", "summary_all_offices"]))
 async def cb_summary_office(query: types.CallbackQuery) -> None:
+    # Early ack to avoid Telegram timeout on longer aggregations
+    try:
+        await query.answer("⏳ Считаю сводку…", show_alert=False)
+    except Exception:
+        pass
     office_map = {
         "summary_office4": "Офис 4",
         "summary_sanzharovsky": "Санжаровский",
@@ -694,15 +710,26 @@ async def cb_summary_office(query: types.CallbackQuery) -> None:
             response += f"{i}. {name}: {m.issued_volume:.1f} млн выдано\n"
         
         await query.message.answer(response)
-        await query.answer()
+        try:
+            await query.answer()
+        except Exception:
+            pass
     except Exception as e:
         await query.message.answer(f"❌ Ошибка: {str(e)}")
-        await query.answer()
+        try:
+            await query.answer()
+        except Exception:
+            pass
 
 
 # Compare offices
 @admin_router.callback_query(F.data == "compare_offices")
 async def cb_compare_offices(query: types.CallbackQuery) -> None:
+    # Early ack to avoid Telegram timeout
+    try:
+        await query.answer("⏳ Сравниваю офисы…", show_alert=False)
+    except Exception:
+        pass
     try:
         container = Container.get()
         aggregator = DataAggregatorService(container.sheets)
@@ -735,7 +762,13 @@ async def cb_compare_offices(query: types.CallbackQuery) -> None:
             response += f"   ✅ Выдано: {issued:.1f} млн\n\n"
         
         await query.message.answer(response)
-        await query.answer()
+        try:
+            await query.answer()
+        except Exception:
+            pass
     except Exception as e:
         await query.message.answer(f"❌ Ошибка: {str(e)}")
-        await query.answer()
+        try:
+            await query.answer()
+        except Exception:
+            pass
