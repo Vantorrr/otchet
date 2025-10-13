@@ -63,8 +63,17 @@ def build_summary_text(settings: Settings, sheets: SheetsClient, day: str, *, st
     
     # First filter by office if needed
     if office_filter:
+        # Debug: show what offices we have in data
+        offices_in_data = set(r.get("office", "NO_OFFICE") for r in all_records)
+        logger.info(f"Offices found in data: {sorted(offices_in_data)}")
+        
         all_records = [r for r in all_records if r.get("office") == office_filter]
         logger.info(f"Records after office filtering: {len(all_records)}")
+        
+        # Debug: show sample of filtered records
+        if all_records:
+            sample_managers = set(r.get("manager", "NO_MANAGER") for r in all_records[:10])
+            logger.info(f"Sample managers in filtered data: {sorted(sample_managers)}")
     
     # Then filter by date
     if start or end:
@@ -78,6 +87,14 @@ def build_summary_text(settings: Settings, sheets: SheetsClient, day: str, *, st
         title = f"📊 <b>Сводка за {day}</b>"
         if office_filter:
             title = f"📊 <b>Сводка ({office_filter}) за {day}</b>"
+    
+    logger.info(f"Records after date filtering: {len(reports)}")
+    if reports and office_filter:
+        # Show what offices and managers we have in final data
+        final_offices = set(r.get("office", "NO_OFFICE") for r in reports)
+        final_managers = set(r.get("manager", "NO_MANAGER") for r in reports)
+        logger.info(f"Final offices in reports: {sorted(final_offices)}")
+        logger.info(f"Final managers in reports: {sorted(final_managers)}")
 
     lines: List[str] = [title]
 

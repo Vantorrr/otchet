@@ -64,6 +64,11 @@ async def cmd_summary(message: types.Message, command: CommandObject) -> None:
     container = Container.get()
     day = parse_date_or_today(command.args, container.settings)
 
+    # Debug logging
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Summary command: chat_id={message.chat.id}, thread_id={message.message_thread_id}")
+    
     # Check if this is HQ
     if is_hq(message.chat.id):
         # For HQ - show office summary
@@ -71,9 +76,10 @@ async def cmd_summary(message: types.Message, command: CommandObject) -> None:
     else:
         # For regular offices - filter by office
         office_filter = get_office_by_chat_id(message.chat.id)
+        logger.info(f"Office filter: {office_filter}")
         if office_filter == "Unknown":
             office_filter = None
-        summary_text = build_summary_text(container.settings, container.sheets, day, office_filter=office_filter)
+        summary_text = build_summary_text(container.settings, container.sheets, day=day, office_filter=office_filter)
     parts = split_long_message(summary_text)
 
     # Если супергруппа и есть тема для сводок - публикуем туда
