@@ -104,15 +104,14 @@ async def main() -> None:
             for chat_id in all_chat_ids:
                 if is_hq(chat_id):
                     continue  # do not send reminders in HQ
+                # Deduplicate per chat to avoid double sends (legacy + new bindings)
+                seen: set[tuple[str, str]] = set()  # (manager, topic_id)
+                # Prefer new-style bindings with chat_id for this chat
                 for binding in records:
                     # Check new style bindings with chat_id
                     binding_chat_id = str(binding.get("chat_id", "")).strip()
-                    if binding_chat_id and binding_chat_id != str(chat_id):
+                    if not binding_chat_id or binding_chat_id != str(chat_id):
                         continue
-                    # For old bindings without chat_id, send to current chat
-                    if not binding_chat_id:
-                        # Old binding, will send to current chat_id
-                        pass
                     topic_id_raw = str(binding.get("topic_id", "")).strip()
                     if not topic_id_raw.isdigit():
                         continue
@@ -120,6 +119,39 @@ async def main() -> None:
                     manager = binding.get("manager")
                     if not (topic_id and manager):
                         continue
+                    key = (str(manager), str(topic_id))
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    total += 1
+                    try:
+                        await bot.send_message(
+                            chat_id,
+                            f"🌅 Утреннее напоминание для <b>{manager}</b>\nВремя заполнить утренний отчет!",
+                            message_thread_id=topic_id,
+                            reply_markup=get_main_menu_keyboard(),
+                        )
+                        sent += 1
+                    except Exception as err:
+                        logging.getLogger(__name__).warning(
+                            f"Failed to send morning reminder to {manager} (chat {chat_id}, topic {topic_id}): {err}"
+                        )
+                # Then process legacy bindings WITHOUT chat_id only for this chat, skipping duplicates
+                for binding in records:
+                    binding_chat_id = str(binding.get("chat_id", "")).strip()
+                    if binding_chat_id:
+                        continue  # legacy only
+                    topic_id_raw = str(binding.get("topic_id", "")).strip()
+                    if not topic_id_raw.isdigit():
+                        continue
+                    topic_id = int(topic_id_raw)
+                    manager = binding.get("manager")
+                    if not (topic_id and manager):
+                        continue
+                    key = (str(manager), str(topic_id))
+                    if key in seen:
+                        continue
+                    seen.add(key)
                     total += 1
                     try:
                         await bot.send_message(
@@ -158,15 +190,13 @@ async def main() -> None:
             for chat_id in all_chat_ids:
                 if is_hq(chat_id):
                     continue  # do not send reminders in HQ
+                seen: set[tuple[str, str]] = set()
+                # Prefer new-style bindings scoped to this chat
                 for binding in records:
                     # Check new style bindings with chat_id
                     binding_chat_id = str(binding.get("chat_id", "")).strip()
-                    if binding_chat_id and binding_chat_id != str(chat_id):
+                    if not binding_chat_id or binding_chat_id != str(chat_id):
                         continue
-                    # For old bindings without chat_id, send to current chat
-                    if not binding_chat_id:
-                        # Old binding, will send to current chat_id
-                        pass
                     topic_id_raw = str(binding.get("topic_id", "")).strip()
                     if not topic_id_raw.isdigit():
                         continue
@@ -174,6 +204,39 @@ async def main() -> None:
                     manager = binding.get("manager")
                     if not (topic_id and manager):
                         continue
+                    key = (str(manager), str(topic_id))
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    total += 1
+                    try:
+                        await bot.send_message(
+                            chat_id,
+                            f"🌆 Вечернее напоминание для <b>{manager}</b>\nВремя заполнить вечерний отчет!",
+                            message_thread_id=topic_id,
+                            reply_markup=get_main_menu_keyboard(),
+                        )
+                        sent += 1
+                    except Exception as err:
+                        logging.getLogger(__name__).warning(
+                            f"Failed to send evening reminder to {manager} (chat {chat_id}, topic {topic_id}): {err}"
+                        )
+                # Then process legacy bindings without chat_id
+                for binding in records:
+                    binding_chat_id = str(binding.get("chat_id", "")).strip()
+                    if binding_chat_id:
+                        continue
+                    topic_id_raw = str(binding.get("topic_id", "")).strip()
+                    if not topic_id_raw.isdigit():
+                        continue
+                    topic_id = int(topic_id_raw)
+                    manager = binding.get("manager")
+                    if not (topic_id and manager):
+                        continue
+                    key = (str(manager), str(topic_id))
+                    if key in seen:
+                        continue
+                    seen.add(key)
                     total += 1
                     try:
                         await bot.send_message(
