@@ -19,6 +19,7 @@ from bot.utils.time_utils import (
     start_end_of_quarter_today,
 )
 from bot.services.summary_builder import build_summary_text
+from bot.services.office_summary_builder import build_office_summary_text
 from bot.keyboards.main import (
     get_admin_menu_keyboard,
     get_admin_summaries_keyboard,
@@ -177,14 +178,16 @@ async def callback_summary_week(callback: types.CallbackQuery) -> None:
         container = Container.get()
         start, end = start_end_of_week_today(container.settings)
         
-        # Determine office filter for non-HQ chats
-        office_filter = None
-        if callback.message and callback.message.chat and not is_hq(callback.message.chat.id):
-            office_filter = get_office_by_chat_id(callback.message.chat.id)
+        # Check if this is HQ
+        if callback.message and callback.message.chat and is_hq(callback.message.chat.id):
+            # For HQ - show office summary
+            text = await build_office_summary_text(container.settings, container.sheets, start=start, end=end)
+        else:
+            # For regular offices - show manager details
+            office_filter = get_office_by_chat_id(callback.message.chat.id) if callback.message.chat else None
             if office_filter == "Unknown":
                 office_filter = None
-        
-        text = build_summary_text(container.settings, container.sheets, day=start, start=start, end=end, office_filter=office_filter)
+            text = build_summary_text(container.settings, container.sheets, day=start, start=start, end=end, office_filter=office_filter)
         
         # Разбиваем длинное сообщение на части
         parts = split_long_message(text)
@@ -215,14 +218,16 @@ async def callback_summary_month(callback: types.CallbackQuery) -> None:
         container = Container.get()
         start, end = start_end_of_month_today(container.settings)
         
-        # Determine office filter for non-HQ chats
-        office_filter = None
-        if callback.message and callback.message.chat and not is_hq(callback.message.chat.id):
-            office_filter = get_office_by_chat_id(callback.message.chat.id)
+        # Check if this is HQ
+        if callback.message and callback.message.chat and is_hq(callback.message.chat.id):
+            # For HQ - show office summary
+            text = await build_office_summary_text(container.settings, container.sheets, start=start, end=end)
+        else:
+            # For regular offices - show manager details
+            office_filter = get_office_by_chat_id(callback.message.chat.id) if callback.message.chat else None
             if office_filter == "Unknown":
                 office_filter = None
-        
-        text = build_summary_text(container.settings, container.sheets, day=start, start=start, end=end, office_filter=office_filter)
+            text = build_summary_text(container.settings, container.sheets, day=start, start=start, end=end, office_filter=office_filter)
         
         # Разбиваем длинное сообщение на части
         parts = split_long_message(text)
@@ -253,14 +258,16 @@ async def callback_summary_quarter(callback: types.CallbackQuery) -> None:
         container = Container.get()
         start, end = start_end_of_quarter_today(container.settings)
         
-        # Determine office filter for non-HQ chats
-        office_filter = None
-        if callback.message and callback.message.chat and not is_hq(callback.message.chat.id):
-            office_filter = get_office_by_chat_id(callback.message.chat.id)
+        # Check if this is HQ
+        if callback.message and callback.message.chat and is_hq(callback.message.chat.id):
+            # For HQ - show office summary
+            text = await build_office_summary_text(container.settings, container.sheets, start=start, end=end)
+        else:
+            # For regular offices - show manager details
+            office_filter = get_office_by_chat_id(callback.message.chat.id) if callback.message.chat else None
             if office_filter == "Unknown":
                 office_filter = None
-        
-        text = build_summary_text(container.settings, container.sheets, day=start, start=start, end=end, office_filter=office_filter)
+            text = build_summary_text(container.settings, container.sheets, day=start, start=start, end=end, office_filter=office_filter)
         
         # Разбиваем длинное сообщение на части
         parts = split_long_message(text)
