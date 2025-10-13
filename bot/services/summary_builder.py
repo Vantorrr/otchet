@@ -55,10 +55,18 @@ def _within(value: Any, start: Optional[str], end: Optional[str]) -> bool:
 def build_summary_text(settings: Settings, sheets: SheetsClient, day: str, *, start: str | None = None, end: str | None = None, office_filter: str | None = None) -> str:
     all_records = sheets._reports.get_all_records()
     
-    # Filter by office if needed
+    # Debug logging
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"build_summary_text called with office_filter={office_filter}")
+    logger.info(f"Total records before filtering: {len(all_records)}")
+    
+    # First filter by office if needed
     if office_filter:
         all_records = [r for r in all_records if r.get("office") == office_filter]
+        logger.info(f"Records after office filtering: {len(all_records)}")
     
+    # Then filter by date
     if start or end:
         reports: List[Dict[str, Any]] = [r for r in all_records if _within(r.get("date"), start, end)]
         title = f"📊 <b>Сводка за период {start} — {end}</b>"
