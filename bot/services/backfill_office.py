@@ -30,6 +30,7 @@ def backfill_office_column() -> None:
         "Ефросинин": "Батурлов",
         "test": "Батурлов",
         "Тест": "Батурлов",
+        "тест": "Батурлов",
         # Add other offices' managers as they come
     }
     
