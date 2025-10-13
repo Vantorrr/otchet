@@ -8,6 +8,8 @@ from aiogram.enums import ChatType
 from bot.services.di import Container
 from bot.utils.time_utils import parse_date_or_today
 from bot.services.summary_builder import build_summary_text
+from bot.services.office_summary_builder import build_office_summary_text
+from bot.offices_config import is_hq, get_office_by_chat_id
 
 summary_router = Router()
 
@@ -62,11 +64,20 @@ async def cmd_summary(message: types.Message, command: CommandObject) -> None:
     container = Container.get()
     day = parse_date_or_today(command.args, container.settings)
 
-    summary_text = build_summary_text(container.settings, container.sheets, day)
+    # Check if this is HQ
+    if is_hq(message.chat.id):
+        # For HQ - show office summary
+        summary_text = await build_office_summary_text(container.settings, container.sheets, start=day, end=day)
+    else:
+        # For regular offices - filter by office
+        office_filter = get_office_by_chat_id(message.chat.id)
+        if office_filter == "Unknown":
+            office_filter = None
+        summary_text = build_summary_text(container.settings, container.sheets, day, office_filter=office_filter)
     parts = split_long_message(summary_text)
 
     # Если супергруппа и есть тема для сводок - публикуем туда
-    summary_topic_id = container.sheets.get_summary_topic_id()
+    summary_topic_id = container.sheets.get_summary_topic_id(message.chat.id)
     if summary_topic_id and message.chat.type == ChatType.SUPERGROUP:
         for i, part in enumerate(parts):
             if i == 0:
