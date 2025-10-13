@@ -24,6 +24,7 @@ from bot.keyboards.main import (
     get_admin_summaries_keyboard,
     get_admin_ai_keyboard,
 )
+from bot.offices_config import get_office_by_chat_id, is_hq
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.filters.command import CommandObject
 
@@ -176,7 +177,14 @@ async def callback_summary_week(callback: types.CallbackQuery) -> None:
         container = Container.get()
         start, end = start_end_of_week_today(container.settings)
         
-        text = build_summary_text(container.settings, container.sheets, day=start, start=start, end=end)
+        # Determine office filter for non-HQ chats
+        office_filter = None
+        if callback.message and callback.message.chat and not is_hq(callback.message.chat.id):
+            office_filter = get_office_by_chat_id(callback.message.chat.id)
+            if office_filter == "Unknown":
+                office_filter = None
+        
+        text = build_summary_text(container.settings, container.sheets, day=start, start=start, end=end, office_filter=office_filter)
         
         # Разбиваем длинное сообщение на части
         parts = split_long_message(text)
@@ -206,7 +214,15 @@ async def callback_summary_month(callback: types.CallbackQuery) -> None:
     try:
         container = Container.get()
         start, end = start_end_of_month_today(container.settings)
-        text = build_summary_text(container.settings, container.sheets, day=start, start=start, end=end)
+        
+        # Determine office filter for non-HQ chats
+        office_filter = None
+        if callback.message and callback.message.chat and not is_hq(callback.message.chat.id):
+            office_filter = get_office_by_chat_id(callback.message.chat.id)
+            if office_filter == "Unknown":
+                office_filter = None
+        
+        text = build_summary_text(container.settings, container.sheets, day=start, start=start, end=end, office_filter=office_filter)
         
         # Разбиваем длинное сообщение на части
         parts = split_long_message(text)
@@ -236,7 +252,15 @@ async def callback_summary_quarter(callback: types.CallbackQuery) -> None:
     try:
         container = Container.get()
         start, end = start_end_of_quarter_today(container.settings)
-        text = build_summary_text(container.settings, container.sheets, day=start, start=start, end=end)
+        
+        # Determine office filter for non-HQ chats
+        office_filter = None
+        if callback.message and callback.message.chat and not is_hq(callback.message.chat.id):
+            office_filter = get_office_by_chat_id(callback.message.chat.id)
+            if office_filter == "Unknown":
+                office_filter = None
+        
+        text = build_summary_text(container.settings, container.sheets, day=start, start=start, end=end, office_filter=office_filter)
         
         # Разбиваем длинное сообщение на части
         parts = split_long_message(text)

@@ -140,8 +140,15 @@ class SheetsClient:
     def get_manager_by_topic(self, chat_id: int, topic_id: int) -> Optional[str]:
         records = self._bindings.get_all_records()
         for row in records:
+            # First, check for new style bindings with chat_id
             if str(row.get("chat_id")) == str(chat_id) and str(row.get("topic_id")) == str(topic_id):
                 return str(row.get("manager")) if row.get("manager") else None
+        
+        # If not found, check for legacy bindings without chat_id (empty or missing chat_id)
+        for row in records:
+            if (not row.get("chat_id") or str(row.get("chat_id")) == "") and str(row.get("topic_id")) == str(topic_id):
+                return str(row.get("manager")) if row.get("manager") else None
+        
         return None
 
     def set_summary_topic(self, chat_id: int, topic_id: int) -> None:

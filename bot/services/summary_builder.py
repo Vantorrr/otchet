@@ -52,16 +52,24 @@ def _within(value: Any, start: Optional[str], end: Optional[str]) -> bool:
     return True
 
 
-def build_summary_text(settings: Settings, sheets: SheetsClient, day: str, *, start: str | None = None, end: str | None = None) -> str:
+def build_summary_text(settings: Settings, sheets: SheetsClient, day: str, *, start: str | None = None, end: str | None = None, office_filter: str | None = None) -> str:
     all_records = sheets._reports.get_all_records()
+    
+    # Filter by office if needed
+    if office_filter:
+        all_records = [r for r in all_records if r.get("office") == office_filter]
     
     if start or end:
         reports: List[Dict[str, Any]] = [r for r in all_records if _within(r.get("date"), start, end)]
         title = f"📊 <b>Сводка за период {start} — {end}</b>"
+        if office_filter:
+            title = f"📊 <b>Сводка ({office_filter}) за период {start} — {end}</b>"
     else:
         # Используем ту же логику _within для одной даты
         reports: List[Dict[str, Any]] = [r for r in all_records if _within(r.get("date"), day, day)]
         title = f"📊 <b>Сводка за {day}</b>"
+        if office_filter:
+            title = f"📊 <b>Сводка ({office_filter}) за {day}</b>"
 
     lines: List[str] = [title]
 
