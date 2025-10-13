@@ -76,7 +76,21 @@ async def cmd_summary(message: types.Message, command: CommandObject) -> None:
     else:
         # For regular offices - filter by office
         office_filter = get_office_by_chat_id(message.chat.id)
-        logger.info(f"Office filter: {office_filter}")
+        chat_title = getattr(message.chat, "title", "") or ""
+        logger.info(f"Office filter by chat_id: {office_filter}; chat_id={message.chat.id}; title='{chat_title}'")
+
+        # Fallback: resolve by chat title if mapping unknown
+        if office_filter == "Unknown":
+            try:
+                from bot.offices_config import get_all_offices
+                for office_name in get_all_offices():
+                    if office_name.lower() in chat_title.lower():
+                        office_filter = office_name
+                        logger.info(f"Resolved office by title: {office_filter}")
+                        break
+            except Exception:
+                pass
+
         if office_filter == "Unknown":
             office_filter = None
         summary_text = build_summary_text(container.settings, container.sheets, day=day, office_filter=office_filter)
