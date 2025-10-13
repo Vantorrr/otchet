@@ -752,7 +752,21 @@ async def callback_tempo_check(callback: types.CallbackQuery) -> None:
         tempo_service = TempoAnalyticsService(container.sheets)
         
         # Get tempo alerts
-        alerts = await tempo_service.analyze_monthly_tempo()
+        office_filter = None
+        if callback.message and callback.message.chat and not is_hq(callback.message.chat.id):
+            from bot.offices_config import get_office_by_chat_id
+            office_filter = get_office_by_chat_id(callback.message.chat.id)
+            if office_filter == "Unknown":
+                # fallback by title (как у сводок)
+                chat_title = getattr(callback.message.chat, 'title', '') or ''
+                from bot.offices_config import get_all_offices
+                for office_name in get_all_offices():
+                    if office_name.lower() in chat_title.lower():
+                        office_filter = office_name
+                        break
+            if office_filter == "Unknown":
+                office_filter = None
+        alerts = await tempo_service.analyze_monthly_tempo(office_filter=office_filter)
         
         if not alerts:
             await callback.message.answer("✅ Все менеджеры работают в рамках плана!")

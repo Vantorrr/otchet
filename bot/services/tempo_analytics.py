@@ -33,7 +33,8 @@ class TempoAnalyticsService:
     
     async def analyze_monthly_tempo(
         self,
-        target_date: Optional[date] = None
+        target_date: Optional[date] = None,
+        office_filter: Optional[str] = None,
     ) -> List[TempoAlert]:
         """
         Analyze managers' tempo against monthly plans.
@@ -61,7 +62,7 @@ class TempoAnalyticsService:
         
         # Get actual data from sheets
         month_start = date(target_date.year, target_date.month, 1)
-        actual_data = await self._get_actual_data_for_period(month_start, target_date)
+        actual_data = await self._get_actual_data_for_period(month_start, target_date, office_filter=office_filter)
         
         # Analyze each manager
         alerts = []
@@ -265,7 +266,8 @@ class TempoAnalyticsService:
     async def _get_actual_data_for_period(
         self,
         start_date: date,
-        end_date: date
+        end_date: date,
+        office_filter: Optional[str] = None,
     ) -> Dict[str, Dict[str, float]]:
         """Get actual data from sheets for the specified period."""
         try:
@@ -279,6 +281,12 @@ class TempoAnalyticsService:
             for record in all_records:
                 try:
                     record = {str(k).strip().lower(): v for k, v in record.items()}
+                    # Filter by office if provided
+                    if office_filter:
+                        rec_office = str(record.get('office', '')).strip()
+                        if rec_office != office_filter:
+                            continue
+
                     # Parse date
                     date_str = str(record.get('date', '')).strip()
                     if not date_str:
