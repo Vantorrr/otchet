@@ -9,7 +9,7 @@ from bot.services.di import Container
 from bot.handlers.morning import MorningStates
 from bot.handlers.evening import EveningStates
 from bot.services.data_aggregator import DataAggregatorService
-from bot.services.presentation import PresentationService
+from bot.services.simple_presentation import SimplePresentationService
 from bot.services.tempo_analytics import TempoAnalyticsService
 from bot.utils.time_utils import (
     date_str_for_today,
@@ -460,10 +460,17 @@ async def callback_presentation_week(callback: types.CallbackQuery) -> None:
         
         # Initialize services
         aggregator = DataAggregatorService(container.sheets)
-        presentation_service = PresentationService(container.settings)
+        presentation_service = SimplePresentationService(container.settings)
+        
+        # Determine office filter for non-HQ chats
+        office_filter = None
+        if callback.message and callback.message.chat and not is_hq(callback.message.chat.id):
+            office_filter = get_office_by_chat_id(callback.message.chat.id)
+            if office_filter == "Unknown":
+                office_filter = None
         
         # Get weekly data (with previous for comparison)
-        period_data, previous_data, period_name, start_date, end_date, prev_start, prev_end = await aggregator.aggregate_weekly_data_with_previous()
+        period_data, previous_data, period_name, start_date, end_date, prev_start, prev_end = await aggregator.aggregate_weekly_data_with_previous(office_filter=office_filter)
         
         if not period_data:
             await callback.message.answer("❌ Нет данных за эту неделю.")
@@ -472,7 +479,7 @@ async def callback_presentation_week(callback: types.CallbackQuery) -> None:
         
         # Generate presentation
         pptx_bytes = await presentation_service.generate_presentation(
-            period_data, period_name, start_date, end_date, previous_data, prev_start, prev_end
+            period_data, previous_data, period_name, start_date, end_date, prev_start, prev_end, office_filter=office_filter
         )
         
         # Send as document
@@ -511,10 +518,17 @@ async def callback_presentation_month(callback: types.CallbackQuery) -> None:
         
         # Initialize services
         aggregator = DataAggregatorService(container.sheets)
-        presentation_service = PresentationService(container.settings)
+        presentation_service = SimplePresentationService(container.settings)
+        
+        # Determine office filter for non-HQ chats
+        office_filter = None
+        if callback.message and callback.message.chat and not is_hq(callback.message.chat.id):
+            office_filter = get_office_by_chat_id(callback.message.chat.id)
+            if office_filter == "Unknown":
+                office_filter = None
         
         # Get monthly data (with previous for comparison)
-        period_data, previous_data, period_name, start_date, end_date, prev_start, prev_end = await aggregator.aggregate_monthly_data_with_previous()
+        period_data, previous_data, period_name, start_date, end_date, prev_start, prev_end = await aggregator.aggregate_monthly_data_with_previous(office_filter=office_filter)
         
         if not period_data:
             await callback.message.answer("❌ Нет данных за этот месяц.")
@@ -523,7 +537,7 @@ async def callback_presentation_month(callback: types.CallbackQuery) -> None:
         
         # Generate presentation
         pptx_bytes = await presentation_service.generate_presentation(
-            period_data, period_name, start_date, end_date, previous_data, prev_start, prev_end
+            period_data, previous_data, period_name, start_date, end_date, prev_start, prev_end, office_filter=office_filter
         )
         
         # Send as document
@@ -562,10 +576,17 @@ async def callback_presentation_quarter(callback: types.CallbackQuery) -> None:
         
         # Initialize services
         aggregator = DataAggregatorService(container.sheets)
-        presentation_service = PresentationService(container.settings)
+        presentation_service = SimplePresentationService(container.settings)
+        
+        # Determine office filter for non-HQ chats
+        office_filter = None
+        if callback.message and callback.message.chat and not is_hq(callback.message.chat.id):
+            office_filter = get_office_by_chat_id(callback.message.chat.id)
+            if office_filter == "Unknown":
+                office_filter = None
         
         # Get quarterly data (with previous for comparison)
-        period_data, previous_data, period_name, start_date, end_date, prev_start, prev_end = await aggregator.aggregate_quarterly_data_with_previous()
+        period_data, previous_data, period_name, start_date, end_date, prev_start, prev_end = await aggregator.aggregate_quarterly_data_with_previous(office_filter=office_filter)
         
         if not period_data:
             await callback.message.answer("❌ Нет данных за этот квартал.")
@@ -574,7 +595,7 @@ async def callback_presentation_quarter(callback: types.CallbackQuery) -> None:
         
         # Generate presentation
         pptx_bytes = await presentation_service.generate_presentation(
-            period_data, period_name, start_date, end_date, previous_data, prev_start, prev_end
+            period_data, previous_data, period_name, start_date, end_date, prev_start, prev_end, office_filter=office_filter
         )
         
         # Send as document
