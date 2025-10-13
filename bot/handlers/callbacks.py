@@ -184,7 +184,25 @@ async def callback_summary_week(callback: types.CallbackQuery) -> None:
             text = await build_office_summary_text(container.settings, container.sheets, start=start, end=end)
         else:
             # For regular offices - show manager details
-            office_filter = get_office_by_chat_id(callback.message.chat.id) if callback.message.chat else None
+            office_filter = get_office_by_chat_id(callback.message.chat.id) if callback.message and callback.message.chat else None
+            # logging + fallbacks
+            import logging
+            logger = logging.getLogger(__name__)
+            chat_title = getattr(getattr(callback.message, "chat", None), "title", "") or ""
+            logger.info(f"[summary_week] Office filter by chat_id: {office_filter}; chat_id={callback.message.chat.id if callback.message else None}; title='{chat_title}'")
+            if office_filter == "Unknown":
+                try:
+                    from bot.offices_config import get_all_offices
+                    for office_name in get_all_offices():
+                        if office_name.lower() in chat_title.lower():
+                            office_filter = office_name
+                            logger.info(f"[summary_week] Resolved office by title: {office_filter}")
+                            break
+                except Exception:
+                    pass
+            if office_filter in ("Unknown", None) and callback.message and callback.message.chat.id == -1002755506700:
+                office_filter = "Савела"
+                logger.info("[summary_week] Explicit fallback applied: office_filter='Савела'")
             if office_filter == "Unknown":
                 office_filter = None
             text = build_summary_text(container.settings, container.sheets, day=start, start=start, end=end, office_filter=office_filter)
@@ -224,7 +242,25 @@ async def callback_summary_month(callback: types.CallbackQuery) -> None:
             text = await build_office_summary_text(container.settings, container.sheets, start=start, end=end)
         else:
             # For regular offices - show manager details
-            office_filter = get_office_by_chat_id(callback.message.chat.id) if callback.message.chat else None
+            office_filter = get_office_by_chat_id(callback.message.chat.id) if callback.message and callback.message.chat else None
+            # logging + fallbacks
+            import logging
+            logger = logging.getLogger(__name__)
+            chat_title = getattr(getattr(callback.message, "chat", None), "title", "") or ""
+            logger.info(f"[summary_month] Office filter by chat_id: {office_filter}; chat_id={callback.message.chat.id if callback.message else None}; title='{chat_title}'")
+            if office_filter == "Unknown":
+                try:
+                    from bot.offices_config import get_all_offices
+                    for office_name in get_all_offices():
+                        if office_name.lower() in chat_title.lower():
+                            office_filter = office_name
+                            logger.info(f"[summary_month] Resolved office by title: {office_filter}")
+                            break
+                except Exception:
+                    pass
+            if office_filter in ("Unknown", None) and callback.message and callback.message.chat.id == -1002755506700:
+                office_filter = "Савела"
+                logger.info("[summary_month] Explicit fallback applied: office_filter='Савела'")
             if office_filter == "Unknown":
                 office_filter = None
             text = build_summary_text(container.settings, container.sheets, day=start, start=start, end=end, office_filter=office_filter)
@@ -264,7 +300,25 @@ async def callback_summary_quarter(callback: types.CallbackQuery) -> None:
             text = await build_office_summary_text(container.settings, container.sheets, start=start, end=end)
         else:
             # For regular offices - show manager details
-            office_filter = get_office_by_chat_id(callback.message.chat.id) if callback.message.chat else None
+            office_filter = get_office_by_chat_id(callback.message.chat.id) if callback.message and callback.message.chat else None
+            # logging + fallbacks
+            import logging
+            logger = logging.getLogger(__name__)
+            chat_title = getattr(getattr(callback.message, "chat", None), "title", "") or ""
+            logger.info(f"[summary_quarter] Office filter by chat_id: {office_filter}; chat_id={callback.message.chat.id if callback.message else None}; title='{chat_title}'")
+            if office_filter == "Unknown":
+                try:
+                    from bot.offices_config import get_all_offices
+                    for office_name in get_all_offices():
+                        if office_name.lower() in chat_title.lower():
+                            office_filter = office_name
+                            logger.info(f"[summary_quarter] Resolved office by title: {office_filter}")
+                            break
+                except Exception:
+                    pass
+            if office_filter in ("Unknown", None) and callback.message and callback.message.chat.id == -1002755506700:
+                office_filter = "Савела"
+                logger.info("[summary_quarter] Explicit fallback applied: office_filter='Савела'")
             if office_filter == "Unknown":
                 office_filter = None
             text = build_summary_text(container.settings, container.sheets, day=start, start=start, end=end, office_filter=office_filter)
