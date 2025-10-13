@@ -128,6 +128,40 @@ async def cmd_summary(message: types.Message, command: CommandObject) -> None:
                 await message.answer(f"📄 Часть {i + 1}:\n\n{part}")
 
 
+@summary_router.message(Command("summary_savela"))
+async def cmd_summary_savela(message: types.Message, command: CommandObject) -> None:
+    """Хотфикс: сводка строго по офису Савела."""
+    container = Container.get()
+    day = parse_date_or_today(command.args, container.settings)
+
+    summary_text = build_summary_text(container.settings, container.sheets, day=day, office_filter="Савела")
+    parts = split_long_message(summary_text)
+
+    summary_topic_id = container.sheets.get_summary_topic_id(message.chat.id)
+    if summary_topic_id and message.chat.type == ChatType.SUPERGROUP:
+        for i, part in enumerate(parts):
+            if i == 0:
+                await message.bot.send_message(
+                    chat_id=message.chat.id,
+                    text=part,
+                    message_thread_id=summary_topic_id,
+                )
+            else:
+                await message.bot.send_message(
+                    chat_id=message.chat.id,
+                    text=f"📄 Часть {i + 1}:\n\n{part}",
+                    message_thread_id=summary_topic_id,
+                )
+        if message.message_thread_id != summary_topic_id:
+            await message.reply("Сводка опубликована в теме сводок.")
+        return
+
+    for i, part in enumerate(parts):
+        if i == 0:
+            await message.reply(part)
+        else:
+            await message.answer(f"📄 Часть {i + 1}:\n\n{part}")
+
 @summary_router.message(Command("summary_range"))
 async def cmd_summary_range(message: types.Message, command: CommandObject) -> None:
     container = Container.get()
