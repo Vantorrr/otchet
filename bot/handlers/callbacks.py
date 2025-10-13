@@ -145,7 +145,34 @@ async def callback_summary_today(callback: types.CallbackQuery) -> None:
     
     container = Container.get()
     day = date_str_for_today(container.settings)
-    summary_text = build_summary_text(container.settings, container.sheets, day)
+
+    # HQ: офисная сводка (по офисам)
+    if callback.message and callback.message.chat and is_hq(callback.message.chat.id):
+        summary_text = await build_office_summary_text(container.settings, container.sheets, start=day, end=day)
+    else:
+        # Офисы: фильтр по офису, как в /summary
+        office_filter = get_office_by_chat_id(callback.message.chat.id) if callback.message and callback.message.chat else None
+        # logging + fallbacks
+        import logging
+        logger = logging.getLogger(__name__)
+        chat_title = getattr(getattr(callback.message, "chat", None), "title", "") or ""
+        logger.info(f"[summary_today] Office filter by chat_id: {office_filter}; chat_id={callback.message.chat.id if callback.message else None}; title='{chat_title}'")
+        if office_filter == "Unknown":
+            try:
+                from bot.offices_config import get_all_offices
+                for office_name in get_all_offices():
+                    if office_name.lower() in chat_title.lower():
+                        office_filter = office_name
+                        logger.info(f"[summary_today] Resolved office by title: {office_filter}")
+                        break
+            except Exception:
+                pass
+        if office_filter in ("Unknown", None) and callback.message and callback.message.chat.id == -1002755506700:
+            office_filter = "Савела"
+            logger.info("[summary_today] Explicit fallback applied: office_filter='Савела'")
+        if office_filter == "Unknown":
+            office_filter = None
+        summary_text = build_summary_text(container.settings, container.sheets, day=day, office_filter=office_filter)
     
     summary_topic_id = container.sheets.get_summary_topic_id(callback.message.chat.id)
     if summary_topic_id and callback.message.chat.type == ChatType.SUPERGROUP:
