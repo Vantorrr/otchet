@@ -105,8 +105,14 @@ async def main() -> None:
                 if is_hq(chat_id):
                     continue  # do not send reminders in HQ
                 for binding in records:
-                    if str(binding.get("chat_id")) != str(chat_id):
+                    # Check new style bindings with chat_id
+                    binding_chat_id = str(binding.get("chat_id", "")).strip()
+                    if binding_chat_id and binding_chat_id != str(chat_id):
                         continue
+                    # For old bindings without chat_id, send to current chat
+                    if not binding_chat_id:
+                        # Old binding, will send to current chat_id
+                        pass
                     topic_id_raw = str(binding.get("topic_id", "")).strip()
                     if not topic_id_raw.isdigit():
                         continue
@@ -153,8 +159,14 @@ async def main() -> None:
                 if is_hq(chat_id):
                     continue  # do not send reminders in HQ
                 for binding in records:
-                    if str(binding.get("chat_id")) != str(chat_id):
+                    # Check new style bindings with chat_id
+                    binding_chat_id = str(binding.get("chat_id", "")).strip()
+                    if binding_chat_id and binding_chat_id != str(chat_id):
                         continue
+                    # For old bindings without chat_id, send to current chat
+                    if not binding_chat_id:
+                        # Old binding, will send to current chat_id
+                        pass
                     topic_id_raw = str(binding.get("topic_id", "")).strip()
                     if not topic_id_raw.isdigit():
                         continue
