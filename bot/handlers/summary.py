@@ -91,6 +91,11 @@ async def cmd_summary(message: types.Message, command: CommandObject) -> None:
             except Exception:
                 pass
 
+        # Explicit fallback for Savela chat_id if still unknown
+        if office_filter in ("Unknown", None) and message.chat.id == -1002755506700:
+            office_filter = "Савела"
+            logger.info("Explicit fallback applied: office_filter set to 'Савела' by chat_id match")
+
         if office_filter == "Unknown":
             office_filter = None
         summary_text = build_summary_text(container.settings, container.sheets, day=day, office_filter=office_filter)
