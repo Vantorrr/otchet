@@ -142,7 +142,14 @@ async def callback_summary_today(callback: types.CallbackQuery) -> None:
     if not callback.message:
         await callback.answer("Ошибка")
         return
-    
+    # Answer early to avoid Telegram timeout on long operations
+    try:
+        await callback.answer("Генерация началась")
+    except Exception:
+        pass
+
+    await callback.message.answer("🔄 Генерирую сводку...")
+
     container = Container.get()
     day = date_str_for_today(container.settings)
 
@@ -200,6 +207,8 @@ async def callback_summary_week(callback: types.CallbackQuery) -> None:
         await callback.answer("Генерация началась")
     except Exception:
         pass
+
+    await callback.message.answer("🔄 Генерирую сводку за неделю...")
 
     try:
         container = Container.get()
@@ -259,6 +268,8 @@ async def callback_summary_month(callback: types.CallbackQuery) -> None:
     except Exception:
         pass
 
+    await callback.message.answer("🔄 Генерирую сводку за месяц...")
+
     try:
         container = Container.get()
         start, end = start_end_of_month_today(container.settings)
@@ -316,6 +327,8 @@ async def callback_summary_quarter(callback: types.CallbackQuery) -> None:
         await callback.answer("Генерация началась")
     except Exception:
         pass
+
+    await callback.message.answer("🔄 Генерирую сводку за квартал...")
 
     try:
         container = Container.get()
