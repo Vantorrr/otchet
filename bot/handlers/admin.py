@@ -601,6 +601,10 @@ async def cb_presentation_office(query: types.CallbackQuery) -> None:
         "presentation_all_offices": None  # All offices
     }
     office = office_map.get(query.data)
+    
+    # Send status message
+    await query.message.answer("🔄 Генерирую презентацию...")
+    
     try:
         container = Container.get()
         aggregator = DataAggregatorService(container.sheets)
