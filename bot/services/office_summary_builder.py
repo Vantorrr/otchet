@@ -40,11 +40,11 @@ async def build_office_summary_text(
     for office in all_offices:
         office_data = await aggregator._aggregate_data_for_period(start_date, end_date, office_filter=office)
         if office_data:
-            # Calculate office totals
-            office_calls_plan = sum(m.calls_planned for m in office_data.values())
-            office_new_calls_plan = sum(m.new_calls_planned for m in office_data.values())
-            office_leads_plan_units = sum(m.leads_units_planned for m in office_data.values())
-            office_leads_plan_volume = sum(m.leads_volume_planned for m in office_data.values())
+            # Calculate office totals (fields from ManagerData in presentation.py)
+            office_calls_plan = sum(m.calls_plan for m in office_data.values())
+            office_new_calls_plan = sum(m.new_calls_plan for m in office_data.values())
+            office_leads_plan_units = sum(m.leads_units_plan for m in office_data.values())
+            office_leads_plan_volume = sum(m.leads_volume_plan for m in office_data.values())
             
             office_calls_fact = sum(m.calls_fact for m in office_data.values())
             office_new_calls = sum(m.new_calls for m in office_data.values())
