@@ -13,6 +13,7 @@ from bot.services.presentation import PresentationService
 from bot.services.google_slides import GoogleSlidesService
 from bot.services.tempo_analytics import TempoAnalyticsService
 from bot.keyboards.main import get_main_menu_keyboard, get_admin_menu_keyboard
+from bot.offices_config import get_office_by_chat_id
 from aiogram.types import CallbackQuery
 from aiogram.filters.command import CommandObject
 from bot.utils.time_utils import parse_date_or_today
@@ -129,15 +130,64 @@ async def msg_report_by_date_flow(message: types.Message) -> None:
             REPORT_FLOW_STATE.pop(key, None)
             container = Container.get()
             aggregator = DataAggregatorService(container.sheets)
-            from bot.services.simple_presentation import SimplePresentationService
-            presentation_service = SimplePresentationService(container.settings)
-            period_data, prev_data, period_name, start_date, end_date, prev_start, prev_end = await aggregator.aggregate_custom_with_previous(start, end)
-            if not period_data:
-                await message.reply("❌ Нет данных за этот период.")
-                return
-            pptx_bytes = await presentation_service.generate_presentation(period_data, period_name, start_date, end_date, prev_data, prev_start, prev_end)
-            document = types.BufferedInputFile(pptx_bytes, filename=f"Отчет_По_Активности_{start.strftime('%Y%m%d')}_{end.strftime('%Y%m%d')}.pptx")
-            await message.reply_document(document, caption=f"📊 {period_name}\n🤖 Простой отчёт готов!")
+            from bot.offices_config import is_hq, get_all_offices
+            
+            # Check if this is HQ
+            if is_hq(message.chat.id):
+                # For HQ - generate office summary instead of full presentation
+                all_offices = get_all_offices()
+                response = f"📊 Отчет по офисам: {start.strftime('%d.%m.%Y')}—{end.strftime('%d.%m.%Y')}\n\n"
+                
+                total_calls = 0
+                total_new = 0
+                total_leads = 0
+                total_volume = 0.0
+                total_issued = 0.0
+                
+                for office in all_offices:
+                    office_data = await aggregator._aggregate_data_for_period(start, end, office_filter=office)
+                    if office_data:
+                        office_calls = sum(m.calls_fact for m in office_data.values())
+                        office_new = sum(m.new_calls for m in office_data.values())
+                        office_leads = sum(m.leads_units_fact for m in office_data.values())
+                        office_volume = sum(m.leads_volume_fact for m in office_data.values())
+                        office_issued = sum(m.issued_volume for m in office_data.values())
+                        
+                        response += f"\n🏢 <b>{office}</b>\n"
+                        response += f"👥 Менеджеров: {len(office_data)}\n"
+                        response += f"📞 Перезвоны: {office_calls}\n"
+                        response += f"🆕 Новые звонки: {office_new}\n"
+                        response += f"📋 Заявки (шт): {office_leads}\n"
+                        response += f"💰 Заявки (млн): {office_volume:.1f}\n"
+                        response += f"✅ Выдано (млн): {office_issued:.1f}\n"
+                        
+                        total_calls += office_calls
+                        total_new += office_new
+                        total_leads += office_leads
+                        total_volume += office_volume
+                        total_issued += office_issued
+                
+                response += f"\n======================\n"
+                response += f"<b>📊 ИТОГО ПО ВСЕМ ОФИСАМ</b>\n"
+                response += f"📞 Перезвоны: {total_calls}\n"
+                response += f"🆕 Новые звонки: {total_new}\n"
+                response += f"📋 Заявки (шт): {total_leads}\n"
+                response += f"💰 Заявки (млн): {total_volume:.1f}\n"
+                response += f"✅ Выдано (млн): {total_issued:.1f}\n"
+                
+                await message.reply(response)
+            else:
+                # For regular offices - generate presentation as before
+                from bot.services.simple_presentation import SimplePresentationService
+                presentation_service = SimplePresentationService(container.settings)
+                office_filter = get_office_by_chat_id(message.chat.id) if message.chat.id else None
+                period_data, prev_data, period_name, start_date, end_date, prev_start, prev_end = await aggregator.aggregate_custom_with_previous(start, end, office_filter=office_filter)
+                if not period_data:
+                    await message.reply("❌ Нет данных за этот период.")
+                    return
+                pptx_bytes = await presentation_service.generate_presentation(period_data, period_name, start_date, end_date, prev_data, prev_start, prev_end, office_filter=office_filter)
+                document = types.BufferedInputFile(pptx_bytes, filename=f"Отчет_По_Активности_{start.strftime('%Y%m%d')}_{end.strftime('%Y%m%d')}.pptx")
+                await message.reply_document(document, caption=f"📊 {period_name}\n🤖 Простой отчёт готов!")
     except Exception as e:
         REPORT_FLOW_STATE.pop(key, None)
         await message.reply(f"❌ Ошибка: {str(e)}")
