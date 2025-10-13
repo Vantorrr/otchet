@@ -136,35 +136,7 @@ async def main() -> None:
                         logging.getLogger(__name__).warning(
                             f"Failed to send morning reminder to {manager} (chat {chat_id}, topic {topic_id}): {err}"
                         )
-                # Then process legacy bindings WITHOUT chat_id only for this chat, skipping duplicates
-                for binding in records:
-                    binding_chat_id = str(binding.get("chat_id", "")).strip()
-                    if binding_chat_id:
-                        continue  # legacy only
-                    topic_id_raw = str(binding.get("topic_id", "")).strip()
-                    if not topic_id_raw.isdigit():
-                        continue
-                    topic_id = int(topic_id_raw)
-                    manager = binding.get("manager")
-                    if not (topic_id and manager):
-                        continue
-                    key = (str(manager), str(topic_id))
-                    if key in seen:
-                        continue
-                    seen.add(key)
-                    total += 1
-                    try:
-                        await bot.send_message(
-                            chat_id,
-                            f"🌅 Утреннее напоминание для <b>{manager}</b>\nВремя заполнить утренний отчет!",
-                            message_thread_id=topic_id,
-                            reply_markup=get_main_menu_keyboard(),
-                        )
-                        sent += 1
-                    except Exception as err:
-                        logging.getLogger(__name__).warning(
-                            f"Failed to send morning reminder to {manager} (chat {chat_id}, topic {topic_id}): {err}"
-                        )
+                # Legacy привязки без chat_id игнорируем, чтобы избежать неверных тем и дублей
             logging.getLogger(__name__).info("Morning reminder sent: %d/%d", sent, total)
         except Exception as e:
             logging.getLogger(__name__).warning(f"Morning reminder error: {e}")
@@ -221,35 +193,7 @@ async def main() -> None:
                         logging.getLogger(__name__).warning(
                             f"Failed to send evening reminder to {manager} (chat {chat_id}, topic {topic_id}): {err}"
                         )
-                # Then process legacy bindings without chat_id
-                for binding in records:
-                    binding_chat_id = str(binding.get("chat_id", "")).strip()
-                    if binding_chat_id:
-                        continue
-                    topic_id_raw = str(binding.get("topic_id", "")).strip()
-                    if not topic_id_raw.isdigit():
-                        continue
-                    topic_id = int(topic_id_raw)
-                    manager = binding.get("manager")
-                    if not (topic_id and manager):
-                        continue
-                    key = (str(manager), str(topic_id))
-                    if key in seen:
-                        continue
-                    seen.add(key)
-                    total += 1
-                    try:
-                        await bot.send_message(
-                            chat_id,
-                            f"🌆 Вечернее напоминание для <b>{manager}</b>\nВремя заполнить вечерний отчет!",
-                            message_thread_id=topic_id,
-                            reply_markup=get_main_menu_keyboard(),
-                        )
-                        sent += 1
-                    except Exception as err:
-                        logging.getLogger(__name__).warning(
-                            f"Failed to send evening reminder to {manager} (chat {chat_id}, topic {topic_id}): {err}"
-                        )
+                # Legacy привязки без chat_id игнорируем, чтобы избежать неверных тем и дублей
             logging.getLogger(__name__).info("Evening reminder sent: %d/%d", sent, total)
         except Exception as e:
             logging.getLogger(__name__).warning(f"Evening reminder error: {e}")
