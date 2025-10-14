@@ -14,11 +14,11 @@ from bot.keyboards.main import get_main_menu_keyboard
 
 class EveningStates(StatesGroup):
     waiting_calls_success = State()
+    waiting_new_calls = State()
     waiting_leads_units = State()
     waiting_leads_volume = State()
     waiting_approved_volume = State()
     waiting_issued_volume = State()
-    waiting_new_calls = State()
 
 
 evening_router = Router()
@@ -42,8 +42,8 @@ async def cmd_evening(message: types.Message, state: FSMContext) -> None:
 @evening_router.message(EveningStates.waiting_calls_success, F.text.regexp(r"^\d+$"))
 async def evening_calls_success(message: types.Message, state: FSMContext) -> None:
     await state.update_data(calls_success=int(message.text))
-    await state.set_state(EveningStates.waiting_leads_units)
-    await message.reply("Завел заявок за сегодня, штуки:")
+    await state.set_state(EveningStates.waiting_new_calls)
+    await message.reply("Количество новых дозвонов:")
 
 
 @evening_router.message(EveningStates.waiting_leads_units, F.text.regexp(r"^\d+$"))
@@ -69,20 +69,16 @@ async def evening_approved(message: types.Message, state: FSMContext) -> None:
 
 @evening_router.message(EveningStates.waiting_issued_volume, F.text.regexp(r"^\d+$"))
 async def evening_issued(message: types.Message, state: FSMContext) -> None:
-    await state.update_data(issued_volume=int(message.text))
-    await state.set_state(EveningStates.waiting_new_calls)
-    await message.reply("Количество новых дозвонов:")
-
-
-@evening_router.message(EveningStates.waiting_new_calls, F.text.regexp(r"^\d+$"))
-async def evening_new_calls(message: types.Message, state: FSMContext) -> None:
     data = await state.get_data()
+    issued_volume = int(message.text)
+    await state.update_data(issued_volume=issued_volume)
+    
+    # Собираем все данные
     calls_success = int(data["calls_success"])  # type: ignore[index]
+    new_calls = int(data["new_calls"])  # type: ignore[index]
     leads_units = int(data["leads_units"])  # type: ignore[index]
     leads_volume = int(data["leads_volume"])  # type: ignore[index]
     approved_volume = int(data.get("approved_volume", 0))  # type: ignore[index]
-    issued_volume = int(data.get("issued_volume", 0))  # type: ignore[index]
-    new_calls = int(message.text)
 
     container = Container.get()
     manager = data["manager"]  # type: ignore[index]
@@ -108,6 +104,13 @@ async def evening_new_calls(message: types.Message, state: FSMContext) -> None:
 
     await state.clear()
     await message.reply("Вечерний отчет сохранен. Спасибо!", reply_markup=get_main_menu_keyboard())
+
+
+@evening_router.message(EveningStates.waiting_new_calls, F.text.regexp(r"^\d+$"))
+async def evening_new_calls(message: types.Message, state: FSMContext) -> None:
+    await state.update_data(new_calls=int(message.text))
+    await state.set_state(EveningStates.waiting_leads_units)
+    await message.reply("Завел заявок за сегодня, штуки:")
 
 
 @evening_router.message(EveningStates.waiting_calls_success)

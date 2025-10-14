@@ -97,6 +97,61 @@ class TempoAnalyticsService:
                 alerts.append(volume_alert)
         
         return alerts
+
+    async def build_monthly_tempo_rows(
+        self,
+        target_date: Optional[date] = None,
+        office_filter: Optional[str] = None,
+    ) -> List[str]:
+        """Return human-readable lines with tempo per manager (even without alerts)."""
+        if target_date is None:
+            target_date = now_in_tz(Container.get().settings).date()
+
+        monthly_plans = self._get_monthly_plans(target_date)
+
+        working_days_total = self._count_working_days(target_date.year, target_date.month)
+        working_days_passed = self._count_working_days_until(target_date)
+        if working_days_total == 0 or working_days_passed == 0:
+            return []
+
+        month_start = date(target_date.year, target_date.month, 1)
+        actual_data = await self._get_actual_data_for_period(month_start, target_date, office_filter=office_filter)
+
+        lines: List[str] = []
+        for manager_name in sorted(actual_data.keys()):
+            act = actual_data.get(manager_name, {})
+            plan = monthly_plans.get(manager_name, {})
+
+            # Calls
+            calls_plan = float(plan.get('calls_plan', 0) or 0)
+            calls_fact = float(act.get('calls_fact', 0) or 0)
+            calls_expected = (calls_plan / working_days_total * working_days_passed) if calls_plan > 0 else None
+            calls_dev_pct = ((calls_fact - calls_expected) / calls_expected * 100) if calls_expected and calls_expected > 0 else None
+
+            # Issued volume (or leads volume plan proxy)
+            vol_plan = float(plan.get('issued_volume_plan', plan.get('leads_volume_plan', 0.0)) or 0.0)
+            vol_fact = float(act.get('issued_volume_fact', 0.0) or 0.0)
+            vol_expected = (vol_plan / working_days_total * working_days_passed) if vol_plan > 0 else None
+            vol_dev_pct = ((vol_fact - vol_expected) / vol_expected * 100) if vol_expected and vol_expected > 0 else None
+
+            def fmt_pair(fact: float, expected: Optional[float]) -> str:
+                if expected is None:
+                    return f"{fact:,.0f} / –"
+                if isinstance(fact, float) and not fact.is_integer():
+                    return f"{fact:.1f} / {expected:.1f}"
+                return f"{int(fact):,} / {expected:.0f}"
+
+            def fmt_dev(dev: Optional[float]) -> str:
+                return f"{dev:+.1f}%" if dev is not None else "–"
+
+            line = (
+                f"👤 {manager_name}\n"
+                f"• 📲 Перезвоны: {fmt_pair(calls_fact, calls_expected)} (∆ {fmt_dev(calls_dev_pct)})\n"
+                f"• 💰 Выдано, млн: {vol_fact:.1f} / {vol_expected:.1f}" + (f" (∆ {vol_dev_pct:+.1f}%)" if vol_expected else " (план не задан)")
+            )
+            lines.append(line)
+
+        return lines
     
     def _analyze_metric_tempo(
         self,

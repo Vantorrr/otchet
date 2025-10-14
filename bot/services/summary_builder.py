@@ -165,22 +165,13 @@ def build_summary_text(settings: Settings, sheets: SheetsClient, day: str, *, st
             "\n".join(
                 [
                     f"\n<b>👤 {manager}</b>",
-                    "<b>План</b>",
-                    f"• 📲 Перезвоны: <b>{calls_planned}</b>",
-                    f"   ☎️ Новые звонки: <b>{new_calls_planned}</b>",
-                    f"• 📝 Заявки, шт: <b>{leads_planned_units}</b>",
-                    f"• 💰 Заявки, млн: <b>{leads_planned_volume}</b>",
-                    "",
                     "<b>Факт</b>",
                     f"• 📲 Перезвоны: <b>{calls_success}</b> из <b>{calls_planned}</b>",
-                    f"•  ☎️ Новые звонки: <b>{new_calls}</b>",
-                    f"• 📝Заявки, шт: <b>{leads_units}</b>",
+                    f"• ☎️ Новые звонки: <b>{new_calls}</b> из <b>{new_calls_planned}</b>",
+                    f"• 📝 Заявки, шт: <b>{leads_units}</b>",
                     f"• 💰 Заявки, млн: <b>{leads_volume}</b>",
                     f"• ✅ Одобрено, млн: <b>{approved_volume}</b>",
                     f"• ✅ Выдано, млн: <b>{issued_volume}</b>",
-                    "<b>Прогнозность</b>",
-                    f"• 🔮 Перезвоны (факт/план): <b>{calls_forecast_pair}</b>",
-                    f"• 🔮 Заявки (объём) факт/план: <b>{vol_forecast_pair}</b>",
                 ]
             )
         )
@@ -226,22 +217,13 @@ def build_summary_text(settings: Settings, sheets: SheetsClient, day: str, *, st
                 [
                     "\n" + "="*40,
                     f"<b>📊 ИТОГО ПО КОМАНДЕ</b>",
-                    "<b>План</b>",
-                    f"• 📲 Перезвоны: <b>{total_calls_planned}</b>",
-                    f"   ☎️ Новые звонки: <b>{total_new_calls_planned}</b>",
-                    f"• 📝 Заявки, шт: <b>{total_leads_planned_units}</b>",
-                    f"• 💰 Заявки, млн: <b>{total_leads_planned_volume}</b>",
-                    "",
                     "<b>Факт</b>",
                     f"• 📲 Перезвоны: <b>{total_calls_success}</b> из <b>{total_calls_planned}</b>",
-                    f"•  ☎️ Новые звонки: <b>{total_new_calls}</b>",
-                    f"• 📝Заявки, шт: <b>{total_leads_units}</b>",
+                    f"• ☎️ Новые звонки: <b>{total_new_calls}</b> из <b>{total_new_calls_planned}</b>",
+                    f"• 📝 Заявки, шт: <b>{total_leads_units}</b>",
                     f"• 💰 Заявки, млн: <b>{total_leads_volume}</b>",
                     f"• ✅ Одобрено, млн: <b>{total_approved_volume}</b>",
                     f"• ✅ Выдано, млн: <b>{total_issued_volume}</b>",
-                    "<b>Прогнозность</b>",
-                    f"• 🔮 Перезвоны (факт/план): <b>{total_calls_forecast_pair}</b>",
-                    f"• 🔮 Заявки (объём) факт/план: <b>{total_vol_forecast_pair}</b>",
                     "="*40,
                 ]
             )

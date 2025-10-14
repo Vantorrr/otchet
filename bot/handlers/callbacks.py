@@ -769,7 +769,12 @@ async def callback_tempo_check(callback: types.CallbackQuery) -> None:
         alerts = await tempo_service.analyze_monthly_tempo(office_filter=office_filter)
         
         if not alerts:
-            await callback.message.answer("✅ Все менеджеры работают в рамках плана!")
+            # No alerts – show per‑manager tempo anyway
+            rows = await tempo_service.build_monthly_tempo_rows(office_filter=office_filter)
+            if rows:
+                await callback.message.answer("✅ Все в темпе. Детализация по менеджерам:\n\n" + "\n\n".join(rows))
+            else:
+                await callback.message.answer("✅ Все менеджеры работают в рамках плана!")
             await callback.answer()
             return
         
@@ -790,6 +795,10 @@ async def callback_tempo_check(callback: types.CallbackQuery) -> None:
                 response += f"{alert.message}\n\n"
         
         await callback.message.answer(response)
+        # Also append per‑manager rows for context
+        rows = await tempo_service.build_monthly_tempo_rows(office_filter=office_filter)
+        if rows:
+            await callback.message.answer("📋 Детализация:\n\n" + "\n\n".join(rows))
         
     except Exception as e:
         await callback.message.answer(f"❌ Ошибка при анализе темпа: {str(e)}")
