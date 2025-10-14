@@ -441,7 +441,7 @@ class SimplePresentationService:
         tbl_height = Inches(3.3)
         tbl = slide.shapes.add_table(rows, cols, margin, Inches(0.9), tbl_width, tbl_height).table
         
-        col_widths = [Inches(2.2), Inches(1.6), Inches(1.5), Inches(1.7), Inches(1.8), Inches(2.0)]
+        col_widths = [Inches(2.5), Inches(1.5), Inches(1.4), Inches(1.6), Inches(1.7), Inches(1.9)]
         for c in range(6):
             tbl.columns[c].width = col_widths[c]
         
@@ -514,6 +514,10 @@ class SimplePresentationService:
                 if r % 2 == 0:
                     cell.fill.solid()
                     cell.fill.fore_color.rgb = hex_to_rgb("#F7F9FC")
+                # Add padding for first column
+                if c == 0:
+                    cell.text_frame.margin_left = Inches(0.1)
+                    cell.text_frame.margin_right = Inches(0.05)
                 for p in cell.text_frame.paragraphs:
                     p.font.name = "Roboto"
                     p.font.size = Pt(10)
