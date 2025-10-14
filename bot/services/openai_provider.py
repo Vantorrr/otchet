@@ -32,7 +32,7 @@ class OpenAIProvider:
             "temperature": temperature,
             "max_tokens": max_tokens,
             "messages": [
-                {"role": "system", "content": "Вы руководитель отдела. Отвечайте кратко и по делу. Не используйте технические термины и разметку."},
+                {"role": "system", "content": "Вы опытный руководитель отдела банковских гарантий. Пишите кратко, по делу, без Markdown."},
                 {"role": "user", "content": prompt},
             ],
         }
