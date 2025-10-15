@@ -120,8 +120,4 @@ async def evening_new_calls(message: types.Message, state: FSMContext) -> None:
 @evening_router.message(EveningStates.waiting_issued_volume)
 @evening_router.message(EveningStates.waiting_new_calls)
 async def evening_invalid(message: types.Message) -> None:
-    # Проверяем, не медиафайл ли это
-    if message.photo or message.video or message.document or message.voice or message.audio:
-        await message.reply("❌ Отправлен медиафайл вместо числа.\n\nПожалуйста, введите число.")
-    else:
-        await message.reply("Введите число.")
+    await message.reply("Введите число.")

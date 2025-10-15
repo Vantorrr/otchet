@@ -74,8 +74,4 @@ async def morning_new_calls_planned(message: types.Message, state: FSMContext) -
 @morning_router.message(MorningStates.waiting_calls_planned)
 @morning_router.message(MorningStates.waiting_new_calls_planned)
 async def morning_invalid(message: types.Message) -> None:
-    # Проверяем, не медиафайл ли это
-    if message.photo or message.video or message.document or message.voice or message.audio:
-        await message.reply("❌ Отправлен медиафайл вместо числа.\n\nПожалуйста, введите число.")
-    else:
-        await message.reply("Введите число.")
+    await message.reply("Введите число.")
