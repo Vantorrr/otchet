@@ -569,6 +569,14 @@ async def callback_presentation_week(callback: types.CallbackQuery) -> None:
             office_filter = get_office_by_chat_id(callback.message.chat.id)
             if office_filter == "Unknown":
                 office_filter = None
+            
+            # Special handling for Savela office
+            if callback.message.chat.id == -1002273566288:
+                office_filter = "Савела"
+                
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"Presentation week: chat_id={callback.message.chat.id}, office_filter={office_filter}")
         
         # Get weekly data (with previous for comparison)
         period_data, previous_data, period_name, start_date, end_date, prev_start, prev_end = await aggregator.aggregate_weekly_data_with_previous(office_filter=office_filter)
@@ -627,6 +635,14 @@ async def callback_presentation_month(callback: types.CallbackQuery) -> None:
             office_filter = get_office_by_chat_id(callback.message.chat.id)
             if office_filter == "Unknown":
                 office_filter = None
+            
+            # Special handling for Savela office
+            if callback.message.chat.id == -1002273566288:
+                office_filter = "Савела"
+                
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"Presentation month: chat_id={callback.message.chat.id}, office_filter={office_filter}")
         
         # Get monthly data (with previous for comparison)
         period_data, previous_data, period_name, start_date, end_date, prev_start, prev_end = await aggregator.aggregate_monthly_data_with_previous(office_filter=office_filter)
@@ -685,6 +701,14 @@ async def callback_presentation_quarter(callback: types.CallbackQuery) -> None:
             office_filter = get_office_by_chat_id(callback.message.chat.id)
             if office_filter == "Unknown":
                 office_filter = None
+            
+            # Special handling for Savela office
+            if callback.message.chat.id == -1002273566288:
+                office_filter = "Савела"
+                
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"Presentation quarter: chat_id={callback.message.chat.id}, office_filter={office_filter}")
         
         # Get quarterly data (with previous for comparison)
         period_data, previous_data, period_name, start_date, end_date, prev_start, prev_end = await aggregator.aggregate_quarterly_data_with_previous(office_filter=office_filter)
@@ -766,6 +790,10 @@ async def callback_tempo_check(callback: types.CallbackQuery) -> None:
                         break
             if office_filter == "Unknown":
                 office_filter = None
+            
+            # Special handling for Savela office
+            if callback.message.chat.id == -1002273566288:
+                office_filter = "Савела"
         alerts = await tempo_service.analyze_monthly_tempo(office_filter=office_filter)
         
         if not alerts:

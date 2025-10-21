@@ -392,7 +392,19 @@ async def cmd_presentation_range(message: types.Message, command: CommandObject)
         aggregator = DataAggregatorService(container.sheets)
         from bot.services.simple_presentation import SimplePresentationService
         presentation_service = SimplePresentationService(container.settings)
-        period_data, prev_data, period_name, start_date, end_date, prev_start, prev_end = await aggregator.aggregate_custom_with_previous(start, end)
+        
+        # Determine office filter for non-HQ chats
+        office_filter = None
+        if message.chat and not is_hq(message.chat.id):
+            office_filter = get_office_by_chat_id(message.chat.id)
+            if office_filter == "Unknown":
+                office_filter = None
+            
+            # Special handling for Savela office
+            if message.chat.id == -1002273566288:
+                office_filter = "Савела"
+        
+        period_data, prev_data, period_name, start_date, end_date, prev_start, prev_end = await aggregator.aggregate_custom_with_previous(start, end, office_filter=office_filter)
         if not period_data:
             await message.reply("❌ Нет данных за этот период.")
             return
@@ -402,7 +414,7 @@ async def cmd_presentation_range(message: types.Message, command: CommandObject)
             # Proceed without comparison
             prev_data = {}
             
-        pptx_bytes = await presentation_service.generate_presentation(period_data, period_name, start_date, end_date, prev_data, prev_start, prev_end)
+        pptx_bytes = await presentation_service.generate_presentation(period_data, period_name, start_date, end_date, prev_data, prev_start, prev_end, office_filter=office_filter)
         document = types.BufferedInputFile(pptx_bytes, filename=f"Отчет_По_Активности_{start.strftime('%Y%m%d')}_{end.strftime('%Y%m%d')}.pptx")
         await message.reply_document(document, caption=f"📊 {period_name}\n🤖 Презентация готова!")
     except Exception as e:
@@ -429,11 +441,23 @@ async def cmd_simple_range(message: types.Message, command: CommandObject) -> No
         aggregator = DataAggregatorService(container.sheets)
         from bot.services.simple_presentation import SimplePresentationService
         presentation_service = SimplePresentationService(container.settings)
-        period_data, prev_data, period_name, start_date, end_date, prev_start, prev_end = await aggregator.aggregate_custom_with_previous(start, end)
+        
+        # Determine office filter for non-HQ chats
+        office_filter = None
+        if message.chat and not is_hq(message.chat.id):
+            office_filter = get_office_by_chat_id(message.chat.id)
+            if office_filter == "Unknown":
+                office_filter = None
+            
+            # Special handling for Savela office
+            if message.chat.id == -1002273566288:
+                office_filter = "Савела"
+        
+        period_data, prev_data, period_name, start_date, end_date, prev_start, prev_end = await aggregator.aggregate_custom_with_previous(start, end, office_filter=office_filter)
         if not period_data:
             await message.reply("❌ Нет данных за этот период.")
             return
-        pptx_bytes = await presentation_service.generate_presentation(period_data, period_name, start_date, end_date, prev_data, prev_start, prev_end)
+        pptx_bytes = await presentation_service.generate_presentation(period_data, period_name, start_date, end_date, prev_data, prev_start, prev_end, office_filter=office_filter)
         document = types.BufferedInputFile(pptx_bytes, filename=f"Отчет_По_Активности_{start.strftime('%Y%m%d')}_{end.strftime('%Y%m%d')}.pptx")
         await message.reply_document(document, caption=f"📊 {period_name}\n🤖 Простой отчёт готов!")
     except Exception as e:
@@ -469,7 +493,18 @@ async def cmd_slides_range(message: types.Message, command: CommandObject) -> No
     try:
         aggregator = DataAggregatorService(container.sheets)
         
-        period_data, prev_data, period_name, start_date, end_date, prev_start, prev_end = await aggregator.aggregate_custom_with_previous(start, end)
+        # Determine office filter for non-HQ chats
+        office_filter = None
+        if message.chat and not is_hq(message.chat.id):
+            office_filter = get_office_by_chat_id(message.chat.id)
+            if office_filter == "Unknown":
+                office_filter = None
+            
+            # Special handling for Savela office
+            if message.chat.id == -1002273566288:
+                office_filter = "Савела"
+        
+        period_data, prev_data, period_name, start_date, end_date, prev_start, prev_end = await aggregator.aggregate_custom_with_previous(start, end, office_filter=office_filter)
         if not period_data:
             await message.reply("❌ Нет данных за этот период.")
             return
@@ -481,7 +516,7 @@ async def cmd_slides_range(message: types.Message, command: CommandObject) -> No
         from bot.services.premium_presentation import PremiumPresentationService
         presentation_service = PremiumPresentationService(container.settings)
         pptx_bytes = await presentation_service.generate_presentation(
-            period_data, period_name, start_date, end_date, prev_data, prev_start, prev_end, daily_series
+            period_data, period_name, start_date, end_date, prev_data, prev_start, prev_end, daily_series, office_filter=office_filter
         )
         
         document = types.BufferedInputFile(
@@ -521,11 +556,23 @@ async def cmd_presentation_compare(message: types.Message, command: CommandObjec
         container = Container.get()
         aggregator = DataAggregatorService(container.sheets)
         presentation_service = PresentationService(container.settings)
-        data_a, data_b, title, start_a, end_a, start_b, end_b = await aggregator.aggregate_two_periods(a_start, a_end, b_start, b_end)
+        
+        # Determine office filter for non-HQ chats
+        office_filter = None
+        if message.chat and not is_hq(message.chat.id):
+            office_filter = get_office_by_chat_id(message.chat.id)
+            if office_filter == "Unknown":
+                office_filter = None
+            
+            # Special handling for Savela office
+            if message.chat.id == -1002273566288:
+                office_filter = "Савела"
+        
+        data_a, data_b, title, start_a, end_a, start_b, end_b = await aggregator.aggregate_two_periods(a_start, a_end, b_start, b_end, office_filter=office_filter)
         if not data_a and not data_b:
             await message.reply("❌ Нет данных за выбранные периоды.")
             return
-        pptx_bytes = await presentation_service.generate_presentation(data_a, title, start_a, end_a, data_b, start_b, end_b)
+        pptx_bytes = await presentation_service.generate_presentation(data_a, title, start_a, end_a, data_b, start_b, end_b, office_filter=office_filter)
         document = types.BufferedInputFile(pptx_bytes, filename=f"AI_Отчет_{title.replace(' ', '_')}.pptx")
         await message.reply_document(document, caption=f"📊 {title}\n🤖 AI-презентация готова!")
     except Exception as e:
@@ -543,8 +590,19 @@ async def cmd_tempo_check(message: types.Message) -> None:
         # Initialize tempo analytics
         tempo_service = TempoAnalyticsService(container.sheets)
         
+        # Determine office filter for non-HQ chats
+        office_filter = None
+        if message.chat and not is_hq(message.chat.id):
+            office_filter = get_office_by_chat_id(message.chat.id)
+            if office_filter == "Unknown":
+                office_filter = None
+            
+            # Special handling for Savela office
+            if message.chat.id == -1002273566288:
+                office_filter = "Савела"
+        
         # Get tempo alerts
-        alerts = await tempo_service.analyze_monthly_tempo()
+        alerts = await tempo_service.analyze_monthly_tempo(office_filter=office_filter)
         
         if not alerts:
             await message.reply("✅ Все менеджеры работают в рамках плана!")
