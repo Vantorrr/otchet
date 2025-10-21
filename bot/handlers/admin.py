@@ -13,7 +13,7 @@ from bot.services.presentation import PresentationService
 from bot.services.google_slides import GoogleSlidesService
 from bot.services.tempo_analytics import TempoAnalyticsService
 from bot.keyboards.main import get_main_menu_keyboard, get_admin_menu_keyboard
-from bot.offices_config import get_office_by_chat_id
+from bot.offices_config import get_office_by_chat_id, is_hq
 from aiogram.types import CallbackQuery
 from aiogram.filters.command import CommandObject
 from bot.utils.time_utils import parse_date_or_today
